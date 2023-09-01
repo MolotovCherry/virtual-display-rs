@@ -1,0 +1,43 @@
+[package]
+name = "virtual-display-driver"
+version = "0.1.1"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+thiserror = "1.0.47"
+
+[dependencies.windows]
+version = "0.51.1"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Dxgi",
+    "Win32_UI_WindowsAndMessaging",
+
+
+    "Wdk_System_SystemServices",
+    "Wdk_Foundation",
+    "Wdk_Storage_FileSystem",
+    "Win32_Security",
+    "Win32_System_IO",
+    "Win32_System_Kernel",
+    "Win32_System_Power",
+    "Win32_System_WindowsProgramming",
+]
+
+[build-dependencies]
+winres = "0.1.12"
+
+[profile.release]
+strip = true
+codegen-units = 1
+lto = true
+
+[package.metadata.winres]
+OriginalFilename = "virtual_display_driver.dll"
+FileDescription = "Virtual Display Driver"
+ProductName = "virtual_display_driver"

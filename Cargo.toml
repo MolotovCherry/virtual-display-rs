@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["virtual_monitor_driver", "wdf-umdf-sys", "wdf-umdf"]
