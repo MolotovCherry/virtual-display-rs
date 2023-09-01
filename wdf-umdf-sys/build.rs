@@ -1,38 +1,116 @@
-use std::{env, error::Error, path::PathBuf};
+use std::path::PathBuf;
+use winreg::enums::HKEY_LOCAL_MACHINE;
+use winreg::RegKey;
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error("cannot find the directory")]
+    DirectoryNotFound,
+}
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+
+    generate();
+}
+
+/// Retrieves the path to the Windows Kits directory. The default should be
+/// `C:\Program Files (x86)\Windows Kits\10`.
+pub fn get_windows_kits_dir() -> Result<PathBuf, Error> {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let key = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots";
+    let dir: String = hklm.open_subkey(key)?.get_value("KitsRoot10")?;
+
+    Ok(dir.into())
+}
+
+#[derive(Clone, Copy)]
+pub enum DirectoryType {
+    Include,
+    Library,
+}
+
+/// Retrieves the path to the user mode libraries. The path may look something like:
+/// `C:\Program Files (x86)\Windows Kits\10\lib\10.0.18362.0\um`.
+pub fn get_um_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
+    // We first append lib to the path and read the directory..
+    let dir = get_windows_kits_dir()?
+        .join(match dir_type {
+            DirectoryType::Include => "Include",
+            DirectoryType::Library => "Lib",
+        })
+        .read_dir()?;
+
+    // In the lib directory we may have one or more directories named after the version of Windows,
+    // we will be looking for the highest version number.
+    let dir = dir
+        .filter_map(Result::ok)
+        .map(|dir| dir.path())
+        .filter(|dir| {
+            dir.components()
+                .last()
+                .and_then(|c| c.as_os_str().to_str())
+                .map_or(false, |c| c.starts_with("10.") && dir.join("um").is_dir())
+        })
+        .max()
+        .ok_or_else(|| Error::DirectoryNotFound)?;
+
+    // Finally append um to the path to get the path to the user mode libraries.
+    Ok(dir.join("um"))
+}
+
+pub fn get_umdf_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
+    Ok(get_windows_kits_dir()?.join(match dir_type {
+        DirectoryType::Include => PathBuf::from_iter(["Include", "wdf", "umdf", "2.33"]),
+        DirectoryType::Library => PathBuf::from_iter(["Lib", "wdf", "umdf", "x64", "2.33"]),
+    }))
+}
+
+fn build_dir() -> PathBuf {
+    PathBuf::from(
+        std::env::var_os("OUT_DIR").expect("the environment variable OUT_DIR is undefined"),
+    )
+}
+
+fn generate() {
+    // Tell Cargo to re-run this if src/wrapper.h gets changed.
+    println!("cargo:rerun-if-changed=c/wrapper.h");
+
+    // Find the include directory containing the user headers.
+    let include_dir = get_um_dir(DirectoryType::Include).unwrap();
+    let wdf_include_dir = get_umdf_dir(DirectoryType::Include).unwrap();
+
     println!(
-        "cargo:rustc-link-search=C:/Program Files (x86)/Windows Kits/10/Lib/wdf/umdf/x64/2.33"
+        "cargo:rustc-link-search={}",
+        get_umdf_dir(DirectoryType::Library).unwrap().display()
     );
-
-    // need linked c runtime for umdf includes
-    println!("cargo:rustc-link-lib=static=ucrt");
-    println!("cargo:rustc-link-lib=static=vcruntime");
 
     // need to link to umdf library too
     println!("cargo:rustc-link-lib=static=WdfDriverStubUm");
 
-    println!("cargo:rerun-if-changed=wrapper.h");
+    // Get the build directory.
+    let out_path = build_dir();
 
-    let bindings = bindgen::Builder::default()
-        .header("wrapper.h")
-        .detect_include_paths(true)
-        // add umdf include path
-        .clang_arg("-IC:/Program Files (x86)/Windows Kits/10/Include/wdf/umdf/2.33")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+    // Generate the bindings
+    let umdf = bindgen::Builder::default()
+        .header("c/wrapper.h")
+        .use_core()
+        .derive_debug(false)
+        .layout_tests(false)
         .derive_default(true)
-        // just some type that generated improperly
-        .blocklist_type("_IMAGE_TLS_DIRECTORY64")
-        .blocklist_type("IMAGE_TLS_DIRECTORY64")
-        .blocklist_type("IMAGE_TLS_DIRECTORY")
-        .blocklist_type("PIMAGE_TLS_DIRECTORY64")
-        .blocklist_type("PIMAGE_TLS_DIRECTORY")
-        // Finish the builder and generate the bindings.
-        .generate()?;
+        .default_enum_style(bindgen::EnumVariation::NewType {
+            is_bitfield: false,
+            is_global: false,
+        })
+        .clang_arg(format!("-I{}", include_dir.display()))
+        .clang_arg(format!("-I{}", wdf_include_dir.display()))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
+        .generate()
+        .unwrap();
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR")?);
-    bindings.write_to_file(out_path.join("umdf.rs"))?;
-
-    Ok(())
+    umdf.write_to_file(out_path.join("umdf.rs")).unwrap();
 }

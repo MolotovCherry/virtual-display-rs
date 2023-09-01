@@ -8,6 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 thiserror = "1.0.47"
+wdf-umdf-sys = { path = "../wdf-umdf-sys" }
+wdf-umdf = { path = "../wdf-umdf" }
 
 [dependencies.windows]
 version = "0.51.1"
@@ -31,11 +33,6 @@ features = [
 
 [build-dependencies]
 winres = "0.1.12"
-
-[profile.release]
-strip = true
-codegen-units = 1
-lto = true
 
 [package.metadata.winres]
 OriginalFilename = "virtual_display_driver.dll"
