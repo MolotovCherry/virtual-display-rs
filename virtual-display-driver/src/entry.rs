@@ -33,14 +33,16 @@ extern "system" fn DriverEntry(
         ..Default::default()
     };
 
-    let status = WdfFunction!(
-        WdfDriverCreate,
-        driver_object,
-        registry_path,
-        &mut attributes,
-        &mut config,
-        std::ptr::null()
-    );
+    unsafe {
+        WdfFunction!(
+            WdfDriverCreate,
+            driver_object,
+            registry_path,
+            &mut attributes,
+            &mut config,
+            std::ptr::null_mut()
+        );
+    }
 
     // if status.is_err() {
     //     display_popup(
