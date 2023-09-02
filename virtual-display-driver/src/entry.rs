@@ -24,7 +24,7 @@ extern "system" fn DriverEntry(
             None,
         )
     }
-    .unwrap_or(0xC0000225u32.into())
+    .unwrap_or_else(|e| e.into())
 }
 
 extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) -> NTSTATUS {

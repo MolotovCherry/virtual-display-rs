@@ -12,6 +12,15 @@ pub enum WdfError {
     WdfFunctionNotAvailable(&'static str),
 }
 
+impl From<WdfError> for NTSTATUS {
+    fn from(value: WdfError) -> Self {
+        use WdfError::*;
+        match value {
+            WdfFunctionNotAvailable(_) => 0xC0000225u32.into(),
+        }
+    }
+}
+
 macro_rules! WdfCall {
     ($name:ident ( $($args:expr),* )) => {{
         let fn_handle = {
