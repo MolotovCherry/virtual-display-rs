@@ -96,7 +96,6 @@ fn generate() {
     let umdf = bindgen::Builder::default()
         .derive_debug(false)
         .layout_tests(false)
-        .derive_default(true)
         .default_enum_style(bindgen::EnumVariation::NewType {
             is_bitfield: false,
             is_global: false,

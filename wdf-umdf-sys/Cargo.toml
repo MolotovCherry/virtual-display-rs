@@ -3,6 +3,9 @@ name = "wdf-umdf-sys"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+paste = "1.0.14"
+
 [build-dependencies]
 bindgen = "0.66.1"
 thiserror = "1.0.40"
