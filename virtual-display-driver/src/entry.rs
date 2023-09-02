@@ -1,7 +1,8 @@
 use wdf_umdf::{WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate};
 use wdf_umdf_sys::{
-    NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
-    WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE, _DRIVER_OBJECT, _UNICODE_STRING,
+    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG,
+    WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE, _DRIVER_OBJECT,
+    _UNICODE_STRING,
 };
 
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
@@ -34,6 +35,8 @@ extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) ->
     unsafe {
         _ = WdfDeviceInitSetPnpPowerEventCallbacks(init, &mut callbacks);
     }
+
+    let config = IDD_CX_CLIENT_CONFIG::init();
 
     //IDD_CX_CLIENT_CONFIG_INIT;
 

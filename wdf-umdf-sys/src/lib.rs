@@ -77,7 +77,7 @@ impl WDF_OBJECT_ATTRIBUTES {
         // SAFETY: All fields are zero-able
         let mut attributes: Self = unsafe { ::core::mem::zeroed() };
 
-        attributes.Size = WDF_STRUCTURE_SIZE!(WDF_OBJECT_ATTRIBUTES);
+        attributes.Size = WDF_STRUCTURE_SIZE!(Self);
         attributes.SynchronizationScope =
             WDF_SYNCHRONIZATION_SCOPE::WdfSynchronizationScopeInheritFromParent;
         attributes.ExecutionLevel = WDF_EXECUTION_LEVEL::WdfExecutionLevelInheritFromParent;
@@ -94,7 +94,7 @@ impl WDF_DRIVER_CONFIG {
         // SAFETY: All fields are zero-able
         let mut config: Self = unsafe { core::mem::zeroed() };
 
-        config.Size = WDF_STRUCTURE_SIZE!(WDF_DRIVER_CONFIG);
+        config.Size = WDF_STRUCTURE_SIZE!(Self);
 
         config.EvtDriverDeviceAdd = EvtDriverDeviceAdd;
 
@@ -109,9 +109,20 @@ impl WDF_PNPPOWER_EVENT_CALLBACKS {
     pub fn init() -> Self {
         // SAFETY: All fields are zero-able
         let mut callbacks: Self = unsafe { core::mem::zeroed() };
-        callbacks.Size = WDF_STRUCTURE_SIZE!(WDF_PNPPOWER_EVENT_CALLBACKS);
+        callbacks.Size = WDF_STRUCTURE_SIZE!(Self);
 
         callbacks
+    }
+}
+
+impl IDD_CX_CLIENT_CONFIG {
+    #[must_use]
+    pub fn init() -> Self {
+        // SAFETY: All fields are zero-able
+        let mut config: Self = unsafe { core::mem::zeroed() };
+        config.Size = WDF_STRUCTURE_SIZE!(Self);
+
+        config
     }
 }
 
