@@ -36,7 +36,7 @@ pub struct Direct3DDevice {
 }
 
 impl Direct3DDevice {
-    pub fn new(adapter_luid: LUID) -> Result<Self, Direct3DError> {
+    pub fn init(adapter_luid: LUID) -> Result<Self, Direct3DError> {
         let dxgi_factory = unsafe { CreateDXGIFactory2::<IDXGIFactory5>(0)? };
 
         let adapter = unsafe { dxgi_factory.EnumAdapterByLuid::<IDXGIAdapter1>(adapter_luid)? };

@@ -108,6 +108,8 @@ fn generate() {
         .clang_arg(format!("-I{}", wdf_include_dir.display()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
+        // we will use our own custom type
+        .blocklist_item("NTSTATUS")
         // generate
         .generate()
         .unwrap();

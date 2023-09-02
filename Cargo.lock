@@ -301,6 +301,7 @@ dependencies = [
  "wdf-umdf",
  "wdf-umdf-sys",
  "windows",
+ "winreg",
  "winres",
 ]
 

@@ -1,10 +1,8 @@
-use wdf_umdf::{WdfCall, WdfDriverCreate};
+use wdf_umdf::WdfDriverCreate;
 use wdf_umdf_sys::{
-    NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
-    _DRIVER_OBJECT, _UNICODE_STRING,
+    NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
+    WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE, _DRIVER_OBJECT, _UNICODE_STRING,
 };
-
-use crate::popup::{display_popup, MessageBoxIcon};
 
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
 #[no_mangle]
@@ -16,7 +14,7 @@ extern "system" fn DriverEntry(
 
     let mut config = WDF_DRIVER_CONFIG::init(Some(driver_add));
 
-    let status = unsafe {
+    unsafe {
         WdfDriverCreate(
             driver_object,
             registry_path,
@@ -25,14 +23,7 @@ extern "system" fn DriverEntry(
             None,
         )
     }
-    .unwrap_or(0xC0000225u32.into());
-
-    if !status.is_success() {
-        display_popup(
-            "VirtualMonitorDriver",
-            &format!("The driver failed to load: {status}"),
-            MessageBoxIcon::Error,
-        );
+    .unwrap_or(0xC0000225u32.into())
     }
 
     status

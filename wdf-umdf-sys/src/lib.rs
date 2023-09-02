@@ -67,7 +67,7 @@ macro_rules! WDF_NO_OBJECT_ATTRIBUTES {
 
 impl WDF_OBJECT_ATTRIBUTES {
     /// Initializes the [`WDF_OBJECT_ATTRIBUTES`] structure
-    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.27/wdfobject.h#L134
+    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfobject.h#L136
     ///
     /// Sets
     /// - `ExecutionLevel` to [`WDF_SYNCHRONIZATION_SCOPE::WdfSynchronizationScopeInheritFromParent`]
@@ -88,7 +88,7 @@ impl WDF_OBJECT_ATTRIBUTES {
 
 impl WDF_DRIVER_CONFIG {
     /// Initializes the [`WDF_DRIVER_CONFIG`] structure
-    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.23/wdfdriver.h#L131
+    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdriver.h#L134
     #[must_use]
     pub fn init(EvtDriverDeviceAdd: PFN_WDF_DRIVER_DEVICE_ADD) -> Self {
         // SAFETY: All fields are zero-able
@@ -102,8 +102,22 @@ impl WDF_DRIVER_CONFIG {
     }
 }
 
+impl WDF_PNPPOWER_EVENT_CALLBACKS {
+    /// Initializes the [`WDF_PNPPOWER_EVENT_CALLBACKS`] structure
+    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdevice.h#L1278
+    #[must_use]
+    pub fn init() -> Self {
+        // SAFETY: All fields are zero-able
+        let mut callbacks: Self = unsafe { core::mem::zeroed() };
+        callbacks.Size = WDF_STRUCTURE_SIZE!(WDF_PNPPOWER_EVENT_CALLBACKS);
+
+        callbacks
+    }
+}
+
 /// A NTSTATUS wrapper that gives information on the value
 #[repr(transparent)]
+#[derive(Copy, Clone)]
 pub struct NTSTATUS(pub i32);
 
 impl NTSTATUS {
@@ -159,7 +173,7 @@ impl From<i32> for NTSTATUS {
 
 impl From<u32> for NTSTATUS {
     fn from(value: u32) -> Self {
-        let value = bytemuck::cast::<_, i32>(value);
+        let value = bytemuck::cast(value);
         Self(value)
     }
 }

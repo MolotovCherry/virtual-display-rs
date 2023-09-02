@@ -11,28 +11,27 @@ pub enum WdfError {
     WdfFunctionNotAvailable(&'static str),
 }
 
-#[macro_export]
 macro_rules! WdfCall {
     ($name:ident ( $($args:expr),* )) => {{
         let fn_handle = {
-            $crate::paste! {
-                const FN_INDEX: usize = $crate::wdf_umdf_sys::WDFFUNCENUM::[<$name TableIndex>].0 as usize;
+            ::paste::paste! {
+                const FN_INDEX: usize = ::wdf_umdf_sys::WDFFUNCENUM::[<$name TableIndex>].0 as usize;
 
                 // validate that wdf function can be used
-                let is_available = $crate::wdf_umdf_sys::WdfIsFunctionAvailable!($name);
+                let is_available = ::wdf_umdf_sys::WdfIsFunctionAvailable!($name);
 
                 if is_available {
                     // SAFETY: Only immutable accesses are done to this
-                    let fn_table = unsafe { $crate::wdf_umdf_sys::WdfFunctions_02033 };
+                    let fn_table = unsafe { ::wdf_umdf_sys::WdfFunctions_02033 };
 
                     // SAFETY: Read-only, initialized by the time we use it, and checked to be in bounds
                     let fn_handle = unsafe {
                         fn_table
                         .add(FN_INDEX)
-                        .cast::<$crate::wdf_umdf_sys::[<PFN_ $name:upper>]>()
+                        .cast::<::wdf_umdf_sys::[<PFN_ $name:upper>]>()
                     };
 
-                    // SAFETY: Ensured that this is present by the static assert
+                    // SAFETY: Ensured that this is present by if condition from `WdfIsFunctionAvailable!`
                     let fn_handle = unsafe { fn_handle.read() };
                     // SAFETY: All available function handles are not null
                     let fn_handle = unsafe { fn_handle.unwrap_unchecked() };
@@ -46,11 +45,11 @@ macro_rules! WdfCall {
 
         if let Ok(fn_handle) = fn_handle {
             // SAFETY: Pointer to globals is always immutable
-            let globals = unsafe { $crate::wdf_umdf_sys::WdfDriverGlobals };
+            let globals = unsafe { ::wdf_umdf_sys::WdfDriverGlobals };
 
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
             // specify NTSTATUS type so unit can also convert into
-            Ok::<$crate::wdf_umdf_sys::NTSTATUS, _>(fn_handle(globals, $($args),*).into())
+            Ok::<::wdf_umdf_sys::NTSTATUS, _>(fn_handle(globals, $($args),*).into())
         } else {
             // SAFETY: We checked if it was Ok above, and it clearly isn't
             Err(unsafe {

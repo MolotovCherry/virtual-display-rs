@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 thiserror = "1.0.47"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
+winreg = "0.51.0"
 
 [dependencies.windows]
 version = "0.51.1"
@@ -19,7 +20,6 @@ features = [
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Dxgi",
     "Win32_UI_WindowsAndMessaging",
-
 
     "Wdk_System_SystemServices",
     "Wdk_Foundation",
