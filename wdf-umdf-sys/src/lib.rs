@@ -1,6 +1,8 @@
 #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals, unused)]
 
 mod bindings;
+use std::fmt::{self, Display};
+
 pub use bindings::*;
 pub use paste::paste;
 
@@ -97,5 +99,80 @@ impl WDF_DRIVER_CONFIG {
         config.EvtDriverDeviceAdd = EvtDriverDeviceAdd;
 
         config
+    }
+}
+
+/// A NTSTATUS wrapper that gives information on the value
+#[repr(transparent)]
+pub struct NTSTATUS(pub i32);
+
+impl NTSTATUS {
+    //
+    // https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/using-ntstatus-values
+    //
+
+    // NT_SUCCESS
+    pub fn is_success(&self) -> bool {
+        let val = bytemuck::cast::<_, u32>(self.0);
+        match val {
+            // NT_SUCCESS
+            0..=0x3FFFFFFF => true,
+            // NT_INFORMATION
+            0x40000000..=0x7FFFFFFF => true,
+            _ => false,
+        }
+    }
+
+    // NT_INFORMATION
+    pub fn is_information(&self) -> bool {
+        let val = bytemuck::cast::<_, u32>(self.0);
+        match val {
+            0x40000000..=0x7FFFFFFF => true,
+            _ => false,
+        }
+    }
+
+    // NT_WARNING
+    pub fn is_warning(&self) -> bool {
+        let val = bytemuck::cast::<_, u32>(self.0);
+        match val {
+            0x80000000..=0xBFFFFFFF => true,
+            _ => false,
+        }
+    }
+
+    // NT_ERROR
+    pub fn is_error(&self) -> bool {
+        let val = bytemuck::cast::<_, u32>(self.0);
+        match val {
+            0xC0000000..=0xFFFFFFFF => true,
+            _ => false,
+        }
+    }
+}
+
+impl From<i32> for NTSTATUS {
+    fn from(value: i32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u32> for NTSTATUS {
+    fn from(value: u32) -> Self {
+        let value = bytemuck::cast::<_, i32>(value);
+        Self(value)
+    }
+}
+
+// To allow regular calls returning unit to convert into NTSTATUS
+impl From<()> for NTSTATUS {
+    fn from(_: ()) -> Self {
+        Self(0)
+    }
+}
+
+impl Display for NTSTATUS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "0x{:X}", self.0)
     }
 }
