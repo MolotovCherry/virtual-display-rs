@@ -90,11 +90,13 @@ pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
     DeviceInit: PWDFDEVICE_INIT,
     // in
     PnpPowerEventCallbacks: PWDF_PNPPOWER_EVENT_CALLBACKS,
-) -> Result<NTSTATUS, WdfError> {
-    WdfCall! {
+) -> Result<(), WdfError> {
+    _ = WdfCall! {
         WdfDeviceInitSetPnpPowerEventCallbacks(
             DeviceInit,
             PnpPowerEventCallbacks
         )
-    }
+    };
+
+    Ok(())
 }
