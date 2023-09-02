@@ -6,4 +6,4 @@ edition = "2021"
 [build-dependencies]
 bindgen = "0.66.1"
 thiserror = "1.0.40"
-winreg = "0.50.0"
+winreg = "0.51.0"

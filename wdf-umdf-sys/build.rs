@@ -82,10 +82,9 @@ fn generate() {
     let include_dir = get_um_dir(DirectoryType::Include).unwrap();
     let wdf_include_dir = get_umdf_dir(DirectoryType::Include).unwrap();
 
-    println!(
-        "cargo:rustc-link-search={}",
-        get_umdf_dir(DirectoryType::Library).unwrap().display()
-    );
+    let umdf_lib_dir = get_umdf_dir(DirectoryType::Library).unwrap();
+
+    println!("cargo:rustc-link-search={}", umdf_lib_dir.display());
 
     // need to link to umdf library too
     println!("cargo:rustc-link-lib=static=WdfDriverStubUm");
@@ -95,8 +94,6 @@ fn generate() {
 
     // Generate the bindings
     let umdf = bindgen::Builder::default()
-        .header("c/wrapper.h")
-        .use_core()
         .derive_debug(false)
         .layout_tests(false)
         .derive_default(true)
@@ -104,10 +101,15 @@ fn generate() {
             is_bitfield: false,
             is_global: false,
         })
+        .merge_extern_blocks(true)
+        .header("c/wrapper.h")
+        // important since we're using the stub
+        .clang_arg("-DWDF_STUB")
         .clang_arg(format!("-I{}", include_dir.display()))
         .clang_arg(format!("-I{}", wdf_include_dir.display()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
+        // generate
         .generate()
         .unwrap();
 

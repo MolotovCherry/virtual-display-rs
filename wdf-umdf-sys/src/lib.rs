@@ -2,5 +2,3 @@
 
 mod bindings;
 pub use bindings::*;
-
-//binding::foo;
