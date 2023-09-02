@@ -1,4 +1,4 @@
-use wdf_umdf::WdfDriverCreate;
+use wdf_umdf::{WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate};
 use wdf_umdf_sys::{
     NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
     WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE, _DRIVER_OBJECT, _UNICODE_STRING,
@@ -24,11 +24,25 @@ extern "system" fn DriverEntry(
         )
     }
     .unwrap_or(0xC0000225u32.into())
-    }
-
-    status
 }
 
-extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) -> i32 {
+extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) -> NTSTATUS {
+    let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
+
+    callbacks.EvtDeviceD0Entry = Some(device_d0_entry);
+
+    unsafe {
+        _ = WdfDeviceInitSetPnpPowerEventCallbacks(init, &mut callbacks);
+    }
+
+    //IDD_CX_CLIENT_CONFIG_INIT;
+
+    todo!()
+}
+
+extern "C" fn device_d0_entry(
+    device: WDFDEVICE,
+    previous_state: WDF_POWER_DEVICE_STATE,
+) -> NTSTATUS {
     todo!()
 }

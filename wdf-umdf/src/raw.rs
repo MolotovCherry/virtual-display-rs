@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
 
 use wdf_umdf_sys::{
-    NTSTATUS, PCUNICODE_STRING, PDRIVER_OBJECT, PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES,
-    WDFDRIVER, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES,
+    NTSTATUS, PCUNICODE_STRING, PDRIVER_OBJECT, PWDFDEVICE_INIT, PWDF_DRIVER_CONFIG,
+    PWDF_OBJECT_ATTRIBUTES, PWDF_PNPPOWER_EVENT_CALLBACKS, WDFDRIVER, WDF_NO_HANDLE,
+    WDF_NO_OBJECT_ATTRIBUTES,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -59,7 +60,6 @@ macro_rules! WdfCall {
     }};
 }
 
-#[must_use]
 pub unsafe fn WdfDriverCreate(
     // in
     DriverObject: PDRIVER_OBJECT,
@@ -81,6 +81,20 @@ pub unsafe fn WdfDriverCreate(
             Driver
                 .map(|d| d as *mut _)
                 .unwrap_or(WDF_NO_HANDLE!() as *mut *mut _)
+        )
+    }
+}
+
+pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
+    // in
+    DeviceInit: PWDFDEVICE_INIT,
+    // in
+    PnpPowerEventCallbacks: PWDF_PNPPOWER_EVENT_CALLBACKS,
+) -> Result<NTSTATUS, WdfError> {
+    WdfCall! {
+        WdfDeviceInitSetPnpPowerEventCallbacks(
+            DeviceInit,
+            PnpPowerEventCallbacks
         )
     }
 }
