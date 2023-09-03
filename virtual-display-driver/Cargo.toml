@@ -11,6 +11,8 @@ thiserror = "1.0.47"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 winreg = "0.51.0"
+eventlog = "0.2.2"
+log = "0.4.20"
 
 [dependencies.windows]
 version = "0.51.1"
