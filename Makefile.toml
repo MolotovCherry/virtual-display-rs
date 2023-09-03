@@ -1,5 +1,7 @@
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
+BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
 
 [env.dev]
 TARGET_PATH = "x86_64-pc-windows-msvc/debug"
@@ -8,20 +10,8 @@ TARGET_PATH = "x86_64-pc-windows-msvc/debug"
 TARGET_PATH = "x86_64-pc-windows-msvc/release"
 BUILD_FLAGS = "--release"
 
-[tasks.build-driver]
-script = ["cargo b %BUILD_FLAGS% -p virtual-display-driver"]
-
-[tasks.sign]
-dependencies = ["build-driver"]
-script = [
-    # Load the Visual Studio Developer environment
-    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
-
-    # Create a self signed certificate (only if not already done)
-    "if not exist DriverCertificate.cer ( makecert -r -pe -ss PrivateCertStore -n CN=DriverCertificate DriverCertificate.cer )",
-
-    # Sign the driver
-    '''
+[tasks.set-build-path]
+env = { "BUILD_TARGET_PATH" = { script = ['''
     if defined CARGO_TARGET_DIR (
         set "target_dir=%CARGO_TARGET_DIR%"
     ) else if defined CARGO_BUILD_TARGET_DIR (
@@ -30,10 +20,32 @@ script = [
         set "target_dir=target"
     )
 
-    set "build_target=%target_dir%/%TARGET_PATH%/virtual_display_driver.dll"
+    echo %target_dir%/%TARGET_PATH%
+'''] } }
 
-    signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com %build_target%
-    ''',
+[tasks.build-driver]
+dependencies = ["set-build-path"]
+script = ["cargo b %BUILD_FLAGS% -p virtual-display-driver"]
+
+[tasks.rename]
+dependencies = ["build-driver"]
+script = ['''
+    cd /D %BUILD_TARGET_PATH%
+    del  /f /q "%BUILD_DLL_NAME%"
+    ren "%BUILD_DLL_OLD_NAME%" "%BUILD_DLL_NAME%"
+    ''']
+
+[tasks.sign]
+dependencies = ["build-driver", "rename"]
+script = [
+    # Load the Visual Studio Developer environment
+    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
+
+    # Create a self signed certificate (only if not already done)
+    "if not exist DriverCertificate.cer ( makecert -r -pe -ss PrivateCertStore -n CN=DriverCertificate DriverCertificate.cer )",
+
+    # Sign the driver
+    "signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
 ]
 
 [config]

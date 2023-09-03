@@ -37,6 +37,5 @@ features = [
 winres = "0.1.12"
 
 [package.metadata.winres]
-OriginalFilename = "virtual_display_driver.dll"
-FileDescription = "Virtual Display Driver"
-ProductName = "virtual_display_driver"
+OriginalFilename = "VirtualDisplayDriver.dll"
+ProductName = "Virtual Display Driver"
