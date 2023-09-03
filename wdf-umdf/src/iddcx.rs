@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, PWDFDEVICE_INIT, WDFDEVICE_INIT};
+use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT};
 
 #[derive(Debug, thiserror::Error)]
 pub enum IddCxError {
@@ -24,7 +24,7 @@ macro_rules! IddCxCall {
                 const FN_INDEX: usize = ::wdf_umdf_sys::IDDFUNCENUM::[<$name TableIndex>].0 as usize;
 
                 // validate that wdf function can be used
-                let is_available = ::wdf_umdf_sys::IddIsFunctionAvailable!($name);
+                let is_available = ::wdf_umdf_sys::IddCxIsFunctionAvailable!($name);
 
                 if is_available {
                     // SAFETY: Only immutable accesses are done to this

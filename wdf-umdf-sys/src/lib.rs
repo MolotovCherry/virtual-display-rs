@@ -46,7 +46,7 @@ macro_rules! WdfIsStructureAvailable {
 }
 
 #[macro_export]
-macro_rules! IddIsFunctionAvailable {
+macro_rules! IddCxIsFunctionAvailable {
     ($name:ident) => {{
         // SAFETY: We only ever do read access
         let higher = unsafe { $crate::IddClientVersionHigherThanFramework } != 0;
@@ -63,7 +63,7 @@ macro_rules! IddIsFunctionAvailable {
 }
 
 #[macro_export]
-macro_rules! IddIsStructureAvailable {
+macro_rules! IddCxIsStructureAvailable {
     ($name:ident) => {{
         // SAFETY: We only ever do read access
         let higher = unsafe { $crate::IddClientVersionHigherThanFramework } != 0;
