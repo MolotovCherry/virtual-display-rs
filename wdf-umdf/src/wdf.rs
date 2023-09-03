@@ -59,7 +59,7 @@ macro_rules! WdfCall {
 
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
             // specify NTSTATUS type so unit can also convert into
-            Ok::<::wdf_umdf_sys::NTSTATUS, _>(fn_handle(globals, $($args),*).into())
+            Ok(fn_handle(globals, $($args),*))
         } else {
             // SAFETY: We checked if it was Ok above, and it clearly isn't
             Err(unsafe {
@@ -100,12 +100,10 @@ pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
     // in
     PnpPowerEventCallbacks: PWDF_PNPPOWER_EVENT_CALLBACKS,
 ) -> Result<(), WdfError> {
-    _ = WdfCall! {
+    WdfCall! {
         WdfDeviceInitSetPnpPowerEventCallbacks(
             DeviceInit,
             PnpPowerEventCallbacks
         )
-    };
-
-    Ok(())
+    }
 }

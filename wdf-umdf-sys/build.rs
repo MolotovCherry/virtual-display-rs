@@ -163,6 +163,8 @@ fn generate() {
         .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
         // we will use our own custom type
         .blocklist_item("NTSTATUS")
+        .blocklist_item("IddMinimumVersionRequired")
+        .blocklist_item("WdfMinimumVersionRequired")
         .clang_arg("--language=c++")
         // generate
         .generate()

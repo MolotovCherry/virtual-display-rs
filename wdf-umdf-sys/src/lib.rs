@@ -45,6 +45,39 @@ macro_rules! WdfIsStructureAvailable {
     }};
 }
 
+#[macro_export]
+macro_rules! IddIsFunctionAvailable {
+    ($name:ident) => {{
+        // SAFETY: We only ever do read access
+        let higher = unsafe { $crate::IddClientVersionHigherThanFramework } != 0;
+        // SAFETY: We only ever do read access
+        let fn_count = unsafe { $crate::IddFunctionCount };
+
+        $crate::paste! {
+            const FN_INDEX: u32 = $crate::IDDFUNCENUM::[<$name TableIndex>].0 as u32;
+
+            FN_INDEX < $crate::IDD_ALWAYS_AVAILABLE_FUNCTION_COUNT
+            || !higher || FN_INDEX < fn_count
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! IddIsStructureAvailable {
+    ($name:ident) => {{
+        // SAFETY: We only ever do read access
+        let higher = unsafe { $crate::IddClientVersionHigherThanFramework } != 0;
+        // SAFETY: We only ever do read access
+        let struct_count = unsafe { $crate::IddStructureCount };
+
+        $crate::paste! {
+            const STRUCT_INDEX: u32 = $crate::IDDSTRUCTENUM::[<INDEX_ $name>].0 as u32;
+
+            !higher || STRUCT_INDEX < struct_count
+        }
+    }};
+}
+
 macro_rules! WDF_STRUCTURE_SIZE {
     ($name:ty) => {
         ::core::mem::size_of::<$name>() as u32
@@ -186,13 +219,6 @@ impl From<u32> for NTSTATUS {
     fn from(value: u32) -> Self {
         let value = bytemuck::cast(value);
         Self(value)
-    }
-}
-
-// To allow regular calls returning unit to convert into NTSTATUS
-impl From<()> for NTSTATUS {
-    fn from(_: ()) -> Self {
-        Self(0)
     }
 }
 

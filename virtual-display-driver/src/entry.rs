@@ -1,9 +1,13 @@
-use wdf_umdf::{WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate};
+use wdf_umdf::{IddCxDeviceInitConfig, WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate};
 use wdf_umdf_sys::{
-    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__, WDF_DRIVER_CONFIG,
-    WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE, _DRIVER_OBJECT,
-    _UNICODE_STRING,
+    IDARG_IN_COMMITMODES, IDARG_IN_GETDEFAULTDESCRIPTIONMODES, IDARG_IN_PARSEMONITORDESCRIPTION,
+    IDARG_IN_QUERYTARGETMODES, IDARG_IN_SETSWAPCHAIN, IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
+    IDARG_OUT_PARSEMONITORDESCRIPTION, IDARG_OUT_QUERYTARGETMODES, IDDCX_ADAPTER__,
+    IDDCX_MONITOR__, IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__,
+    WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE,
+    _DRIVER_OBJECT, _UNICODE_STRING,
 };
+use windows::Win32::Foundation::STATUS_NOT_IMPLEMENTED;
 
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
 #[no_mangle]
@@ -36,9 +40,16 @@ extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) ->
         _ = WdfDeviceInitSetPnpPowerEventCallbacks(init, &mut callbacks);
     }
 
-    let config = IDD_CX_CLIENT_CONFIG::init();
+    let mut config = IDD_CX_CLIENT_CONFIG::init();
 
-    //IDD_CX_CLIENT_CONFIG_INIT;
+    config.EvtIddCxParseMonitorDescription = Some(parse_monitor_description);
+    config.EvtIddCxMonitorGetDefaultDescriptionModes = Some(monitor_get_default_modes);
+    config.EvtIddCxMonitorQueryTargetModes = Some(monitor_query_modes);
+    config.EvtIddCxAdapterCommitModes = Some(adapter_commit_modes);
+    config.EvtIddCxMonitorAssignSwapChain = Some(assign_swap_chain);
+    config.EvtIddCxMonitorUnassignSwapChain = Some(unassign_swap_chain);
+
+    let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
 
     todo!()
 }
@@ -47,5 +58,46 @@ extern "C" fn device_d0_entry(
     device: WDFDEVICE,
     previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
+    todo!()
+}
+
+extern "C" fn parse_monitor_description(
+    p_in_args: *const IDARG_IN_PARSEMONITORDESCRIPTION,
+    p_out_args: *mut IDARG_OUT_PARSEMONITORDESCRIPTION,
+) -> NTSTATUS {
+    todo!()
+}
+
+extern "C" fn monitor_get_default_modes(
+    _monitor_object: *mut IDDCX_MONITOR__,
+    _p_in_args: *const IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
+    _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
+) -> NTSTATUS {
+    STATUS_NOT_IMPLEMENTED.0.into()
+}
+
+extern "C" fn monitor_query_modes(
+    monitor_object: *mut IDDCX_MONITOR__,
+    p_in_args: *const IDARG_IN_QUERYTARGETMODES,
+    p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
+) -> NTSTATUS {
+    todo!()
+}
+
+extern "C" fn adapter_commit_modes(
+    adapter_object: *mut IDDCX_ADAPTER__,
+    p_in_args: *const IDARG_IN_COMMITMODES,
+) -> NTSTATUS {
+    todo!()
+}
+
+extern "C" fn assign_swap_chain(
+    monitor_object: *mut IDDCX_MONITOR__,
+    p_in_args: *const IDARG_IN_SETSWAPCHAIN,
+) -> NTSTATUS {
+    todo!()
+}
+
+extern "C" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
     todo!()
 }
