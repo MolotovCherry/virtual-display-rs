@@ -82,6 +82,7 @@ script = [
 
 [tasks.build]
 dependencies = ["build-driver", "rename", "sign", "stamp-inf", "gen-cat"]
+clear = true
 
 [config]
 default_to_workspace = false
