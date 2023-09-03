@@ -58,7 +58,6 @@ macro_rules! WdfCall {
             let globals = unsafe { ::wdf_umdf_sys::WdfDriverGlobals };
 
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
-            // specify NTSTATUS type so unit can also convert into
             Ok(fn_handle(globals, $($args),*))
         } else {
             // SAFETY: We checked if it was Ok above, and it clearly isn't
