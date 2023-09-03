@@ -1,10 +1,10 @@
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 
-[env.development]
+[env.dev]
 TARGET_PATH = "x86_64-pc-windows-msvc/debug"
 
-[env.production]
+[env.prod]
 TARGET_PATH = "x86_64-pc-windows-msvc/release"
 BUILD_FLAGS = "--release"
 
