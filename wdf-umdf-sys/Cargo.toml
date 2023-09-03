@@ -9,6 +9,8 @@ bytemuck = "1.13.1"
 
 [build-dependencies]
 # bindgen 66 has a bug which panics, but 65 works
+# seems fixed in master, but there's no version bump yet
+# https://github.com/rust-lang/rust-bindgen/pull/2567
 bindgen = "0.65.1"
 thiserror = "1.0.40"
 winreg = "0.51.0"
