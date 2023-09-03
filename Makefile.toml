@@ -35,6 +35,19 @@ script = ['''
     ren "%BUILD_DLL_OLD_NAME%" "%BUILD_DLL_NAME%"
     ''']
 
+[tasks.stamp-inf]
+dependencies = ["build-driver"]
+script = [
+    # Load the Visual Studio Developer environment
+    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
+
+    # Stamp inf
+    "stampinf.exe -v \"%CARGO_MAKE_PROJECT_VERSION%\" -d * -a amd64 -u 2.15.0 -f VirtualDisplayDriver.inf",
+
+    # copy inf to target dir
+    "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
+]
+
 [tasks.sign]
 dependencies = ["build-driver", "rename"]
 script = [
@@ -48,5 +61,9 @@ script = [
     "signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
 ]
 
+[tasks.build]
+dependencies = ["build-driver", "rename", "sign", "stamp-inf"]
+
 [config]
 default_to_workspace = false
+main_project_member = "virtual-display-driver"
