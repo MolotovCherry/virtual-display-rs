@@ -4,6 +4,8 @@ BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
 BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
 
 [env.dev]
+# for developer inf stamping mode
+PRIVATE_DRIVER_PACKAGE = "true"
 TARGET_PATH = "x86_64-pc-windows-msvc/debug"
 
 [env.prod]
