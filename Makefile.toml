@@ -7,10 +7,12 @@ BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
 # for developer inf stamping mode
 PRIVATE_DRIVER_PACKAGE = "true"
 TARGET_PATH = "x86_64-pc-windows-msvc/debug"
+CAT_FILE = "delta.cat"
 
 [env.prod]
 TARGET_PATH = "x86_64-pc-windows-msvc/release"
 BUILD_FLAGS = "--release"
+CAT_FILE = "VirtualDisplayDriver.cat"
 
 [tasks.set-build-path]
 env = { "BUILD_TARGET_PATH" = { script = ['''
@@ -43,11 +45,26 @@ script = [
     # Load the Visual Studio Developer environment
     "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
 
-    # Stamp inf
-    "stampinf.exe -v \"%CARGO_MAKE_PROJECT_VERSION%\" -d * -a amd64 -u 2.15.0 -f VirtualDisplayDriver.inf",
-
     # copy inf to target dir
     "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
+
+    # Stamp inf
+    "stampinf.exe -v \"%CARGO_MAKE_PROJECT_VERSION%\" -d * -a amd64 -u 2.15.0 -f \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
+]
+
+[tasks.gen-cat]
+dependencies = ["build-driver", "rename", "stamp-inf"]
+script = [
+    # Load the Visual Studio Developer environment
+    '''
+    REM Get vc env
+    call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
+
+    REM generate cat file
+    inf2cat /driver:%BUILD_TARGET_PATH% /os:10_VB_X64,10_CO_X64,10_NI_X64
+
+    signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
+    ''',
 ]
 
 [tasks.sign]
@@ -64,7 +81,7 @@ script = [
 ]
 
 [tasks.build]
-dependencies = ["build-driver", "rename", "sign", "stamp-inf"]
+dependencies = ["build-driver", "rename", "sign", "stamp-inf", "gen-cat"]
 
 [config]
 default_to_workspace = false
