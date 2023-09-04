@@ -1,3 +1,13 @@
+use wdf_umdf::WDF_DECLARE_CONTEXT_TYPE;
+use wdf_umdf_sys::{
+    IDARG_IN_ADAPTER_INIT_FINISHED, IDARG_IN_COMMITMODES, IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
+    IDARG_IN_PARSEMONITORDESCRIPTION, IDARG_IN_QUERYTARGETMODES, IDARG_IN_SETSWAPCHAIN,
+    IDARG_OUT_GETDEFAULTDESCRIPTIONMODES, IDARG_OUT_PARSEMONITORDESCRIPTION,
+    IDARG_OUT_QUERYTARGETMODES, IDDCX_ADAPTER__, IDDCX_MONITOR__, LIST_ENTRY, NTSTATUS, WDFDEVICE,
+    WDFMEMORY, WDF_POWER_DEVICE_STATE,
+};
+use windows::Win32::Foundation::STATUS_NOT_IMPLEMENTED;
+
 // Taken from
 // https://github.com/ge9/IddSampleDriver/blob/fe98ccff703b5c1e578a0d627aeac2fa77ac58e2/IddSampleDriver/Driver.cpp#L403
 static MONITOR_EDID: &[u8] = &[
@@ -11,4 +21,69 @@ static MONITOR_EDID: &[u8] = &[
     0x00, 0x4C, 0x69, 0x6E, 0x75, 0x78, 0x20, 0x46, 0x48, 0x44, 0x0A, 0x20, 0x20, 0x20, 0x00, 0x05,
 ];
 
-pub struct IndirectDeviceContext {}
+pub struct IndirectDeviceContext {
+    device: WDFDEVICE,
+}
+
+impl IndirectDeviceContext {
+    pub fn new(device: WDFDEVICE) -> Self {
+        Self { device }
+    }
+}
+
+WDF_DECLARE_CONTEXT_TYPE!(pub IndirectDeviceContext);
+
+pub extern "C" fn adapter_init_finished(
+    adapter_object: *mut IDDCX_ADAPTER__,
+    p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn device_d0_entry(
+    device: WDFDEVICE,
+    previous_state: WDF_POWER_DEVICE_STATE,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn parse_monitor_description(
+    p_in_args: *const IDARG_IN_PARSEMONITORDESCRIPTION,
+    p_out_args: *mut IDARG_OUT_PARSEMONITORDESCRIPTION,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn monitor_get_default_modes(
+    _monitor_object: *mut IDDCX_MONITOR__,
+    _p_in_args: *const IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
+    _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
+) -> NTSTATUS {
+    STATUS_NOT_IMPLEMENTED.0.into()
+}
+
+pub extern "C" fn monitor_query_modes(
+    monitor_object: *mut IDDCX_MONITOR__,
+    p_in_args: *const IDARG_IN_QUERYTARGETMODES,
+    p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn adapter_commit_modes(
+    adapter_object: *mut IDDCX_ADAPTER__,
+    p_in_args: *const IDARG_IN_COMMITMODES,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn assign_swap_chain(
+    monitor_object: *mut IDDCX_MONITOR__,
+    p_in_args: *const IDARG_IN_SETSWAPCHAIN,
+) -> NTSTATUS {
+    todo!()
+}
+
+pub extern "C" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
+    todo!()
+}

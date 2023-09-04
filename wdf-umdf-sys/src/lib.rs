@@ -98,6 +98,13 @@ macro_rules! WDF_NO_OBJECT_ATTRIBUTES {
     };
 }
 
+#[macro_export]
+macro_rules! WDF_OBJECT_ATTRIBUTES_SET_CONTEXT_TYPE {
+    ($attr:ident, $context_type:ident) => {
+        $attr.ContextTypeInfo = $context_type;
+    };
+}
+
 impl WDF_OBJECT_ATTRIBUTES {
     /// Initializes the [`WDF_OBJECT_ATTRIBUTES`] structure
     /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfobject.h#L136
@@ -116,6 +123,15 @@ impl WDF_OBJECT_ATTRIBUTES {
         attributes.ExecutionLevel = WDF_EXECUTION_LEVEL::WdfExecutionLevelInheritFromParent;
 
         attributes
+    }
+
+    #[must_use]
+    pub fn init_context_type(context_type: &_WDF_OBJECT_CONTEXT_TYPE_INFO) -> Self {
+        let mut attr = Self::init();
+
+        WDF_OBJECT_ATTRIBUTES_SET_CONTEXT_TYPE!(attr, context_type);
+
+        attr
     }
 }
 
@@ -206,6 +222,12 @@ impl NTSTATUS {
             0xC0000000..=0xFFFFFFFF => true,
             _ => false,
         }
+    }
+}
+
+impl From<()> for NTSTATUS {
+    fn from(value: ()) -> Self {
+        Self(0)
     }
 }
 

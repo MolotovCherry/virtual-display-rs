@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT};
+use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT};
 
 #[derive(Debug, thiserror::Error)]
 pub enum IddCxError {
@@ -73,6 +73,17 @@ pub unsafe fn IddCxDeviceInitConfig(
         IddCxDeviceInitConfig(
             DeviceInit,
             Config
+        )
+    }
+}
+
+pub unsafe fn IddCxDeviceInitialize(
+    // in
+    Device: WDFDEVICE,
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall! {
+        IddCxDeviceInitialize(
+            Device
         )
     }
 }

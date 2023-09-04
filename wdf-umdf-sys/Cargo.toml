@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 paste = "1.0.14"
 bytemuck = "1.13.1"
+thiserror = "1.0.48"
 
 [build-dependencies]
 # bindgen 66 has a bug which panics, but 65 works

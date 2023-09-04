@@ -1,13 +1,17 @@
-use wdf_umdf::{IddCxDeviceInitConfig, WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate};
-use wdf_umdf_sys::{
-    IDARG_IN_COMMITMODES, IDARG_IN_GETDEFAULTDESCRIPTIONMODES, IDARG_IN_PARSEMONITORDESCRIPTION,
-    IDARG_IN_QUERYTARGETMODES, IDARG_IN_SETSWAPCHAIN, IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
-    IDARG_OUT_PARSEMONITORDESCRIPTION, IDARG_OUT_QUERYTARGETMODES, IDDCX_ADAPTER__,
-    IDDCX_MONITOR__, IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT, WDFDRIVER__,
-    WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, WDF_POWER_DEVICE_STATE,
-    _DRIVER_OBJECT, _UNICODE_STRING,
+use wdf_umdf::{
+    IddCxDeviceInitConfig, IddCxDeviceInitialize, WdfDeviceCreate,
+    WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
 };
-use windows::Win32::Foundation::STATUS_NOT_IMPLEMENTED;
+use wdf_umdf_sys::{
+    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT, WDF_DRIVER_CONFIG,
+    WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
+};
+
+use crate::indirect_device_context::{
+    adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
+    monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
+    IndirectDeviceContext, WDF_IndirectDeviceContext_TYPE_INFO, WdfObjectIndirectDeviceContext,
+};
 
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
 #[no_mangle]
@@ -31,7 +35,7 @@ extern "system" fn DriverEntry(
     .unwrap_or_else(|e| e.into())
 }
 
-extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) -> NTSTATUS {
+extern "C" fn driver_add(_driver: *mut WDFDRIVER__, mut init: *mut WDFDEVICE_INIT) -> NTSTATUS {
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
     callbacks.EvtDeviceD0Entry = Some(device_d0_entry);
@@ -41,6 +45,7 @@ extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) ->
     }
 
     let mut config = IDD_CX_CLIENT_CONFIG::init();
+    config.EvtIddCxAdapterInitFinished = Some(adapter_init_finished);
 
     config.EvtIddCxParseMonitorDescription = Some(parse_monitor_description);
     config.EvtIddCxMonitorGetDefaultDescriptionModes = Some(monitor_get_default_modes);
@@ -49,55 +54,42 @@ extern "C" fn driver_add(driver: *mut WDFDRIVER__, init: *mut WDFDEVICE_INIT) ->
     config.EvtIddCxMonitorAssignSwapChain = Some(assign_swap_chain);
     config.EvtIddCxMonitorUnassignSwapChain = Some(unassign_swap_chain);
 
-    let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
+    let mut status =
+        unsafe { IddCxDeviceInitConfig(&mut *init, &config) }.unwrap_or_else(|e| e.into());
+    if !status.is_success() {
+        return status;
+    }
 
-    todo!()
+    let mut attributes =
+        WDF_OBJECT_ATTRIBUTES::init_context_type(&*WDF_IndirectDeviceContext_TYPE_INFO);
+
+    attributes.EvtCleanupCallback = Some(event_cleanup);
+
+    let mut device = std::ptr::null_mut();
+
+    status = unsafe {
+        WdfDeviceCreate(&mut init, Some(&mut attributes), &mut device).unwrap_or_else(|e| e.into())
+    };
+    if !status.is_success() {
+        return status;
+    }
+
+    status = unsafe { IddCxDeviceInitialize(device).unwrap_or_else(|e| e.into()) };
+    if !status.is_success() {
+        return status;
+    }
+
+    let context = IndirectDeviceContext::new(device);
+
+    status = unsafe {
+        WdfObjectIndirectDeviceContext::init(device as WDFOBJECT, context)
+            .unwrap_or_else(|e| e.into())
+            .into()
+    };
+
+    status
 }
 
-extern "C" fn device_d0_entry(
-    device: WDFDEVICE,
-    previous_state: WDF_POWER_DEVICE_STATE,
-) -> NTSTATUS {
-    todo!()
-}
-
-extern "C" fn parse_monitor_description(
-    p_in_args: *const IDARG_IN_PARSEMONITORDESCRIPTION,
-    p_out_args: *mut IDARG_OUT_PARSEMONITORDESCRIPTION,
-) -> NTSTATUS {
-    todo!()
-}
-
-extern "C" fn monitor_get_default_modes(
-    _monitor_object: *mut IDDCX_MONITOR__,
-    _p_in_args: *const IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
-    _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
-) -> NTSTATUS {
-    STATUS_NOT_IMPLEMENTED.0.into()
-}
-
-extern "C" fn monitor_query_modes(
-    monitor_object: *mut IDDCX_MONITOR__,
-    p_in_args: *const IDARG_IN_QUERYTARGETMODES,
-    p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
-) -> NTSTATUS {
-    todo!()
-}
-
-extern "C" fn adapter_commit_modes(
-    adapter_object: *mut IDDCX_ADAPTER__,
-    p_in_args: *const IDARG_IN_COMMITMODES,
-) -> NTSTATUS {
-    todo!()
-}
-
-extern "C" fn assign_swap_chain(
-    monitor_object: *mut IDDCX_MONITOR__,
-    p_in_args: *const IDARG_IN_SETSWAPCHAIN,
-) -> NTSTATUS {
-    todo!()
-}
-
-extern "C" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
-    todo!()
+unsafe extern "C" fn event_cleanup(wdf_object: WDFOBJECT) {
+    _ = WdfObjectIndirectDeviceContext::drop(wdf_object);
 }

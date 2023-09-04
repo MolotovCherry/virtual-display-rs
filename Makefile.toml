@@ -53,7 +53,7 @@ script = [
 ]
 
 [tasks.gen-cat]
-dependencies = ["build-driver", "rename", "stamp-inf"]
+dependencies = ["build-driver", "rename", "stamp-inf", "sign"]
 script = [
     # Load the Visual Studio Developer environment
     '''
@@ -68,7 +68,7 @@ script = [
 ]
 
 [tasks.sign]
-dependencies = ["build-driver", "rename"]
+dependencies = ["build-driver", "rename", "stamp-inf"]
 script = [
     # Load the Visual Studio Developer environment
     "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
