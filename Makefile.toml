@@ -61,7 +61,7 @@ script = [
     call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
 
     REM generate cat file
-    inf2cat /driver:%BUILD_TARGET_PATH% /os:10_VB_X64,10_CO_X64,10_NI_X64
+    inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
 
     signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
     ''',
