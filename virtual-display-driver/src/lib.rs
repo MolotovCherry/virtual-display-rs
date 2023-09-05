@@ -1,5 +1,5 @@
 //
-// Code in this project was adapated from IddSampleDriver
+// Code in this project was adapted from IddSampleDriver
 // https://github.com/ge9/IddSampleDriver
 //
 
@@ -17,6 +17,7 @@ use wdf_umdf_sys::{NTSTATUS, PUNICODE_STRING, PVOID};
 // This is the first thing called when the driver loads.
 // After it finishes, it calls the exported,
 //     DriverEntry: DRIVER_INITIALIZE
+// which is defined in `entry.rs`
 //
 #[link(
     name = "WdfDriverStubUm",
