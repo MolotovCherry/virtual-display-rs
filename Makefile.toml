@@ -6,11 +6,11 @@ BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
 [env.dev]
 # for developer inf stamping mode
 PRIVATE_DRIVER_PACKAGE = "true"
-TARGET_PATH = "x86_64-pc-windows-msvc/debug"
+TARGET_PATH = "debug"
 CAT_FILE = "delta.cat"
 
 [env.prod]
-TARGET_PATH = "x86_64-pc-windows-msvc/release"
+TARGET_PATH = "release"
 BUILD_FLAGS = "--release"
 CAT_FILE = "VirtualDisplayDriver.cat"
 

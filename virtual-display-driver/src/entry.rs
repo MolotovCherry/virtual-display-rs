@@ -1,3 +1,4 @@
+use log::Level;
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, WdfDeviceCreate,
     WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
@@ -6,6 +7,7 @@ use wdf_umdf_sys::{
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT, WDF_DRIVER_CONFIG,
     WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
 };
+use windows::Win32::Foundation::STATUS_UNSUCCESSFUL;
 
 use crate::indirect_device_context::{
     adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
@@ -13,12 +15,30 @@ use crate::indirect_device_context::{
     IndirectDeviceContext, WDF_IndirectDeviceContext_TYPE_INFO, WdfObjectIndirectDeviceContext,
 };
 
+//
+// Our driver's entry point
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
+//
 #[no_mangle]
-extern "system" fn DriverEntry(
+extern "C-unwind" fn DriverEntry(
     driver_object: *mut _DRIVER_OBJECT,
     registry_path: *mut _UNICODE_STRING,
 ) -> NTSTATUS {
+    let status = windebug_logger::init_with_level(if cfg!(debug_assertions) {
+        Level::Debug
+    } else {
+        Level::Info
+    })
+    .map(|_| NTSTATUS(0))
+    .unwrap_or(NTSTATUS(STATUS_UNSUCCESSFUL.0));
+
+    if !status.is_success() {
+        return status;
+    }
+
+    // set the panic hook to capture and log panics
+    crate::panic::set_hook();
+
     let mut attributes = WDF_OBJECT_ATTRIBUTES::init();
 
     let mut config = WDF_DRIVER_CONFIG::init(Some(driver_add));
