@@ -3,14 +3,14 @@
 // https://github.com/ge9/IddSampleDriver
 //
 
-use wdf_umdf_sys::{NTSTATUS, PUNICODE_STRING, PVOID};
-
 mod direct_3d_device;
 mod entry;
 mod indirect_device_context;
 mod panic;
 mod swap_chain_processor;
 mod wdf;
+
+use wdf_umdf_sys::{NTSTATUS, PUNICODE_STRING, PVOID};
 
 //
 // This exports the framework entry point function.
