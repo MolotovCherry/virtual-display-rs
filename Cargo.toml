@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["virtual-display-driver", "wdf-umdf-sys", "wdf-umdf"]
+members = [
+    "virtual-display-driver",
+    "wdf-umdf-sys",
+    "wdf-umdf",
+    "windebug-logger",
+]
 
 [profile.release]
 strip = true

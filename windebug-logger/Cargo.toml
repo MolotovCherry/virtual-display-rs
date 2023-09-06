@@ -1,0 +1,12 @@
+[package]
+name = "windebug-logger"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.29"
+log = { version = "0.4.20", features = ["std"] }
+
+[dependencies.windows]
+version = "0.51.1"
+features = ["Win32_System_Diagnostics_Debug"]
