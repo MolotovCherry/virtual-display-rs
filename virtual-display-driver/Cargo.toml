@@ -10,7 +10,6 @@ crate-type = ["cdylib"]
 thiserror = "1.0.47"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
-winreg = "0.51.0"
 log = "0.4.20"
 windebug-logger = { path = "../windebug-logger" }
 

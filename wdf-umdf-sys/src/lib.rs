@@ -177,7 +177,7 @@ impl IDD_CX_CLIENT_CONFIG {
 
 /// A NTSTATUS wrapper that gives information on the value
 #[repr(transparent)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct NTSTATUS(pub i32);
 
 impl NTSTATUS {
@@ -189,10 +189,8 @@ impl NTSTATUS {
     pub fn is_success(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
         match val {
-            // NT_SUCCESS
-            0..=0x3FFFFFFF => true,
-            // NT_INFORMATION
-            0x40000000..=0x7FFFFFFF => true,
+            // NT_SUCCESS | NT_INFORMATION
+            0..=0x3FFFFFFF | 0x40000000..=0x7FFFFFFF => true,
             _ => false,
         }
     }

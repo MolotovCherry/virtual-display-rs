@@ -4,14 +4,16 @@ use std::ffi::c_void;
 
 use wdf_umdf_sys::{
     NTSTATUS, PCUNICODE_STRING, PCWDF_OBJECT_CONTEXT_TYPE_INFO, PDRIVER_OBJECT, PWDFDEVICE_INIT,
-    PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, PWDF_PNPPOWER_EVENT_CALLBACKS, WDFDEVICE,
-    WDFDRIVER, WDFOBJECT, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES,
+    PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, WDFDEVICE, WDFDRIVER, WDFOBJECT, WDF_NO_HANDLE,
+    WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES, _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum WdfError {
     #[error("{0}")]
     WdfFunctionNotAvailable(&'static str),
+    #[error("{0}")]
+    CallFailed(NTSTATUS),
 }
 
 impl From<WdfError> for () {
@@ -23,6 +25,7 @@ impl From<WdfError> for NTSTATUS {
         use WdfError::*;
         match value {
             WdfFunctionNotAvailable(_) => 0xC0000225u32.into(),
+            CallFailed(status) => status,
         }
     }
 }
@@ -162,7 +165,7 @@ pub unsafe fn WdfDriverCreate(
     // out, optional
     Driver: Option<&mut WDFDRIVER>,
 ) -> Result<NTSTATUS, WdfError> {
-    WdfCall! {
+    let status = WdfCall! {
         WdfDriverCreate(
             DriverObject,
             RegistryPath,
@@ -172,6 +175,12 @@ pub unsafe fn WdfDriverCreate(
                 .map(|d| d as *mut _)
                 .unwrap_or(WDF_NO_HANDLE!() as *mut *mut _)
         )
+    }?;
+
+    if status.is_success() {
+        Ok(status)
+    } else {
+        Err(WdfError::CallFailed(status))
     }
 }
 
@@ -183,12 +192,18 @@ pub unsafe fn WdfDeviceCreate(
     // out
     Device: &mut WDFDEVICE,
 ) -> Result<NTSTATUS, WdfError> {
-    WdfCall! {
+    let status = WdfCall! {
         WdfDeviceCreate(
             DeviceInit,
             DeviceAttributes.map(|d| d as *mut _).unwrap_or(WDF_NO_OBJECT_ATTRIBUTES!() as *mut _),
             Device
         )
+    }?;
+
+    if status.is_success() {
+        Ok(status)
+    } else {
+        Err(WdfError::CallFailed(status))
     }
 }
 
@@ -196,7 +211,7 @@ pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
     // in
     DeviceInit: PWDFDEVICE_INIT,
     // in
-    PnpPowerEventCallbacks: PWDF_PNPPOWER_EVENT_CALLBACKS,
+    PnpPowerEventCallbacks: *mut _WDF_PNPPOWER_EVENT_CALLBACKS,
 ) -> Result<(), WdfError> {
     WdfCall! {
         WdfDeviceInitSetPnpPowerEventCallbacks(

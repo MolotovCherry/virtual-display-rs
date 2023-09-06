@@ -412,7 +412,6 @@ dependencies = [
  "wdf-umdf-sys",
  "windebug-logger",
  "windows 0.51.1",
- "winreg",
  "winres",
 ]
 
