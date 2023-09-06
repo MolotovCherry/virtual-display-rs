@@ -55,7 +55,10 @@ extern "C-unwind" fn DriverEntry(
     .unwrap_or_else(|e| e.into())
 }
 
-extern "C" fn driver_add(_driver: *mut WDFDRIVER__, mut init: *mut WDFDEVICE_INIT) -> NTSTATUS {
+extern "C-unwind" fn driver_add(
+    _driver: *mut WDFDRIVER__,
+    mut init: *mut WDFDEVICE_INIT,
+) -> NTSTATUS {
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
     callbacks.EvtDeviceD0Entry = Some(device_d0_entry);
@@ -110,6 +113,6 @@ extern "C" fn driver_add(_driver: *mut WDFDRIVER__, mut init: *mut WDFDEVICE_INI
     status
 }
 
-unsafe extern "C" fn event_cleanup(wdf_object: WDFOBJECT) {
+unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
     _ = WdfObjectIndirectDeviceContext::drop(wdf_object);
 }

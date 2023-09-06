@@ -33,28 +33,28 @@ impl IndirectDeviceContext {
 
 WDF_DECLARE_CONTEXT_TYPE!(pub IndirectDeviceContext);
 
-pub extern "C" fn adapter_init_finished(
+pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
     p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
 ) -> NTSTATUS {
     todo!()
 }
 
-pub extern "C" fn device_d0_entry(
+pub extern "C-unwind" fn device_d0_entry(
     device: WDFDEVICE,
     previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
     todo!()
 }
 
-pub extern "C" fn parse_monitor_description(
+pub extern "C-unwind" fn parse_monitor_description(
     p_in_args: *const IDARG_IN_PARSEMONITORDESCRIPTION,
     p_out_args: *mut IDARG_OUT_PARSEMONITORDESCRIPTION,
 ) -> NTSTATUS {
     todo!()
 }
 
-pub extern "C" fn monitor_get_default_modes(
+pub extern "C-unwind" fn monitor_get_default_modes(
     _monitor_object: *mut IDDCX_MONITOR__,
     _p_in_args: *const IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
     _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
@@ -62,7 +62,7 @@ pub extern "C" fn monitor_get_default_modes(
     STATUS_NOT_IMPLEMENTED.0.into()
 }
 
-pub extern "C" fn monitor_query_modes(
+pub extern "C-unwind" fn monitor_query_modes(
     monitor_object: *mut IDDCX_MONITOR__,
     p_in_args: *const IDARG_IN_QUERYTARGETMODES,
     p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
@@ -70,20 +70,20 @@ pub extern "C" fn monitor_query_modes(
     todo!()
 }
 
-pub extern "C" fn adapter_commit_modes(
+pub extern "C-unwind" fn adapter_commit_modes(
     adapter_object: *mut IDDCX_ADAPTER__,
     p_in_args: *const IDARG_IN_COMMITMODES,
 ) -> NTSTATUS {
     todo!()
 }
 
-pub extern "C" fn assign_swap_chain(
+pub extern "C-unwind" fn assign_swap_chain(
     monitor_object: *mut IDDCX_MONITOR__,
     p_in_args: *const IDARG_IN_SETSWAPCHAIN,
 ) -> NTSTATUS {
     todo!()
 }
 
-pub extern "C" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
+pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
     todo!()
 }

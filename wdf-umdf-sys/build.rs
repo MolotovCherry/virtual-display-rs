@@ -1,3 +1,4 @@
+use bindgen::Abi;
 use std::path::PathBuf;
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
@@ -166,6 +167,7 @@ fn generate() {
         .blocklist_item("IddMinimumVersionRequired")
         .blocklist_item("WdfMinimumVersionRequired")
         .clang_arg("--language=c++")
+        .override_abi(Abi::CUnwind, ".*")
         // generate
         .generate()
         .unwrap();
