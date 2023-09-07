@@ -14,7 +14,7 @@ macro_rules! WdfIsFunctionAvailable {
         // SAFETY: We only ever do read access
         let fn_count = unsafe { $crate::WdfFunctionCount };
 
-        // https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.25/wdffuncenum.h#L81
+        // https://github.com/microsoft/Windows-Driver-Frameworks/blob/main/src/publicinc/wdf/umdf/2.33/wdffuncenum.h#L126
         $crate::paste! {
             // index is always positive, see
             // https://github.com/microsoft/Windows-Driver-Frameworks/blob/main/src/publicinc/wdf/umdf/2.33/wdffuncenum.h
@@ -34,7 +34,7 @@ macro_rules! WdfIsStructureAvailable {
         // SAFETY: We only ever do read access
         let struct_count = unsafe { $crate::WdfStructureCount };
 
-        // https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.25/wdffuncenum.h#L141
+        // https://github.com/microsoft/Windows-Driver-Frameworks/blob/main/src/publicinc/wdf/umdf/2.33/wdffuncenum.h#L141
         $crate::paste! {
             // index is always positive, see
             // https://github.com/microsoft/Windows-Driver-Frameworks/blob/main/src/publicinc/wdf/umdf/2.33/wdffuncenum.h
@@ -164,33 +164,41 @@ impl WDF_PNPPOWER_EVENT_CALLBACKS {
     }
 }
 
+/// If this returns None, the struct is NOT available to be used
+macro_rules! IDD_STRUCTURE_SIZE {
+    ($name:ty) => {{
+        // SAFETY: We only ever do read access, copy is fine
+        let higher = unsafe { IddClientVersionHigherThanFramework } != 0;
+        // SAFETY: We only ever do read access, copy is fine
+        let struct_count = unsafe { IddStructureCount };
+
+        if higher {
+            // as u32 is fine, since there's no way there's > 4 billion structs
+            const STRUCT_INDEX: u32 =
+                $crate::paste! { IDDSTRUCTENUM::[<INDEX_ $name:upper>].0 as u32 };
+
+            // SAFETY: A pointer to a [size_t], copying the pointer is ok
+            let ptr = unsafe { IddStructures };
+
+            if STRUCT_INDEX < struct_count {
+                Some(unsafe { ptr.add(STRUCT_INDEX as usize).read() } as u32)
+            } else {
+                // struct CANNOT be used
+                None
+            }
+        } else {
+            Some(::std::mem::size_of::<$name>() as u32)
+        }
+    }};
+}
+
 impl IDD_CX_CLIENT_CONFIG {
     #[must_use]
     pub fn init() -> Option<Self> {
         // SAFETY: All fields are zero-able
         let mut config: Self = unsafe { core::mem::zeroed() };
 
-        // SAFETY: We only ever do read access
-        let higher = unsafe { IddClientVersionHigherThanFramework } != 0;
-        // SAFETY: We only ever do read access
-        let struct_count = unsafe { IddStructureCount };
-
-        let size = if higher {
-            const STRUCT_INDEX: u32 = IDDSTRUCTENUM::INDEX_IDD_CX_CLIENT_CONFIG.0 as u32;
-
-            let ptr = unsafe { IddStructures };
-
-            if STRUCT_INDEX < struct_count {
-                Some(unsafe { ptr.add(STRUCT_INDEX as usize).read() } as u32)
-            } else {
-                None?
-            }
-        } else {
-            Some(WDF_STRUCTURE_SIZE!(Self))
-        };
-
-        let Some(size) = size else { unreachable!() };
-        config.Size = size;
+        config.Size = IDD_STRUCTURE_SIZE!(IDD_CX_CLIENT_CONFIG)?;
 
         Some(config)
     }
