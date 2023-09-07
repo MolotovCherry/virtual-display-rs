@@ -96,7 +96,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                 });
 
             #[repr(transparent)]
-            $sv struct [<WdfObject $context_type>](Option<Box<::std::sync::Mutex<$context_type>>>);
+            $sv struct [<WdfObject $context_type>](Option<Box<::std::sync::RwLock<$context_type>>>);
 
             impl [<WdfObject $context_type>] {
                 /// SAFETY:
@@ -114,7 +114,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
 
                     let mut_ref = &mut *context;
                     // Set to none so it can drop
-                    mut_ref.0 = Some(Box::new(::std::sync::Mutex::new(value)));
+                    mut_ref.0 = Some(Box::new(::std::sync::RwLock::new(value)));
 
                     Ok(())
                 }
@@ -138,7 +138,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                 }
 
                 /// Get the context from the wdfobject
-                $sv fn get<'a>(handle: $crate::wdf_umdf_sys::WDFOBJECT) -> Result<&'a Option<Box<::std::sync::Mutex<$context_type>>>, $crate::WdfError> {
+                $sv fn get<'a>(handle: $crate::wdf_umdf_sys::WDFOBJECT) -> Result<&'a Option<Box<::std::sync::RwLock<$context_type>>>, $crate::WdfError> {
                     let context = unsafe {
                         $crate::WdfObjectGetTypedContextWorker(
                             handle,

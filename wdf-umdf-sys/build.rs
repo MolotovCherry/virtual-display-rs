@@ -168,6 +168,7 @@ fn generate() {
         .blocklist_item("WdfMinimumVersionRequired")
         .clang_arg("--language=c++")
         .override_abi(Abi::CUnwind, ".*")
+        .generate_cstr(true)
         // generate
         .generate()
         .unwrap();

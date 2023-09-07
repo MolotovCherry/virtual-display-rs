@@ -166,12 +166,33 @@ impl WDF_PNPPOWER_EVENT_CALLBACKS {
 
 impl IDD_CX_CLIENT_CONFIG {
     #[must_use]
-    pub fn init() -> Self {
+    pub fn init() -> Option<Self> {
         // SAFETY: All fields are zero-able
         let mut config: Self = unsafe { core::mem::zeroed() };
-        config.Size = WDF_STRUCTURE_SIZE!(Self);
 
-        config
+        // SAFETY: We only ever do read access
+        let higher = unsafe { IddClientVersionHigherThanFramework } != 0;
+        // SAFETY: We only ever do read access
+        let struct_count = unsafe { IddStructureCount };
+
+        let size = if higher {
+            const STRUCT_INDEX: u32 = IDDSTRUCTENUM::INDEX_IDD_CX_CLIENT_CONFIG.0 as u32;
+
+            let ptr = unsafe { IddStructures };
+
+            if STRUCT_INDEX < struct_count {
+                Some(unsafe { ptr.add(STRUCT_INDEX as usize).read() } as u32)
+            } else {
+                None?
+            }
+        } else {
+            Some(WDF_STRUCTURE_SIZE!(Self))
+        };
+
+        let Some(size) = size else { unreachable!() };
+        config.Size = size;
+
+        Some(config)
     }
 }
 
