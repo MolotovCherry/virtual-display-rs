@@ -28,11 +28,12 @@ macro_rules! IddCxCall {
 
                 if is_available {
                     // SAFETY: Only immutable accesses are done to this
-                    let fn_table = unsafe { ::wdf_umdf_sys::IddFunctions };
+                    //         The underlying array is Copy, so we call as_ptr() directly on it inside block
+                    let fn_table = unsafe { ::wdf_umdf_sys::IddFunctions.as_ptr() };
 
                     // SAFETY: Ensured that this is present by if condition from `WdfIsFunctionAvailable!`
                     let fn_handle = unsafe {
-                        (fn_table.get_unchecked(FN_INDEX) as *const Option<_>)
+                        fn_table.add(FN_INDEX)
                             .cast::<::wdf_umdf_sys::[<PFN_ $name:upper>]>()
                     };
 
