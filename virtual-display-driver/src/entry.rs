@@ -1,4 +1,4 @@
-use log::Level;
+use log::{error, Level};
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoStatus, WdfDeviceCreate,
     WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
@@ -12,7 +12,7 @@ use windows::Win32::Foundation::STATUS_UNSUCCESSFUL;
 use crate::indirect_device_context::{
     adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
-    IndirectDeviceContext, WDF_IndirectDeviceContext_TYPE_INFO, WdfObjectIndirectDeviceContext,
+    IndirectDeviceContext, WdfObjectIndirectDeviceContext,
 };
 
 //
@@ -67,7 +67,11 @@ extern "C-unwind" fn driver_add(
         _ = WdfDeviceInitSetPnpPowerEventCallbacks(init, &mut callbacks);
     }
 
-    let mut config = IDD_CX_CLIENT_CONFIG::init();
+    let Some(mut config) = IDD_CX_CLIENT_CONFIG::init() else {
+        error!("Failed to create IDD_CX_CLIENT_CONFIG");
+        return 0xC0000225u32.into();
+    };
+
     config.EvtIddCxAdapterInitFinished = Some(adapter_init_finished);
 
     config.EvtIddCxParseMonitorDescription = Some(parse_monitor_description);
@@ -82,8 +86,9 @@ extern "C-unwind" fn driver_add(
         return status;
     }
 
-    let mut attributes =
-        WDF_OBJECT_ATTRIBUTES::init_context_type(&*WDF_IndirectDeviceContext_TYPE_INFO);
+    let mut attributes = WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe {
+        WdfObjectIndirectDeviceContext::get_type_info()
+    });
 
     attributes.EvtCleanupCallback = Some(event_cleanup);
 
