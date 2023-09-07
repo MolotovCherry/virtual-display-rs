@@ -32,14 +32,11 @@ fn log(record: &log::Record) -> Option<()> {
         record.module_path().unwrap_or_default()
     };
 
-    let time = chrono::Local::now();
-    let formatted = time.format("%m/%d %I:%M%P");
-
     let level = format!("[{}]", record.level());
 
     // Everything except the timestamp
     let mut base = String::new();
-    write!(&mut base, "{formatted} {level:<7} [{target}").ok()?;
+    write!(&mut base, "{level:<7} [{target}").ok()?;
 
     if let Some(line) = record.line() {
         write!(&mut base, ":{line}").ok()?;
