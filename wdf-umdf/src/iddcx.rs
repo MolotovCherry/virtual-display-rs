@@ -19,7 +19,7 @@ impl From<IddCxError> for NTSTATUS {
     fn from(value: IddCxError) -> Self {
         use IddCxError::*;
         match value {
-            IddCxFunctionNotAvailable(_) => 0xC0000225u32.into(),
+            IddCxFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
             Success => 0.into(),
         }

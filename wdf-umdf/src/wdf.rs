@@ -31,7 +31,7 @@ impl From<WdfError> for NTSTATUS {
     fn from(value: WdfError) -> Self {
         use WdfError::*;
         match value {
-            WdfFunctionNotAvailable(_) => 0xC0000225u32.into(),
+            WdfFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
             Success => 0.into(),
         }
