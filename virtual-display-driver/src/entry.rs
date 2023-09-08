@@ -1,6 +1,6 @@
 use log::{error, Level};
 use wdf_umdf::{
-    IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoStatus, WdfDeviceCreate,
+    IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
     WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
 };
 use wdf_umdf_sys::{
@@ -81,9 +81,9 @@ extern "C-unwind" fn driver_add(
     config.EvtIddCxMonitorAssignSwapChain = Some(assign_swap_chain);
     config.EvtIddCxMonitorUnassignSwapChain = Some(unassign_swap_chain);
 
-    let mut status = unsafe { IddCxDeviceInitConfig(&mut *init, &config).into_status() };
-    if !status.is_success() {
-        return status;
+    let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
+    if let Err(status) = status {
+        return status.into();
     }
 
     let mut attributes = WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe {
@@ -94,23 +94,19 @@ extern "C-unwind" fn driver_add(
 
     let mut device = std::ptr::null_mut();
 
-    status =
-        unsafe { WdfDeviceCreate(&mut init, Some(&mut attributes), &mut device).into_status() };
-    if !status.is_success() {
-        return status;
+    let status = unsafe { WdfDeviceCreate(&mut init, Some(&mut attributes), &mut device) };
+    if let Err(status) = status {
+        return status.into();
     }
 
-    status = unsafe { IddCxDeviceInitialize(device).into_status() };
-    if !status.is_success() {
-        return status;
+    let status = unsafe { IddCxDeviceInitialize(device) };
+    if let Err(status) = status {
+        return status.into();
     }
 
     let context = IndirectDeviceContext::new(device);
 
-    status =
-        unsafe { WdfObjectIndirectDeviceContext::init(device as WDFOBJECT, context).into_status() };
-
-    status
+    unsafe { WdfObjectIndirectDeviceContext::init(device as WDFOBJECT, context).into_status() }
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {

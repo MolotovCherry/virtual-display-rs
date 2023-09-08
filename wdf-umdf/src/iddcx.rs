@@ -2,10 +2,17 @@
 
 use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT};
 
+use crate::IntoHelper;
+
 #[derive(Debug, thiserror::Error)]
 pub enum IddCxError {
     #[error("{0}")]
     IddCxFunctionNotAvailable(&'static str),
+    #[error("{0}")]
+    CallFailed(NTSTATUS),
+    // this is required for success status for ()
+    #[error("This is not an error, ignore it")]
+    Success,
 }
 
 impl From<IddCxError> for NTSTATUS {
@@ -13,7 +20,21 @@ impl From<IddCxError> for NTSTATUS {
         use IddCxError::*;
         match value {
             IddCxFunctionNotAvailable(_) => 0xC0000225u32.into(),
+            CallFailed(status) => status,
+            Success => 0.into(),
         }
+    }
+}
+
+impl From<NTSTATUS> for IddCxError {
+    fn from(value: NTSTATUS) -> Self {
+        IddCxError::CallFailed(value)
+    }
+}
+
+impl From<()> for IddCxError {
+    fn from(_: ()) -> Self {
+        IddCxError::Success
     }
 }
 
@@ -76,6 +97,7 @@ pub unsafe fn IddCxDeviceInitConfig(
             Config
         )
     }
+    .into_result()
 }
 
 pub unsafe fn IddCxDeviceInitialize(
@@ -87,4 +109,5 @@ pub unsafe fn IddCxDeviceInitialize(
             Device
         )
     }
+    .into_result()
 }

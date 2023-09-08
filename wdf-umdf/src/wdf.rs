@@ -8,16 +8,23 @@ use wdf_umdf_sys::{
     WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES, _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
 
+use crate::IntoHelper;
+
 #[derive(Debug, thiserror::Error)]
 pub enum WdfError {
     #[error("{0}")]
     WdfFunctionNotAvailable(&'static str),
     #[error("{0}")]
     CallFailed(NTSTATUS),
+    // this is required for success status for ()
+    #[error("This is not an error, ignore it")]
+    Success,
 }
 
-impl From<WdfError> for () {
-    fn from(_: WdfError) -> Self {}
+impl From<()> for WdfError {
+    fn from(_: ()) -> Self {
+        WdfError::Success
+    }
 }
 
 impl From<WdfError> for NTSTATUS {
@@ -26,7 +33,14 @@ impl From<WdfError> for NTSTATUS {
         match value {
             WdfFunctionNotAvailable(_) => 0xC0000225u32.into(),
             CallFailed(status) => status,
+            Success => 0.into(),
         }
+    }
+}
+
+impl From<NTSTATUS> for WdfError {
+    fn from(value: NTSTATUS) -> Self {
+        WdfError::CallFailed(value)
     }
 }
 
@@ -78,9 +92,9 @@ macro_rules! WdfCall {
 }
 
 /// Unlike the official WDF_DECLARE_CONTEXT_TYPE macro, you only need to declare this on the actual data struct you'll be using
-/// Safety is maintained through a Mutex of the underlying data.
+/// Safety is maintained through a RwLock of the underlying data.
 ///
-/// This generates a type `WdfObject$context_type`, you can access associated fns on it for init/get/drop
+/// This generates a type `WdfObject$context_type`, you can access associated fns on it for init/get/drop/get_type_info (since you need this)
 #[macro_export]
 macro_rules! WDF_DECLARE_CONTEXT_TYPE {
     ($sv:vis $context_type:ident) => {
@@ -193,7 +207,7 @@ pub unsafe fn WdfDriverCreate(
     // out, optional
     Driver: Option<&mut WDFDRIVER>,
 ) -> Result<NTSTATUS, WdfError> {
-    let status = WdfCall! {
+    WdfCall! {
         WdfDriverCreate(
             DriverObject,
             RegistryPath,
@@ -203,13 +217,8 @@ pub unsafe fn WdfDriverCreate(
                 .map(|d| d as *mut _)
                 .unwrap_or(WDF_NO_HANDLE!() as *mut *mut _)
         )
-    }?;
-
-    if status.is_success() {
-        Ok(status)
-    } else {
-        Err(WdfError::CallFailed(status))
     }
+    .into_result()
 }
 
 pub unsafe fn WdfDeviceCreate(
@@ -220,19 +229,14 @@ pub unsafe fn WdfDeviceCreate(
     // out
     Device: &mut WDFDEVICE,
 ) -> Result<NTSTATUS, WdfError> {
-    let status = WdfCall! {
+    WdfCall! {
         WdfDeviceCreate(
             DeviceInit,
             DeviceAttributes.map(|d| d as *mut _).unwrap_or(WDF_NO_OBJECT_ATTRIBUTES!() as *mut _),
             Device
         )
-    }?;
-
-    if status.is_success() {
-        Ok(status)
-    } else {
-        Err(WdfError::CallFailed(status))
     }
+    .into_result()
 }
 
 pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
