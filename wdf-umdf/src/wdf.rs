@@ -132,9 +132,10 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     _phantom: ::std::marker::PhantomData<T>
                 }
 
+                // SAFETY: `T` impls Sync too
                 unsafe impl<T: Sync> Sync for [<_WDF_ $context_type _STATIC_WRAPPER>]<T> {}
 
-                // I don't know if this data might be mutated, but we should allow it to be just to be safe
+                // Unsure if C mutates this data, but it's in an unsafecell just in case
                 #[allow(non_upper_case_globals)]
                 static [<_WDF_ $context_type _TYPE_INFO>]: [<_WDF_ $context_type _STATIC_WRAPPER>]<$context_type> =
                     [<_WDF_ $context_type _STATIC_WRAPPER>] {
@@ -200,7 +201,11 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
 
                     /// Get the context from the wdfobject.
                     /// Make sure you initialized it first, otherwise it will be unusable
-                    $sv fn get<'a>(
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    $sv unsafe fn get<'a>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
                     ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
                     {
@@ -216,7 +221,11 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
 
                     /// Get the context from the wdfobject.
                     /// Make sure you initialized it first, otherwise it will be unusable
-                    $sv fn get_mut<'a>(
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    $sv unsafe fn get_mut<'a>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
                     ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
                     {
@@ -232,7 +241,11 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
 
                     /// Get the context from the wdfobject.
                     /// Make sure you initialized it first, otherwise it will be unusable
-                    $sv fn try_get<'a>(
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    $sv unsafe fn try_get<'a>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
                     ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
                     {
@@ -248,7 +261,11 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
 
                     /// Get the context from the wdfobject.
                     /// Make sure you initialized it first, otherwise it will be unusable
-                    $sv fn try_get_mut<'a>(
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    $sv unsafe fn try_get_mut<'a>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
                     ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
                     {
