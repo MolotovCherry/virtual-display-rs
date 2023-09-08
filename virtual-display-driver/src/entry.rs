@@ -9,10 +9,10 @@ use wdf_umdf_sys::{
 };
 use windows::Win32::Foundation::STATUS_UNSUCCESSFUL;
 
-use crate::indirect_device_context::{
+use crate::device_context::{
     adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
-    IndirectDeviceContext, WdfObjectIndirectDeviceContext,
+    DeviceContext,
 };
 
 //
@@ -86,9 +86,8 @@ extern "C-unwind" fn driver_add(
         return status.into();
     }
 
-    let mut attributes = WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe {
-        WdfObjectIndirectDeviceContext::get_type_info()
-    });
+    let mut attributes =
+        WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { DeviceContext::get_type_info() });
 
     attributes.EvtCleanupCallback = Some(event_cleanup);
 
@@ -104,9 +103,9 @@ extern "C-unwind" fn driver_add(
         return status.into();
     }
 
-    let context = IndirectDeviceContext::new(device);
+    let context = DeviceContext::new(device);
 
-    unsafe { WdfObjectIndirectDeviceContext::init(device as WDFOBJECT, context).into_status() }
+    unsafe { DeviceContext::init(device as WDFOBJECT, context).into_status() };
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {

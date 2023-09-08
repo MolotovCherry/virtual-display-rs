@@ -22,17 +22,17 @@ static MONITOR_EDID: &[u8] = &[
     0x00, 0x4C, 0x69, 0x6E, 0x75, 0x78, 0x20, 0x46, 0x48, 0x44, 0x0A, 0x20, 0x20, 0x20, 0x00, 0x05,
 ];
 
-pub struct IndirectDeviceContext {
+pub struct DeviceContext {
     device: WDFDEVICE,
 }
 
-impl IndirectDeviceContext {
+impl DeviceContext {
     pub fn new(device: WDFDEVICE) -> Self {
         Self { device }
     }
 }
 
-WDF_DECLARE_CONTEXT_TYPE!(pub IndirectDeviceContext);
+WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
 
 pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,

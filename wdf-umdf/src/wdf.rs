@@ -91,16 +91,37 @@ macro_rules! WdfCall {
     }};
 }
 
-/// Unlike the official WDF_DECLARE_CONTEXT_TYPE macro, you only need to declare this on the actual data struct you'll be using
-/// Safety is maintained through a RwLock of the underlying data.
+/// Unlike the official WDF_DECLARE_CONTEXT_TYPE macro, you only need to declare this on the actual data struct want to use
+/// Safety is maintained through a RwLock of the underlying data
 ///
-/// This generates a type `WdfObject$context_type`, you can access associated fns on it for init/get/drop/get_type_info (since you need this)
+/// This generates associated fns init/get/drop/get_type_info on your $context_type with the same visibility
+///
+/// Example:
+/// ```rust
+/// pub struct IndirectDeviceContext {
+///     device: WDFDEVICE,
+/// }
+///
+/// impl IndirectDeviceContext {
+///     pub fn new(device: WDFDEVICE) -> Self {
+///         Self { device }
+///     }
+/// }
+///
+/// WDF_DECLARE_CONTEXT_TYPE!(pub IndirectDeviceContext);
+///
+/// // with a `device: WDFDEVICE`
+/// let context = IndirectDeviceContext::new(device as WDFOBJECT);
+/// IndirectDeviceContext::init(context);
+/// // elsewhere
+/// let mutable_access = IndirectDeviceContext::get_mut(device).unwrap();
+/// ```
 #[macro_export]
 macro_rules! WDF_DECLARE_CONTEXT_TYPE {
     ($sv:vis $context_type:ident) => {
         $crate::paste! {
             // keep it in a mod block to disallow access to private types
-            $sv mod [<WdfObject $context_type>] {
+            mod [<WdfObject $context_type>] {
                 use super::$context_type;
 
                 #[repr(transparent)]
@@ -115,7 +136,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         ::std::cell::UnsafeCell::new(
                             $crate::wdf_umdf_sys::_WDF_OBJECT_CONTEXT_TYPE_INFO {
                                 Size: ::std::mem::size_of::<$crate::wdf_umdf_sys::_WDF_OBJECT_CONTEXT_TYPE_INFO>() as u32,
-                                ContextName: concat!("WdfObject", stringify!($context_type), "\0")
+                                ContextName: concat!(stringify!($context_type), "\0")
                                     .as_ptr().cast::<::std::ffi::c_char>(),
                                 ContextSize: ::std::mem::size_of::<[<WdfObject $context_type>]>(),
                                 // SAFETY:
@@ -129,114 +150,116 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                 #[repr(transparent)]
                 struct [<WdfObject $context_type>](::std::option::Option<::std::boxed::Box<::std::sync::RwLock<$context_type>>>);
 
-                /// SAFETY:
-                /// - Must not call if this type is already in use
-                /// - No other borrows mutable/non-mutable can exist to type when this is called
-                /// - Must not call if data has already been initialized (because it could be in use)
-                pub unsafe fn init(
-                    handle: $crate::wdf_umdf_sys::WDFOBJECT,
-                    value: $context_type,
-                ) -> ::std::result::Result<(), $crate::WdfError> {
-                    let context = unsafe {
-                        $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].0.get())?
-                    } as *mut [<WdfObject $context_type>];
+                impl $context_type {
+                    /// SAFETY:
+                    /// - Must not call if this type is already in use
+                    /// - No other borrows mutable/non-mutable can exist to type when this is called
+                    /// - Must not call if data has already been initialized (because it could be in use)
+                    $sv unsafe fn init(
+                        handle: $crate::wdf_umdf_sys::WDFOBJECT,
+                        value: $context_type,
+                    ) -> ::std::result::Result<(), $crate::WdfError> {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].0.get())?
+                        } as *mut [<WdfObject $context_type>];
 
-                    let mut_ref = &mut *context;
-                    // initialize it to default data
-                    mut_ref.0 = ::std::option::Option::Some(::std::boxed::Box::new(::std::sync::RwLock::new(value)));
+                        let mut_ref = &mut *context;
+                        // initialize it to default data
+                        mut_ref.0 = ::std::option::Option::Some(::std::boxed::Box::new(::std::sync::RwLock::new(value)));
 
-                    Ok(())
-                }
+                        Ok(())
+                    }
 
-                /// SAFETY:
-                /// - Must not drop if it's still in use elsewhere
-                /// - No other mutable/non-mutable refs can exist to data when this is called, or it will alias
-                ///
-                /// This will overwrite data contained for this type
-                pub unsafe fn drop(
-                    handle: $crate::wdf_umdf_sys::WDFOBJECT,
-                ) -> ::std::result::Result<(), $crate::WdfError> {
-                    let context = $crate::WdfObjectGetTypedContextWorker(
-                        handle,
-                        [<_WDF_ $context_type _TYPE_INFO>].0.get(),
-                    )? as *mut [<WdfObject $context_type>];
+                    /// SAFETY:
+                    /// - Must not drop if it's still in use elsewhere
+                    /// - No other mutable/non-mutable refs can exist to data when this is called, or it will alias
+                    ///
+                    /// This will overwrite data contained for this type
+                    $sv unsafe fn drop(
+                        handle: $crate::wdf_umdf_sys::WDFOBJECT,
+                    ) -> ::std::result::Result<(), $crate::WdfError> {
+                        let context = $crate::WdfObjectGetTypedContextWorker(
+                            handle,
+                            [<_WDF_ $context_type _TYPE_INFO>].0.get(),
+                        )? as *mut [<WdfObject $context_type>];
 
-                    let mut_ref = &mut *context;
-                    // Set to none so it can drop
-                    mut_ref.0 = ::std::option::Option::None;
+                        let mut_ref = &mut *context;
+                        // Set to none so it can drop
+                        mut_ref.0 = ::std::option::Option::None;
 
-                    Ok(())
-                }
+                        Ok(())
+                    }
 
-                /// Get the context from the wdfobject.
-                /// Make sure you initialized it first, otherwise it will be unusable
-                pub fn get<'a>(
-                    handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
-                {
-                    let context = unsafe {
-                        $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                            // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                            unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
-                        ).ok()?
-                    } as *mut [<WdfObject $context_type>];
+                    /// Get the context from the wdfobject.
+                    /// Make sure you initialized it first, otherwise it will be unusable
+                    $sv fn get<'a>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                    ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
+                            ).ok()?
+                        } as *mut [<WdfObject $context_type>];
 
-                    unsafe { &*context }.0.as_ref().map(|r| r.read().ok()).flatten()
-                }
+                        unsafe { &*context }.0.as_ref().map(|r| r.read().ok()).flatten()
+                    }
 
-                /// Get the context from the wdfobject.
-                /// Make sure you initialized it first, otherwise it will be unusable
-                pub fn get_mut<'a>(
-                    handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
-                {
-                    let context = unsafe {
-                        $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                            // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                            unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
-                        ).ok()?
-                    } as *mut [<WdfObject $context_type>];
+                    /// Get the context from the wdfobject.
+                    /// Make sure you initialized it first, otherwise it will be unusable
+                    $sv fn get_mut<'a>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                    ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
+                            ).ok()?
+                        } as *mut [<WdfObject $context_type>];
 
-                    unsafe { &*context }.0.as_ref().map(|r| r.write().ok()).flatten()
-                }
+                        unsafe { &*context }.0.as_ref().map(|r| r.write().ok()).flatten()
+                    }
 
-                /// Get the context from the wdfobject.
-                /// Make sure you initialized it first, otherwise it will be unusable
-                pub fn try_get<'a>(
-                    handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
-                {
-                    let context = unsafe {
-                        $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                            // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                            unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
-                        ).ok()?
-                    } as *mut [<WdfObject $context_type>];
+                    /// Get the context from the wdfobject.
+                    /// Make sure you initialized it first, otherwise it will be unusable
+                    $sv fn try_get<'a>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                    ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
+                            ).ok()?
+                        } as *mut [<WdfObject $context_type>];
 
-                    unsafe { &*context }.0.as_ref().map(|r| r.try_read().ok()).flatten()
-                }
+                        unsafe { &*context }.0.as_ref().map(|r| r.try_read().ok()).flatten()
+                    }
 
-                /// Get the context from the wdfobject.
-                /// Make sure you initialized it first, otherwise it will be unusable
-                pub fn try_get_mut<'a>(
-                    handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
-                {
-                    let context = unsafe {
-                        $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                            // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                            unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
-                        ).ok()?
-                    } as *mut [<WdfObject $context_type>];
+                    /// Get the context from the wdfobject.
+                    /// Make sure you initialized it first, otherwise it will be unusable
+                    $sv fn try_get_mut<'a>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                    ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }.UniqueType
+                            ).ok()?
+                        } as *mut [<WdfObject $context_type>];
 
-                    unsafe { &*context }.0.as_ref().map(|r| r.try_write().ok()).flatten()
-                }
+                        unsafe { &*context }.0.as_ref().map(|r| r.try_write().ok()).flatten()
+                    }
 
-                // SAFETY:
-                // - No other mutable refs must exist to target type
-                // - Underlying memory must remain immutable and unchanged until reference is dropped
-                pub unsafe fn get_type_info() -> &'static $crate::wdf_umdf_sys::_WDF_OBJECT_CONTEXT_TYPE_INFO {
-                    unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }
+                    // SAFETY:
+                    // - No other mutable refs must exist to target type
+                    // - Underlying memory must remain immutable and unchanged until reference is dropped
+                    $sv unsafe fn get_type_info() -> &'static $crate::wdf_umdf_sys::_WDF_OBJECT_CONTEXT_TYPE_INFO {
+                        unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].0.get() }
+                    }
                 }
             }
         }

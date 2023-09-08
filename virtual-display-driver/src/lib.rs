@@ -5,7 +5,7 @@
 
 mod direct_3d_device;
 mod entry;
-mod indirect_device_context;
+mod device_context;
 mod panic;
 mod swap_chain_processor;
 mod wdf;
