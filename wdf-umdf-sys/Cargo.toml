@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 paste = "1.0.14"
-bytemuck = "1.13.1"
+bytemuck = "1.14.0"
 thiserror = "1.0.48"
 
 [build-dependencies]
