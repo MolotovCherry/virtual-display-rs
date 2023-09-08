@@ -105,9 +105,9 @@ extern "C-unwind" fn driver_add(
 
     let context = DeviceContext::new(device);
 
-    unsafe { DeviceContext::init(device as WDFOBJECT, context).into_status() };
+    unsafe { context.init(device as WDFOBJECT).into_status() }
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
-    _ = WdfObjectIndirectDeviceContext::drop(wdf_object);
+    _ = DeviceContext::drop(wdf_object);
 }

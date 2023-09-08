@@ -26,6 +26,8 @@ pub struct DeviceContext {
     device: WDFDEVICE,
 }
 
+unsafe impl Sync for DeviceContext {}
+
 impl DeviceContext {
     pub fn new(device: WDFDEVICE) -> Self {
         Self { device }
