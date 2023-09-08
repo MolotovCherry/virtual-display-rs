@@ -212,7 +212,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
                                 // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].cell.get() }.UniqueType
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
@@ -232,7 +232,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
                                 // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].cell.get() }.UniqueType
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
@@ -252,7 +252,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
                                 // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].cell.get() }.UniqueType
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
@@ -272,7 +272,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
                                 // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                unsafe { &*[<_WDF_ $context_type _TYPE_INFO>].cell.get() }.UniqueType
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 

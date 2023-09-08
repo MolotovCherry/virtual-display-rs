@@ -15,6 +15,8 @@ use crate::device_context::{
     DeviceContext,
 };
 
+use windows::Win32::Foundation::STATUS_SUCCESS;
+
 //
 // Our driver's entry point
 // See windows::Wdk::System::SystemServices::DRIVER_INITIALIZE
@@ -69,7 +71,7 @@ extern "C-unwind" fn driver_add(
 
     let Some(mut config) = IDD_CX_CLIENT_CONFIG::init() else {
         error!("Failed to create IDD_CX_CLIENT_CONFIG");
-        return 0xC0000225u32.into();
+        return NTSTATUS::STATUS_NOT_FOUND;
     };
 
     config.EvtIddCxAdapterInitFinished = Some(adapter_init_finished);
