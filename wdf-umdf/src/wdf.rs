@@ -192,11 +192,11 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     /// - context type must already have been set up for handle
                     /// - from_handle must be a valid T
                     $sv unsafe fn init_from(
-                        handle: $crate::wdf_umdf_sys::WDFOBJECT,
-                        from_handle: $crate::wdf_umdf_sys::WDFOBJECT
+                        from_handle: $crate::wdf_umdf_sys::WDFOBJECT,
+                        to_handle: $crate::wdf_umdf_sys::WDFOBJECT
                     ) -> ::std::result::Result<(), $crate::WdfError> {
                         let context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
+                            $crate::WdfObjectGetTypedContextWorker(to_handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
                         } as *mut ::std::mem::MaybeUninit<[<WdfObject $context_type>]>;
 
                         let context = &mut *context;

@@ -93,8 +93,8 @@ impl DeviceContext {
 
             status = unsafe {
                 DeviceContext::init_from(
-                    adapter_init_out.AdapterObject as WDFOBJECT,
                     self.device as WDFOBJECT,
+                    adapter_init_out.AdapterObject as WDFOBJECT,
                 )
             }
             .into_status();
