@@ -1,8 +1,3 @@
-//
-// Code in this project was adapted from IddSampleDriver
-// https://github.com/ge9/IddSampleDriver
-//
-
 mod callbacks;
 mod device_context;
 mod direct_3d_device;
