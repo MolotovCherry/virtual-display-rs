@@ -1,13 +1,12 @@
-use log::info;
-use wdf_umdf::WDF_DECLARE_CONTEXT_TYPE;
+use std::mem;
+
+use wdf_umdf::{IddCxAdapterInitAsync, IntoHelper, WDF_DECLARE_CONTEXT_TYPE};
 use wdf_umdf_sys::{
-    IDARG_IN_ADAPTER_INIT_FINISHED, IDARG_IN_COMMITMODES, IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
-    IDARG_IN_PARSEMONITORDESCRIPTION, IDARG_IN_QUERYTARGETMODES, IDARG_IN_SETSWAPCHAIN,
-    IDARG_OUT_GETDEFAULTDESCRIPTIONMODES, IDARG_OUT_PARSEMONITORDESCRIPTION,
-    IDARG_OUT_QUERYTARGETMODES, IDDCX_ADAPTER__, IDDCX_MONITOR__, NTSTATUS, WDFDEVICE,
-    WDF_POWER_DEVICE_STATE,
+    IDARG_IN_ADAPTER_INIT, IDARG_OUT_ADAPTER_INIT, IDDCX_ADAPTER, IDDCX_ADAPTER_CAPS,
+    IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION, IDDCX_FEATURE_IMPLEMENTATION,
+    IDDCX_MONITOR, IDDCX_TRANSMISSION_TYPE, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
-use windows::Win32::Foundation::STATUS_NOT_IMPLEMENTED;
+use widestring::u16cstr;
 
 // Taken from
 // https://github.com/ge9/IddSampleDriver/blob/fe98ccff703b5c1e578a0d627aeac2fa77ac58e2/IddSampleDriver/Driver.cpp#L403
@@ -23,78 +22,84 @@ static MONITOR_EDID: &[u8] = &[
 ];
 
 pub struct DeviceContext {
-    device: WDFDEVICE,
-}
-
-unsafe impl Sync for DeviceContext {}
-
-impl DeviceContext {
-    pub fn new(device: WDFDEVICE) -> Self {
-        Self { device }
-    }
+    pub device: WDFDEVICE,
+    adapter: Option<IDDCX_ADAPTER>,
+    monitor: Option<IDDCX_MONITOR>,
 }
 
 WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
 
-pub extern "C-unwind" fn adapter_init_finished(
-    adapter_object: *mut IDDCX_ADAPTER__,
-    p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
-) -> NTSTATUS {
-    info!("adapter_init_finished");
-    todo!()
-}
+// SAFETY: Raw ptr is managed by external library
+unsafe impl Sync for DeviceContext {}
 
-pub extern "C-unwind" fn device_d0_entry(
-    device: WDFDEVICE,
-    previous_state: WDF_POWER_DEVICE_STATE,
-) -> NTSTATUS {
-    info!("device_d0_entry");
-    todo!()
-}
+impl DeviceContext {
+    pub fn new(device: WDFDEVICE) -> Self {
+        Self {
+            device,
+            adapter: None,
+            monitor: None,
+        }
+    }
 
-pub extern "C-unwind" fn parse_monitor_description(
-    p_in_args: *const IDARG_IN_PARSEMONITORDESCRIPTION,
-    p_out_args: *mut IDARG_OUT_PARSEMONITORDESCRIPTION,
-) -> NTSTATUS {
-    info!("parse_monitor_description");
-    todo!()
-}
+    pub fn init_adapter(&mut self) -> NTSTATUS {
+        let version = IDDCX_ENDPOINT_VERSION {
+            Size: mem::size_of::<IDDCX_ENDPOINT_VERSION>() as u32,
+            MajorVer: env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().unwrap(),
+            MinorVer: concat!(
+                env!("CARGO_PKG_VERSION_MINOR"),
+                env!("CARGO_PKG_VERSION_PATCH")
+            )
+            .parse::<u32>()
+            .unwrap(),
+            ..Default::default()
+        };
 
-pub extern "C-unwind" fn monitor_get_default_modes(
-    _monitor_object: *mut IDDCX_MONITOR__,
-    _p_in_args: *const IDARG_IN_GETDEFAULTDESCRIPTIONMODES,
-    _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
-) -> NTSTATUS {
-    info!("monitor_get_default_modes");
-    STATUS_NOT_IMPLEMENTED.0.into()
-}
+        let adapter_caps = IDDCX_ADAPTER_CAPS {
+            Size: mem::size_of::<IDDCX_ADAPTER_CAPS>() as u32,
+            MaxMonitorsSupported: 1,
 
-pub extern "C-unwind" fn monitor_query_modes(
-    monitor_object: *mut IDDCX_MONITOR__,
-    p_in_args: *const IDARG_IN_QUERYTARGETMODES,
-    p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
-) -> NTSTATUS {
-    info!("monitor_query_modes");
-    todo!()
-}
+            EndPointDiagnostics: IDDCX_ENDPOINT_DIAGNOSTIC_INFO {
+                Size: mem::size_of::<IDDCX_ENDPOINT_DIAGNOSTIC_INFO>() as u32,
+                GammaSupport: IDDCX_FEATURE_IMPLEMENTATION::IDDCX_FEATURE_IMPLEMENTATION_NONE,
+                TransmissionType: IDDCX_TRANSMISSION_TYPE::IDDCX_TRANSMISSION_TYPE_WIRED_OTHER,
 
-pub extern "C-unwind" fn adapter_commit_modes(
-    adapter_object: *mut IDDCX_ADAPTER__,
-    p_in_args: *const IDARG_IN_COMMITMODES,
-) -> NTSTATUS {
-    info!("adapter_commit_modes");
-    todo!()
-}
+                pEndPointFriendlyName: u16cstr!("Virtual Display").as_ptr(),
+                pEndPointManufacturerName: u16cstr!("Cherry Tech").as_ptr(),
+                pEndPointModelName: u16cstr!("VirtuDisplay Pro").as_ptr(),
 
-pub extern "C-unwind" fn assign_swap_chain(
-    monitor_object: *mut IDDCX_MONITOR__,
-    p_in_args: *const IDARG_IN_SETSWAPCHAIN,
-) -> NTSTATUS {
-    info!("assign_swap_chain");
-    todo!()
-}
+                pFirmwareVersion: &version as *const _ as *mut _,
+                pHardwareVersion: &version as *const _ as *mut _,
+                ..Default::default()
+            },
 
-pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
-    info!("unassign_swap_chain");
-    todo!()
+            ..Default::default()
+        };
+
+        let attr = WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { Self::get_type_info() });
+
+        let adapter_init = IDARG_IN_ADAPTER_INIT {
+            // this is WdfDevice because that's what we set last
+            WdfDevice: self.device,
+            pCaps: &adapter_caps as *const _ as *mut _,
+            ObjectAttributes: &attr as *const _ as *mut _,
+        };
+
+        let mut adapter_init_out = IDARG_OUT_ADAPTER_INIT::default();
+        let mut status =
+            unsafe { IddCxAdapterInitAsync(&adapter_init, &mut adapter_init_out) }.into_status();
+
+        if status.is_success() {
+            self.adapter = Some(adapter_init_out.AdapterObject);
+
+            status = unsafe {
+                DeviceContext::init_from(
+                    adapter_init_out.AdapterObject as WDFOBJECT,
+                    self.device as WDFOBJECT,
+                )
+            }
+            .into_status();
+        }
+
+        status
+    }
 }

@@ -1,6 +1,9 @@
 #![allow(non_snake_case)]
 
-use wdf_umdf_sys::{IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT};
+use wdf_umdf_sys::{
+    IDARG_IN_ADAPTER_INIT, IDARG_OUT_ADAPTER_INIT, IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE,
+    WDFDEVICE_INIT,
+};
 
 use crate::IntoHelper;
 
@@ -107,6 +110,21 @@ pub unsafe fn IddCxDeviceInitialize(
     IddCxCall! {
         IddCxDeviceInitialize(
             Device
+        )
+    }
+    .into_result()
+}
+
+pub unsafe fn IddCxAdapterInitAsync(
+    // in
+    pInArgs: *const IDARG_IN_ADAPTER_INIT,
+    // out
+    pOutArgs: *mut IDARG_OUT_ADAPTER_INIT,
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall! {
+        IddCxAdapterInitAsync(
+            pInArgs,
+            pOutArgs
         )
     }
     .into_result()

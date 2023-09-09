@@ -12,6 +12,7 @@ wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.20"
 windebug-logger = { path = "../windebug-logger" }
+widestring = "1.0.2"
 
 [dependencies.windows]
 version = "0.51.1"

@@ -156,7 +156,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     };
 
                 #[repr(transparent)]
-                struct [<WdfObject $context_type>](::std::option::Option<::std::boxed::Box<::std::sync::RwLock<$context_type>>>);
+                struct [<WdfObject $context_type>](::std::sync::Arc<::std::sync::RwLock<$context_type>>);
 
                 impl $context_type {
                     /// Initialize and place context into internal WdfObject
@@ -170,20 +170,58 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     ) -> ::std::result::Result<(), $crate::WdfError> {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
+                        } as *mut ::std::mem::MaybeUninit<[<WdfObject $context_type>]>;
+
+                        let context = &mut *context;
+
+                        // Write to the memory location, making the data in it init
+                        context.write(
+                            [<WdfObject $context_type>](
+                                ::std::sync::Arc::new(::std::sync::RwLock::new(self))
+                            )
+                        );
+
+                        Ok(())
+                    }
+
+                    /// Initialize and place cloned context into internal WdfObject
+                    /// These are Arc's, so they will always point to the same data
+                    ///
+                    /// SAFETY:
+                    /// - handle must be a fresh unused object with no data in its context already
+                    /// - context type must already have been set up for handle
+                    /// - from_handle must be a valid T
+                    $sv unsafe fn init_from(
+                        handle: $crate::wdf_umdf_sys::WDFOBJECT,
+                        from_handle: $crate::wdf_umdf_sys::WDFOBJECT
+                    ) -> ::std::result::Result<(), $crate::WdfError> {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
+                        } as *mut ::std::mem::MaybeUninit<[<WdfObject $context_type>]>;
+
+                        let context = &mut *context;
+
+                        let from_context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(from_handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
                         } as *mut [<WdfObject $context_type>];
 
-                        let mut_ref = &mut *context;
-                        // initialize it to default data
-                        mut_ref.0 = ::std::option::Option::Some(::std::boxed::Box::new(::std::sync::RwLock::new(self)));
+                        let from_context = &*from_context;
+
+                        // Write to the memory location, making the data in it init
+                        // clones the arc into new handle
+                        context.write(
+                            [<WdfObject $context_type>](from_context.0.clone())
+                        );
 
                         Ok(())
                     }
 
                     /// SAFETY:
-                    /// - Must not drop if it's still in use elsewhere
+                    /// - Data in context is assumed to already be init and a valid T
+                    /// - Therefore, init for the context must already have been done on this handle
                     /// - No other mutable/non-mutable refs can exist to data when this is called, or it will alias
                     ///
-                    /// This will overwrite data contained for this type
+                    /// This may overwrite data in the handle's context memory, it is UB to read it after drop (e.g. get*)
                     $sv unsafe fn drop(
                         handle: $crate::wdf_umdf_sys::WDFOBJECT,
                     ) -> ::std::result::Result<(), $crate::WdfError> {
@@ -192,9 +230,8 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             [<_WDF_ $context_type _TYPE_INFO>].cell.get(),
                         )? as *mut [<WdfObject $context_type>];
 
-                        let mut_ref = &mut *context;
-                        // Set to none so it can drop
-                        mut_ref.0 = ::std::option::Option::None;
+                        // drop the memory
+                        ::std::ptr::drop_in_place(context);
 
                         Ok(())
                     }
@@ -216,7 +253,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
-                        unsafe { &*context }.0.as_ref().map(|r| r.read().ok()).flatten()
+                        unsafe { &*context }.0.read().ok()
                     }
 
                     /// Get the context from the wdfobject.
@@ -236,7 +273,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
-                        unsafe { &*context }.0.as_ref().map(|r| r.write().ok()).flatten()
+                        unsafe { &*context }.0.write().ok()
                     }
 
                     /// Get the context from the wdfobject.
@@ -256,7 +293,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
-                        unsafe { &*context }.0.as_ref().map(|r| r.try_read().ok()).flatten()
+                        unsafe { &*context }.0.try_read().ok()
                     }
 
                     /// Get the context from the wdfobject.
@@ -276,7 +313,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
-                        unsafe { &*context }.0.as_ref().map(|r| r.try_write().ok()).flatten()
+                        unsafe { &*context }.0.try_write().ok()
                     }
 
                     // SAFETY:

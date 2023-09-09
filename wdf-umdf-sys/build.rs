@@ -169,6 +169,7 @@ fn generate() {
         .clang_arg("--language=c++")
         .override_abi(Abi::CUnwind, ".*")
         .generate_cstr(true)
+        .derive_default(true)
         // generate
         .generate()
         .unwrap();

@@ -9,13 +9,11 @@ use wdf_umdf_sys::{
 };
 use windows::Win32::Foundation::STATUS_UNSUCCESSFUL;
 
-use crate::device_context::{
+use crate::callbacks::{
     adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
-    DeviceContext,
 };
-
-use windows::Win32::Foundation::STATUS_SUCCESS;
+use crate::device_context::DeviceContext;
 
 //
 // Our driver's entry point

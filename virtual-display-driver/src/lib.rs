@@ -3,9 +3,10 @@
 // https://github.com/ge9/IddSampleDriver
 //
 
+mod callbacks;
+mod device_context;
 mod direct_3d_device;
 mod entry;
-mod device_context;
 mod panic;
 mod swap_chain_processor;
 mod wdf;
