@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
 
 use wdf_umdf_sys::{
-    IDARG_IN_ADAPTER_INIT, IDARG_OUT_ADAPTER_INIT, IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE,
-    WDFDEVICE_INIT,
+    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_OUT_ADAPTER_INIT,
+    IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER, IDDCX_MONITOR,
+    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
 
 use crate::IntoHelper;
@@ -127,5 +128,40 @@ pub unsafe fn IddCxAdapterInitAsync(
             pOutArgs
         )
     }
+    .into_result()
+}
+
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorCreate(
+    // in
+    AdapterObject: IDDCX_ADAPTER,
+    // in
+    pInArgs: *const IDARG_IN_MONITORCREATE,
+    // out
+    pOutArgs: *mut IDARG_OUT_MONITORCREATE,
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorCreate(
+            AdapterObject,
+            pInArgs,
+            pOutArgs
+        )
+    )
+    .into_result()
+}
+
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorArrival(
+    // in
+    MonitorObject: IDDCX_MONITOR,
+    // out
+    pOutArgs: *mut IDARG_OUT_MONITORARRIVAL,
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorArrival(
+            MonitorObject,
+            pOutArgs
+        )
+    )
     .into_result()
 }
