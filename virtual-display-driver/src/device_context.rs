@@ -91,13 +91,8 @@ impl DeviceContext {
         if status.is_success() {
             self.adapter = Some(adapter_init_out.AdapterObject);
 
-            status = unsafe {
-                DeviceContext::init_from(
-                    self.device as WDFOBJECT,
-                    adapter_init_out.AdapterObject as WDFOBJECT,
-                )
-            }
-            .into_status();
+            status = unsafe { self.clone_into(adapter_init_out.AdapterObject as WDFOBJECT) }
+                .into_status();
         }
 
         status

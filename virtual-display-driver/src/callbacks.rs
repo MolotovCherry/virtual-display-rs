@@ -19,7 +19,7 @@ pub extern "C-unwind" fn adapter_init_finished(
 
 pub extern "C-unwind" fn device_d0_entry(
     device: WDFDEVICE,
-    previous_state: WDF_POWER_DEVICE_STATE,
+    _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
     let Some(mut context) = (unsafe { DeviceContext::get_mut(device) }) else {
         return NTSTATUS::STATUS_NOT_FOUND;

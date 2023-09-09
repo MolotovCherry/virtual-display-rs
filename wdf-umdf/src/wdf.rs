@@ -184,25 +184,25 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         Ok(())
                     }
 
-                    /// Initialize and place cloned context into internal WdfObject
-                    /// These are Arc's, so they will always point to the same data
+                    /// Initialize handle's context and clone self context into it.
+                    /// Internally, these are Arc's, so they will always point to the same data
                     ///
                     /// SAFETY:
                     /// - handle must be a fresh unused object with no data in its context already
-                    /// - context type must already have been set up for handle
-                    /// - from_handle must be a valid T
-                    $sv unsafe fn init_from(
-                        from_handle: $crate::wdf_umdf_sys::WDFOBJECT,
-                        to_handle: $crate::wdf_umdf_sys::WDFOBJECT
+                    /// - to_handle must have set context_type for this type via WDF_OBJECT_ATTRIBUTES when it was created
+                    /// - to_handle must be a valid T
+                    $sv unsafe fn clone_into(
+                        &self,
+                        handle: $crate::wdf_umdf_sys::WDFOBJECT
                     ) -> ::std::result::Result<(), $crate::WdfError> {
                         let context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(to_handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
+                            $crate::WdfObjectGetTypedContextWorker(handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
                         } as *mut ::std::mem::MaybeUninit<[<WdfObject $context_type>]>;
 
                         let context = &mut *context;
 
                         let from_context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(from_handle, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
+                            $crate::WdfObjectGetTypedContextWorker(self.device as *mut _, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
                         } as *mut [<WdfObject $context_type>];
 
                         let from_context = &*from_context;
