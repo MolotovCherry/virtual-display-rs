@@ -182,4 +182,8 @@ impl DeviceContext {
 
         status
     }
+
+    pub fn assign_swap_chain() {}
+
+    pub fn unassign_swap_chain() {}
 }

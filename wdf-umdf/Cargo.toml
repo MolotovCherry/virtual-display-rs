@@ -7,4 +7,3 @@ edition = "2021"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 paste = "1.0.14"
 thiserror = "1.0.47"
-once_cell = "1.18.0"

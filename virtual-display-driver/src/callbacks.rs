@@ -47,9 +47,11 @@ pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
     _p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
 ) -> NTSTATUS {
-    let Some(mut context) = (unsafe { DeviceContext::get_mut(adapter_object as *mut _) }) else {
+    let Some(context) = (unsafe { DeviceContext::get(adapter_object as *mut _) }) else {
         return NTSTATUS::STATUS_NOT_FOUND;
     };
+
+    let mut context = context.write().unwrap();
 
     context.finish_init()
 }
@@ -58,9 +60,11 @@ pub extern "C-unwind" fn device_d0_entry(
     device: WDFDEVICE,
     _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
-    let Some(mut context) = (unsafe { DeviceContext::get_mut(device) }) else {
+    let Some(context) = (unsafe { DeviceContext::get(device) }) else {
         return NTSTATUS::STATUS_NOT_FOUND;
     };
+
+    let mut context = context.write().unwrap();
 
     context.init_adapter()
 }
@@ -235,19 +239,22 @@ pub extern "C-unwind" fn monitor_query_modes(
 }
 
 pub extern "C-unwind" fn adapter_commit_modes(
-    adapter_object: *mut IDDCX_ADAPTER__,
-    p_in_args: *const IDARG_IN_COMMITMODES,
+    _adapter_object: *mut IDDCX_ADAPTER__,
+    _p_in_args: *const IDARG_IN_COMMITMODES,
 ) -> NTSTATUS {
-    info!("adapter_commit_modes");
-    todo!()
+    NTSTATUS::STATUS_SUCCESS
 }
 
 pub extern "C-unwind" fn assign_swap_chain(
     monitor_object: *mut IDDCX_MONITOR__,
     p_in_args: *const IDARG_IN_SETSWAPCHAIN,
 ) -> NTSTATUS {
-    info!("assign_swap_chain");
-    todo!()
+    // let Some(context) = (unsafe { DeviceContext::get(monitor_object as *mut _) }) else {
+    //     return NTSTATUS::STATUS_NOT_FOUND;
+    // };
+    // let a = *context;
+
+    NTSTATUS::STATUS_SUCCESS
 }
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {

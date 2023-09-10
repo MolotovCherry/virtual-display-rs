@@ -16,6 +16,8 @@ pub enum WdfError {
     WdfFunctionNotAvailable(&'static str),
     #[error("{0}")]
     CallFailed(NTSTATUS),
+    #[error("Failed to upgrade Arc pointer")]
+    UpgradeFailed,
     // this is required for success status for ()
     #[error("This is not an error, ignore it")]
     Success,
@@ -33,6 +35,7 @@ impl From<WdfError> for NTSTATUS {
         match value {
             WdfFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
+            UpgradeFailed => Self::STATUS_INVALID_HANDLE,
             Success => 0.into(),
         }
     }
@@ -155,8 +158,15 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         _phantom: ::std::marker::PhantomData
                     };
 
+                /// Allows us to keep ONE main Arc allocation while handing out weak pointers to the rest of the clones.
+                /// In this way, we can drop the allocation by dropping 1 arc, while letting others still access it
+                enum ArcPointer<T> {
+                    Strong(::std::sync::Arc<T>),
+                    Weak(::std::sync::Weak<T>)
+                }
+
                 #[repr(transparent)]
-                struct [<WdfObject $context_type>](::std::sync::Arc<::std::sync::RwLock<$context_type>>);
+                struct [<WdfObject $context_type>](ArcPointer<::std::sync::RwLock<$context_type>>);
 
                 impl $context_type {
                     /// Initialize and place context into internal WdfObject
@@ -164,6 +174,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     /// SAFETY:
                     /// - handle must be a fresh unused object with no data in its context already
                     /// - context type must already have been set up for handle
+                    /// - Must be set only once regardless of the object. For all other objects, use clone_into()
                     $sv unsafe fn init(
                         self,
                         handle: $crate::wdf_umdf_sys::WDFOBJECT,
@@ -177,15 +188,16 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         // Write to the memory location, making the data in it init
                         context.write(
                             [<WdfObject $context_type>](
-                                ::std::sync::Arc::new(::std::sync::RwLock::new(self))
+                                ArcPointer::Strong(::std::sync::Arc::new(::std::sync::RwLock::new(self)))
                             )
                         );
 
                         Ok(())
                     }
 
-                    /// Initialize handle's context and clone self context into it.
-                    /// Internally, these are Arc's, so they will always point to the same data
+                    /// Initialize handle's context and clone a Weak pointer to self context into it.
+                    /// Internally, these are Arc's, so they will always point to the same data.
+                    /// When the main Arc drops, none of these may access memory any longer
                     ///
                     /// SAFETY:
                     /// - handle must be a fresh unused object with no data in its context already
@@ -205,17 +217,24 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             $crate::WdfObjectGetTypedContextWorker(self.device as *mut _, [<_WDF_ $context_type _TYPE_INFO>].cell.get())?
                         } as *mut [<WdfObject $context_type>];
 
-                        let from_context = &*from_context;
+                        let from_context = match &(*from_context).0 {
+                            ArcPointer::Strong(a) => a.clone(),
+                            ArcPointer::Weak(a) => a.upgrade().ok_or($crate::WdfError::UpgradeFailed)?.clone(),
+                        };
 
                         // Write to the memory location, making the data in it init
                         // clones the arc into new handle
                         context.write(
-                            [<WdfObject $context_type>](from_context.0.clone())
+                            [<WdfObject $context_type>](ArcPointer::Weak(::std::sync::Arc::downgrade(&from_context)))
                         );
 
                         Ok(())
                     }
 
+                    /// NOTE: Dropping memory that was created via `clone_into` will never drop the main allocation.
+                    ///       To drop the main allocation, you need to drop the instance made via `init`.
+                    ///       That instance can be obtained through the original handle you created it through
+                    ///
                     /// SAFETY:
                     /// - Data in context is assumed to already be init and a valid T
                     /// - Therefore, init for the context must already have been done on this handle
@@ -237,14 +256,14 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                     }
 
                     /// Get the context from the wdfobject.
-                    /// Make sure you initialized it first, otherwise it will be unusable
                     ///
                     /// SAFETY:
                     /// - Must have initialized WdfObject first
                     /// - Data must not have been dropped
+                    /// - Object must not have been destroyed
                     $sv unsafe fn get<'a>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                    ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
+                    ) -> ::std::option::Option<::std::sync::Arc<::std::sync::RwLock<$context_type>>>
                     {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
@@ -253,67 +272,14 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                             ).ok()?
                         } as *mut [<WdfObject $context_type>];
 
-                        unsafe { &*context }.0.read().ok()
-                    }
+                        let context = &*context;
 
-                    /// Get the context from the wdfobject.
-                    /// Make sure you initialized it first, otherwise it will be unusable
-                    ///
-                    /// SAFETY:
-                    /// - Must have initialized WdfObject first
-                    /// - Data must not have been dropped
-                    $sv unsafe fn get_mut<'a>(
-                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                    ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
-                    {
-                        let context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
-                            ).ok()?
-                        } as *mut [<WdfObject $context_type>];
+                        let context = match &context.0 {
+                            ArcPointer::Strong(a) => a.clone(),
+                            ArcPointer::Weak(a) => a.upgrade()?.clone(),
+                        };
 
-                        unsafe { &*context }.0.write().ok()
-                    }
-
-                    /// Get the context from the wdfobject.
-                    /// Make sure you initialized it first, otherwise it will be unusable
-                    ///
-                    /// SAFETY:
-                    /// - Must have initialized WdfObject first
-                    /// - Data must not have been dropped
-                    $sv unsafe fn try_get<'a>(
-                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                    ) -> ::std::option::Option<::std::sync::RwLockReadGuard<'a, $context_type>>
-                    {
-                        let context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
-                            ).ok()?
-                        } as *mut [<WdfObject $context_type>];
-
-                        unsafe { &*context }.0.try_read().ok()
-                    }
-
-                    /// Get the context from the wdfobject.
-                    /// Make sure you initialized it first, otherwise it will be unusable
-                    ///
-                    /// SAFETY:
-                    /// - Must have initialized WdfObject first
-                    /// - Data must not have been dropped
-                    $sv unsafe fn try_get_mut<'a>(
-                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                    ) -> ::std::option::Option<::std::sync::RwLockWriteGuard<'a, $context_type>>
-                    {
-                        let context = unsafe {
-                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
-                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
-                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
-                            ).ok()?
-                        } as *mut [<WdfObject $context_type>];
-
-                        unsafe { &*context }.0.try_write().ok()
+                        Some(context)
                     }
 
                     // SAFETY:
