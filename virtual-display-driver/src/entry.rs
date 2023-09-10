@@ -7,10 +7,9 @@ use wdf_umdf_sys::{
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT, WDF_DRIVER_CONFIG,
     WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
 };
-use windows::Win32::Foundation::STATUS_UNSUCCESSFUL;
 
 use crate::callbacks::{
-    adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
+    adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry, load_monitors,
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
 };
 use crate::device_context::DeviceContext;
@@ -29,8 +28,8 @@ extern "C-unwind" fn DriverEntry(
     } else {
         Level::Info
     })
-    .map(|_| NTSTATUS(0))
-    .unwrap_or(NTSTATUS(STATUS_UNSUCCESSFUL.0));
+    .map(|_| NTSTATUS::STATUS_SUCCESS)
+    .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
 
     if !status.is_success() {
         return status;
@@ -59,6 +58,9 @@ extern "C-unwind" fn driver_add(
     _driver: *mut WDFDRIVER__,
     mut init: *mut WDFDEVICE_INIT,
 ) -> NTSTATUS {
+    // load monitor modes here into memory
+    load_monitors();
+
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
     callbacks.EvtDeviceD0Entry = Some(device_d0_entry);

@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, sync::atomic::Ordering};
 
 use wdf_umdf::{
     IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper,
@@ -14,6 +14,8 @@ use wdf_umdf_sys::{
 };
 use widestring::u16cstr;
 use windows::core::GUID;
+
+use crate::callbacks::MONITOR_COUNT;
 
 // Taken from
 // https://github.com/ge9/IddSampleDriver/blob/fe98ccff703b5c1e578a0d627aeac2fa77ac58e2/IddSampleDriver/Driver.cpp#L403
@@ -109,8 +111,16 @@ impl DeviceContext {
     }
 
     pub fn finish_init(&mut self) -> NTSTATUS {
-        // TODO: Create multiple monitors out of config
-        self.create_monitor(0)
+        let mut status = NTSTATUS::STATUS_SUCCESS;
+
+        for i in 0..=MONITOR_COUNT.load(Ordering::Relaxed) {
+            status = self.create_monitor(i);
+            if !status.is_success() {
+                break;
+            }
+        }
+
+        status
     }
 
     fn create_monitor(&mut self, index: u32) -> NTSTATUS {
@@ -124,7 +134,7 @@ impl DeviceContext {
             // and: wmdf_umdf_sys::_GUID
             MonitorContainerId: unsafe { mem::transmute(GUID::new().unwrap()) },
             MonitorType:
-                DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY::DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EMBEDDED,
+                DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY::DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI,
 
             ConnectorIndex: index,
             MonitorDescription: IDDCX_MONITOR_DESCRIPTION {
@@ -132,7 +142,7 @@ impl DeviceContext {
                 Type: IDDCX_MONITOR_DESCRIPTION_TYPE::IDDCX_MONITOR_DESCRIPTION_TYPE_EDID,
                 DataSize: MONITOR_EDID.len() as u32,
                 pData: MONITOR_EDID.as_ptr() as *const _ as *mut _,
-            }
+            },
         };
 
         let monitor_create = IDARG_IN_MONITORCREATE {
