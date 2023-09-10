@@ -161,71 +161,73 @@ pub extern "C-unwind" fn monitor_query_modes(
 ) -> NTSTATUS {
     let monitor_count = MONITOR_COUNT.load(Ordering::Relaxed);
 
-    let mut target_modes = Vec::with_capacity(monitor_count as usize);
-
     // Create a set of modes supported for frame processing and scan-out. These are typically not based on the
     // monitor's descriptor and instead are based on the static processing capability of the device. The OS will
     // report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
-    for &MonitorMode {
-        width,
-        height,
-        refresh_rate,
-    } in MONITOR_MODES.get().unwrap()
-    {
-        let total_size = DISPLAYCONFIG_2DREGION {
-            cx: width,
-            cy: height,
-        };
-
-        let target_mode = IDDCX_TARGET_MODE {
-            Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
-
-            TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
-                targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
-                    pixelRate: refresh_rate as u64 * width as u64 * height as u64,
-                    hSyncFreq: DISPLAYCONFIG_RATIONAL {
-                        Numerator: refresh_rate * height,
-                        Denominator: 1,
-                    },
-                    vSyncFreq: DISPLAYCONFIG_RATIONAL {
-                        Numerator: refresh_rate,
-                        Denominator: 1,
-                    },
-                    totalSize: total_size,
-                    activeSize: total_size,
-                    scanLineOrdering:
-                        DISPLAYCONFIG_SCANLINE_ORDERING::DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE,
-                    __bindgen_anon_1: DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1 {
-                        AdditionalSignalInfo: unsafe {
-                            mem::transmute(
-                                DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1::new_bitfield_1(
-                                    255, 1, 0,
-                                ),
-                            )
-                        },
-                    },
-                },
-            },
-
-            ..Default::default()
-        };
-
-        target_modes.push(target_mode);
-    }
-
     let out_args = unsafe { &mut *p_out_args };
-    out_args.TargetModeBufferOutputCount = target_modes.len() as u32;
+    out_args.TargetModeBufferOutputCount = monitor_count as u32;
 
     let in_args = unsafe { &*p_in_args };
 
-    if in_args.TargetModeBufferInputCount >= target_modes.len() as u32 {
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                target_modes.as_ptr(),
-                in_args.pTargetModes,
-                target_modes.len(),
+    if in_args.TargetModeBufferInputCount >= monitor_count as u32 {
+        let out_target_modes = unsafe {
+            std::slice::from_raw_parts_mut(
+                in_args
+                    .pTargetModes
+                    .cast::<MaybeUninit<IDDCX_TARGET_MODE>>(),
+                monitor_count as usize,
             )
+        };
+
+        for (
+            &MonitorMode {
+                width,
+                height,
+                refresh_rate,
+            },
+            out_target,
+        ) in MONITOR_MODES.get().unwrap().iter().zip(out_target_modes)
+        {
+            let total_size = DISPLAYCONFIG_2DREGION {
+                cx: width,
+                cy: height,
+            };
+
+            let target_mode = IDDCX_TARGET_MODE {
+                Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
+
+                TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
+                    targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
+                        pixelRate: refresh_rate as u64 * width as u64 * height as u64,
+                        hSyncFreq: DISPLAYCONFIG_RATIONAL {
+                            Numerator: refresh_rate * height,
+                            Denominator: 1,
+                        },
+                        vSyncFreq: DISPLAYCONFIG_RATIONAL {
+                            Numerator: refresh_rate,
+                            Denominator: 1,
+                        },
+                        totalSize: total_size,
+                        activeSize: total_size,
+                        scanLineOrdering:
+                            DISPLAYCONFIG_SCANLINE_ORDERING::DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE,
+                        __bindgen_anon_1: DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1 {
+                            AdditionalSignalInfo: unsafe {
+                                mem::transmute(
+                                    DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1::new_bitfield_1(
+                                        255, 1, 0,
+                                    ),
+                                )
+                            },
+                        },
+                    },
+                },
+
+                ..Default::default()
+            };
+
+            out_target.write(target_mode);
         }
     }
 
