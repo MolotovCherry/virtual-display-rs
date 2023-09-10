@@ -113,7 +113,7 @@ impl DeviceContext {
     pub fn finish_init(&mut self) -> NTSTATUS {
         let mut status = NTSTATUS::STATUS_SUCCESS;
 
-        for i in 0..=MONITOR_COUNT.load(Ordering::Relaxed) {
+        for i in 0..MONITOR_COUNT.load(Ordering::Relaxed) {
             status = self.create_monitor(i);
             if !status.is_success() {
                 break;
