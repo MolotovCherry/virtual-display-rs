@@ -39,5 +39,14 @@ jobs:
         certutil -decode private.txt private.pfx
         Import-PfxCertificate -FilePath "private.pfx" -CertStoreLocation Cert:\LocalMachine\MY -Password (ConvertTo-SecureString -String "$env:PRIVATE_KEY_PASSWORD" -AsPlainText -Force)
 
-    - name: Build driver
+    - name: Build Driver
       run: cargo make -p dev build
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: driver
+        path: |
+          target/**/*.cat
+          target/**/*.dll
+          target/**/*.inf
