@@ -30,5 +30,14 @@ jobs:
       with:
         crate: cargo-make
 
+    - name: Import Private Key
+      env:
+        PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+      run: |
+        $env:PRIVATE_KEY | Out-File -FilePath private.txt
+        certutil -decode private.txt private.pfx
+        Import-PfxCertificate -FilePath "private.pfx" -CertStoreLocation Cert:\LocalMachine\MY -Password (ConvertTo-SecureString -String "$env:PRIVATE_KEY_PASSWORD" -AsPlainText -Force)
+
     - name: Build driver
       run: cargo make -p dev build
