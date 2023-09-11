@@ -59,10 +59,8 @@ jobs:
 
       - name: Export Public Certificate
         if: github.event_name == 'release'
-        env:
-          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: |
-          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "$env:PRIVATE_KEY_PASSWORD" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
+          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ secrets.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
 
       - uses: vimtor/action-zip@v1
         if: github.event_name == 'release'
@@ -78,4 +76,4 @@ jobs:
         with:
           file: "*.zip"
           draft: false
-          update_latest_release: true
+          release_id: ${{ github.event.release.id }}
