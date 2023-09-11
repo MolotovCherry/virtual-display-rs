@@ -12,6 +12,7 @@ env:
 
 jobs:
   clippy:
+    permissions: write-all
     runs-on: windows-2022
 
     steps:
