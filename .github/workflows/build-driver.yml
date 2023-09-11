@@ -3,50 +3,49 @@ name: Build Driver
 on:
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: windows-2022
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-    
-    - name: Setup Rust toolchain
-      run: rustup toolchain install stable --profile minimal
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Rust cache
-      uses: Swatinem/rust-cache@v2
+      - name: Setup Rust toolchain
+        run: rustup toolchain install stable --profile minimal
 
-    - name: Install cargo-make
-      uses: baptiste0928/cargo-install@v2
-      with:
-        crate: cargo-make
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
 
-    - name: Import Private Key
-      env:
-        PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-        PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
-      run: |
-        $env:PRIVATE_KEY | Out-File -FilePath private.txt
-        certutil -decode private.txt private.pfx
-        Import-PfxCertificate -FilePath "private.pfx" -CertStoreLocation Cert:\LocalMachine\MY -Password (ConvertTo-SecureString -String "$env:PRIVATE_KEY_PASSWORD" -AsPlainText -Force)
+      - name: Install cargo-make
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-make
 
-    - name: Build Driver
-      run: cargo make -p dev build
+      - name: Export Private Certificate
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+        run: |
+          $env:PRIVATE_KEY | Out-File -FilePath private.txt
+          certutil -decode private.txt private.pfx
 
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: driver
-        path: |
-          target/**/*.cat
-          target/**/*.dll
-          target/**/*.inf
+      - name: Build Driver
+        env:
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: cargo make -p dev build
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: driver
+          path: |
+            target/debug/*.cat
+            target/debug/*.dll
+            target/debug/*.inf
