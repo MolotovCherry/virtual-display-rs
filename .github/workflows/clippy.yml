@@ -1,7 +1,9 @@
-name: Clippy Check
+name: Clippy
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -9,13 +11,20 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  clippy_check:
+  clippy:
     runs-on: windows-2022
 
     steps:
-      - uses: actions/checkout@v3
-      - run: rustup component add clippy
-      - uses: actions-rs/clippy-check@v1
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Add Clippy Component
+        run: rustup component add clippy
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clippy
+        uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
