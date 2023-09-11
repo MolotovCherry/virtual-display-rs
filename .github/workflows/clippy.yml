@@ -1,3 +1,4 @@
+name: Clippy Check
 
 on:
   workflow_dispatch:
