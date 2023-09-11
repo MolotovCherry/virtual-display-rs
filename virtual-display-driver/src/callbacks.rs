@@ -7,6 +7,7 @@ use std::{
 };
 
 use log::info;
+use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1,
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1, DISPLAYCONFIG_2DREGION,
@@ -47,26 +48,36 @@ pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
     _p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
 ) -> NTSTATUS {
-    let Some(context) = (unsafe { DeviceContext::get(adapter_object as *mut _) }) else {
-        return NTSTATUS::STATUS_NOT_FOUND;
+    let status = unsafe {
+        DeviceContext::get_mut(adapter_object as *mut _, |context| {
+            context.finish_init();
+        })
+        .into_status()
     };
 
-    let mut context = context.write().unwrap();
+    if !status.is_success() {
+        return status;
+    }
 
-    context.finish_init()
+    NTSTATUS::STATUS_SUCCESS
 }
 
 pub extern "C-unwind" fn device_d0_entry(
     device: WDFDEVICE,
     _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
-    let Some(context) = (unsafe { DeviceContext::get(device) }) else {
-        return NTSTATUS::STATUS_NOT_FOUND;
+    let status = unsafe {
+        DeviceContext::get_mut(device as *mut _, |context| {
+            context.init_adapter();
+        })
+        .into_status()
     };
 
-    let mut context = context.write().unwrap();
+    if !status.is_success() {
+        return status;
+    }
 
-    context.init_adapter()
+    NTSTATUS::STATUS_SUCCESS
 }
 
 fn display_info(width: u32, height: u32, refresh_rate: u32) -> DISPLAYCONFIG_VIDEO_SIGNAL_INFO {

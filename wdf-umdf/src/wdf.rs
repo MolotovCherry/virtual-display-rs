@@ -18,6 +18,8 @@ pub enum WdfError {
     CallFailed(NTSTATUS),
     #[error("Failed to upgrade Arc pointer")]
     UpgradeFailed,
+    #[error("Failed to lock")]
+    LockFailed,
     // this is required for success status for ()
     #[error("This is not an error, ignore it")]
     Success,
@@ -36,6 +38,7 @@ impl From<WdfError> for NTSTATUS {
             WdfFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
             UpgradeFailed => Self::STATUS_INVALID_HANDLE,
+            LockFailed => Self::STATUS_WAS_LOCKED,
             Success => 0.into(),
         }
     }
@@ -255,31 +258,144 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         Ok(())
                     }
 
-                    /// Get the context from the wdfobject.
+                    /// Borrow the context immutably
+                    /// Function returns with error and won't call cb if it failed to lock
                     ///
                     /// SAFETY:
                     /// - Must have initialized WdfObject first
                     /// - Data must not have been dropped
                     /// - Object must not have been destroyed
-                    $sv unsafe fn get<'a>(
+                    $sv unsafe fn get<F>(
                         handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
-                    ) -> ::std::option::Option<::std::sync::Arc<::std::sync::RwLock<$context_type>>>
+                        cb: F
+                    ) -> ::std::result::Result<(), $crate::WdfError>
+                    where
+                        F: ::std::ops::FnOnce(&$context_type)
                     {
                         let context = unsafe {
                             $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
                                 // SAFETY: Reading is always fine, since user cannot obtain mutable reference
                                 (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
-                            ).ok()?
+                            )?
                         } as *mut [<WdfObject $context_type>];
 
                         let context = &*context;
 
                         let context = match &context.0 {
                             ArcPointer::Strong(a) => a.clone(),
-                            ArcPointer::Weak(a) => a.upgrade()?.clone(),
+                            ArcPointer::Weak(a) => a.upgrade().ok_or($crate::WdfError::UpgradeFailed)?.clone(),
                         };
 
-                        Some(context)
+                        let guard = context.read().map_err(|_| $crate::WdfError::LockFailed)?;
+
+                        cb(&*guard);
+
+                        Ok(())
+                    }
+
+                    /// Borrow the context immutably
+                    /// Function returns with error and won't call cb if it failed to lock
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    /// - Object must not have been destroyed
+                    $sv unsafe fn get_mut<F>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                        cb: F
+                    ) -> ::std::result::Result<(), $crate::WdfError>
+                    where
+                        F: ::std::ops::FnOnce(&mut $context_type)
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
+                            )?
+                        } as *mut [<WdfObject $context_type>];
+
+                        let context = &*context;
+
+                        let context = match &context.0 {
+                            ArcPointer::Strong(a) => a.clone(),
+                            ArcPointer::Weak(a) => a.upgrade().ok_or($crate::WdfError::UpgradeFailed)?.clone(),
+                        };
+
+                        let mut guard = context.write().map_err(|_| $crate::WdfError::LockFailed)?;
+
+                        cb(&mut *guard);
+
+                        Ok(())
+                    }
+
+                                        /// Borrow the context immutably
+                    /// Function returns with error and won't call cb if it failed to lock
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    /// - Object must not have been destroyed
+                    $sv unsafe fn try_get<F>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                        cb: F
+                    ) -> ::std::result::Result<(), $crate::WdfError>
+                    where
+                        F: ::std::ops::FnOnce(&$context_type)
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
+                            )?
+                        } as *mut [<WdfObject $context_type>];
+
+                        let context = &*context;
+
+                        let context = match &context.0 {
+                            ArcPointer::Strong(a) => a.clone(),
+                            ArcPointer::Weak(a) => a.upgrade().ok_or($crate::WdfError::UpgradeFailed)?.clone(),
+                        };
+
+                        let guard = context.try_read().map_err(|_| $crate::WdfError::LockFailed)?;
+
+                        cb(&*guard);
+
+                        Ok(())
+                    }
+
+                    /// Try to borrow the context mutably. Immediately returns if it's locked
+                    /// Function returns with error and won't call cb if it failed to lock
+                    ///
+                    /// SAFETY:
+                    /// - Must have initialized WdfObject first
+                    /// - Data must not have been dropped
+                    /// - Object must not have been destroyed
+                    $sv unsafe fn try_get_mut<F>(
+                        handle: *mut $crate::wdf_umdf_sys::WDFDEVICE__,
+                        cb: F
+                    ) -> ::std::result::Result<(), $crate::WdfError>
+                    where
+                        F: ::std::ops::FnOnce(&mut $context_type)
+                    {
+                        let context = unsafe {
+                            $crate::WdfObjectGetTypedContextWorker(handle as *mut _,
+                                // SAFETY: Reading is always fine, since user cannot obtain mutable reference
+                                (&*[<_WDF_ $context_type _TYPE_INFO>].cell.get()).UniqueType
+                            )?
+                        } as *mut [<WdfObject $context_type>];
+
+                        let context = &*context;
+
+                        let context = match &context.0 {
+                            ArcPointer::Strong(a) => a.clone(),
+                            ArcPointer::Weak(a) => a.upgrade().ok_or($crate::WdfError::UpgradeFailed)?.clone(),
+                        };
+
+                        let mut guard = context.try_write().map_err(|_| $crate::WdfError::LockFailed)?;
+
+                        cb(&mut *guard);
+
+                        Ok(())
                     }
 
                     // SAFETY:
