@@ -2,6 +2,14 @@
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
 BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
+# the runner uses enterprise instead of community edition
+VSFOLDER = { script = ['''
+if defined CI (
+  echo Enterprise
+)else (
+  echo Community
+)
+'''] }
 
 [env.dev]
 # for developer inf stamping mode
@@ -43,7 +51,7 @@ script = ['''
 dependencies = ["build-driver"]
 script = [
     # Load the Visual Studio Developer environment
-    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
+    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\%VSFOLDER%\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
 
     # copy inf to target dir
     "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
@@ -58,7 +66,7 @@ script = [
     # Load the Visual Studio Developer environment
     '''
     REM Get vc env
-    call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat"
+    call "%ProgramFiles%\Microsoft Visual Studio\2022\%VSFOLDER%\VC\Auxiliary\Build\vcvars32.bat"
 
     REM generate cat file
     inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
@@ -71,7 +79,7 @@ script = [
 dependencies = ["build-driver", "rename", "stamp-inf"]
 script = [
     # Load the Visual Studio Developer environment
-    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
+    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\%VSFOLDER%\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
 
     # Create a self signed certificate (only if not already done)
     "if not exist DriverCertificate.cer ( makecert -r -pe -ss PrivateCertStore -n CN=DriverCertificate DriverCertificate.cer )",
