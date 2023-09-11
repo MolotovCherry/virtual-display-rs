@@ -71,7 +71,7 @@ script = [
     REM generate cat file
     inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
 
-    signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
+    signtool sign /a /fd SHA256 /v /s MY /n DriverCertificate /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
     ''',
 ]
 
@@ -82,10 +82,15 @@ script = [
     "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\%VSFOLDER%\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
 
     # Create a self signed certificate (only if not already done)
-    "if not exist DriverCertificate.cer ( makecert -r -pe -ss PrivateCertStore -n CN=DriverCertificate DriverCertificate.cer )",
+    '''
+      certutil -store "MY" | findstr /i "DriverCertificate" >NUL 2>NUL
+      if %errorlevel%==1 (
+        pwsh -Command "Start-Process pwsh -ArgumentList '-Command New-SelfSignedCertificate -KeyExportPolicy Exportable -CertStoreLocation \"Cert:\LocalMachine\MY\" -Subject \"CN=DriverCertificate\" -Type CodeSigningCert' -Verb RunAs"
+      )
+    ''',
 
     # Sign the driver
-    "signtool sign /a /fd SHA256 /v /s PrivateCertStore /n DriverCertificate /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
+    "signtool sign /a /fd SHA256 /v /s MY /n DriverCertificate /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
 ]
 
 [tasks.build]
