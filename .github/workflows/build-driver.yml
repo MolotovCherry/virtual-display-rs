@@ -6,12 +6,15 @@ on:
     branches: ["master"]
   pull_request:
     branches: ["master"]
+  release:
+    types: [created]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
+    permissions: write-all
     runs-on: windows-2022
 
     steps:
@@ -23,6 +26,8 @@ jobs:
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
 
       - name: Install cargo-make
         uses: baptiste0928/cargo-install@v2
@@ -39,9 +44,11 @@ jobs:
       - name: Build Driver
         env:
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
-        run: cargo make -p dev build
+          RELEASE: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+        run: cargo make -p $env:RELEASE build
 
       - name: Upload Artifacts
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v3
         with:
           name: driver
@@ -49,3 +56,26 @@ jobs:
             target/debug/*.cat
             target/debug/*.dll
             target/debug/*.inf
+
+      - name: Export Public Certificate
+        if: github.event_name == 'release'
+        env:
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+        run: |
+          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "$env:PRIVATE_KEY_PASSWORD" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
+
+      - uses: vimtor/action-zip@v1
+        if: github.event_name == 'release'
+        with:
+          files: target/release/VirtualDisplayDriver.cat target/release/VirtualDisplayDriver.dll target/release/VirtualDisplayDriver.inf DriverCertificate.cer
+          dest: virtual-desktop-driver-x64.zip
+
+      - name: Attach assets to release
+        if: github.event_name == 'release'
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          file: "*.zip"
+          draft: false
+          update_latest_release: true
