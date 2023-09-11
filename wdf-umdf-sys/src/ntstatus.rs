@@ -23,28 +23,19 @@ impl NTSTATUS {
     // NT_INFORMATION
     pub fn is_information(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
-        match val {
-            0x40000000..=0x7FFFFFFF => true,
-            _ => false,
-        }
+        matches!(val, 0x40000000..=0x7FFFFFFF)
     }
 
     // NT_WARNING
     pub fn is_warning(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
-        match val {
-            0x80000000..=0xBFFFFFFF => true,
-            _ => false,
-        }
+        matches!(val, 0x80000000..=0xBFFFFFFF)
     }
 
     // NT_ERROR
     pub fn is_error(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
-        match val {
-            0xC0000000..=0xFFFFFFFF => true,
-            _ => false,
-        }
+        matches!(val, 0xC0000000..=0xFFFFFFFF)
     }
 }
 

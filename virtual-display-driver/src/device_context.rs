@@ -81,7 +81,6 @@ impl DeviceContext {
 
                 pFirmwareVersion: &version as *const _ as *mut _,
                 pHardwareVersion: &version as *const _ as *mut _,
-                ..Default::default()
             },
 
             ..Default::default()

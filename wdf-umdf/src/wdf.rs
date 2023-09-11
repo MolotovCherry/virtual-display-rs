@@ -410,6 +410,9 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
     };
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn WdfDriverCreate(
     // in
     DriverObject: PDRIVER_OBJECT,
@@ -430,12 +433,15 @@ pub unsafe fn WdfDriverCreate(
             DriverConfig,
             Driver
                 .map(|d| d as *mut _)
-                .unwrap_or(WDF_NO_HANDLE!() as *mut *mut _)
+                .unwrap_or(WDF_NO_HANDLE!())
         )
     }
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn WdfDeviceCreate(
     // in, out
     DeviceInit: &mut PWDFDEVICE_INIT,
@@ -454,6 +460,9 @@ pub unsafe fn WdfDeviceCreate(
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
     // in
     DeviceInit: PWDFDEVICE_INIT,
@@ -468,6 +477,9 @@ pub unsafe fn WdfDeviceInitSetPnpPowerEventCallbacks(
     }
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn WdfObjectGetTypedContextWorker(
     // in
     Handle: WDFOBJECT,

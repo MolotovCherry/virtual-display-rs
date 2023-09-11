@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 // stand-in type replacing NTSTATUS in the bindings
 use crate::NTSTATUS;
 

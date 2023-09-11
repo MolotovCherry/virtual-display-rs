@@ -181,11 +181,11 @@ pub extern "C-unwind" fn monitor_query_modes(
     // report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
     let out_args = unsafe { &mut *p_out_args };
-    out_args.TargetModeBufferOutputCount = monitor_count as u32;
+    out_args.TargetModeBufferOutputCount = monitor_count;
 
     let in_args = unsafe { &*p_in_args };
 
-    if in_args.TargetModeBufferInputCount >= monitor_count as u32 {
+    if in_args.TargetModeBufferInputCount >= monitor_count {
         let out_target_modes = unsafe {
             std::slice::from_raw_parts_mut(
                 in_args

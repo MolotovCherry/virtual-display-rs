@@ -26,7 +26,7 @@ impl Log for WinDebugLogger {
 }
 
 fn log(record: &log::Record) -> Option<()> {
-    let target = if record.target().len() > 0 {
+    let target = if !record.target().is_empty() {
         record.target()
     } else {
         record.module_path().unwrap_or_default()

@@ -89,6 +89,9 @@ macro_rules! IddCxCall {
     }};
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn IddCxDeviceInitConfig(
     // in, out
     DeviceInit: &mut WDFDEVICE_INIT,
@@ -104,6 +107,9 @@ pub unsafe fn IddCxDeviceInitConfig(
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn IddCxDeviceInitialize(
     // in
     Device: WDFDEVICE,
@@ -116,6 +122,9 @@ pub unsafe fn IddCxDeviceInitialize(
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 pub unsafe fn IddCxAdapterInitAsync(
     // in
     pInArgs: *const IDARG_IN_ADAPTER_INIT,
@@ -131,6 +140,9 @@ pub unsafe fn IddCxAdapterInitAsync(
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 #[rustfmt::skip]
 pub unsafe fn IddCxMonitorCreate(
     // in
@@ -150,6 +162,9 @@ pub unsafe fn IddCxMonitorCreate(
     .into_result()
 }
 
+/// # Safety
+///
+/// None. User is responsible for safety.
 #[rustfmt::skip]
 pub unsafe fn IddCxMonitorArrival(
     // in
