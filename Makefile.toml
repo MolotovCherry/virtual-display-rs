@@ -19,8 +19,6 @@ array_remove ${env_vars} 0
 array_remove ${env_vars} 0
 array_remove ${env_vars} 0
 
-#array_pop ${env_vars}
-
 for var in ${env_vars}
     handle = split ${var} =
 
@@ -117,8 +115,10 @@ script = [
     # Create a self signed certificate (only if not already done)
     '''
       certutil -store "My" | findstr /i "DriverCertificate" >NUL 2>NUL
-      if %errorlevel%==1 (
-        pwsh -Command "Start-Process pwsh -ArgumentList '-Command New-SelfSignedCertificate -KeyExportPolicy Exportable -CertStoreLocation \"Cert:\LocalMachine\My\" -Subject \"CN=DriverCertificate\" -Type CodeSigningCert' -Verb RunAs"
+      if not defined CI (
+        if %errorlevel%==1 (
+            pwsh -Command "Start-Process pwsh -ArgumentList '-Command New-SelfSignedCertificate -KeyExportPolicy Exportable -CertStoreLocation \"Cert:\LocalMachine\My\" -Subject \"CN=DriverCertificate\" -Type CodeSigningCert' -Verb RunAs"
+        )
       )
     ''',
 
