@@ -13,11 +13,8 @@ impl NTSTATUS {
     // NT_SUCCESS
     pub fn is_success(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
-        match val {
-            // NT_SUCCESS | NT_INFORMATION
-            0..=0x3FFFFFFF | 0x40000000..=0x7FFFFFFF => true,
-            _ => false,
-        }
+        // NT_SUCCESS | NT_INFORMATION
+        matches!(val, 0..=0x3FFFFFFF | 0x40000000..=0x7FFFFFFF)
     }
 
     // NT_INFORMATION
