@@ -1,15 +1,51 @@
+env_scripts = [
+    # set the visual studio dev console environment for everyone
+    '''
+#!@duckscript
+CI = get_env CI
+Program_Files = get_env ProgramFiles
+BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat"
+if not is_empty ${CI}
+    BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat"
+end
+
+output = exec cmd /c call "${BAT_PATH}" && set
+stdout = set ${output.stdout}
+
+env_vars = split ${stdout} \r\n
+# remove the first 4 since they are only a header
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+
+#array_pop ${env_vars}
+
+for var in ${env_vars}
+    handle = split ${var} =
+
+    key = array_get ${handle} 0
+    array_remove ${handle} 0
+
+    value = array_join ${handle} =
+
+    if not is_empty ${key}
+        if not is_empty ${value}
+            set_env ${key} ${value}
+        end
+    end
+
+    release ${handle}
+end
+
+release ${env_vars}
+''',
+]
+
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
 BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
-# the runner uses enterprise instead of community edition
-VSFOLDER = { script = ['''
-if defined CI (
-  echo Enterprise
-) else (
-  echo Community
-)
-'''] }
 SIGN_OPTIONS = { script = ['''
 if defined CI (
     echo /f private.pfx /p %PRIVATE_KEY_PASSWORD%
@@ -57,9 +93,6 @@ script = ['''
 [tasks.stamp-inf]
 dependencies = ["build-driver"]
 script = [
-    # Load the Visual Studio Developer environment
-    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\%VSFOLDER%\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
-
     # copy inf to target dir
     "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
 
@@ -70,12 +103,8 @@ script = [
 [tasks.gen-cat]
 dependencies = ["build-driver", "rename", "stamp-inf", "sign"]
 script = [
-    # Load the Visual Studio Developer environment
+    # generate and sign cat file
     '''
-    REM Get vc env
-    call "%ProgramFiles%\Microsoft Visual Studio\2022\%VSFOLDER%\VC\Auxiliary\Build\vcvars32.bat"
-
-    REM generate cat file
     inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
 
     signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
@@ -85,9 +114,6 @@ script = [
 [tasks.sign]
 dependencies = ["build-driver", "rename", "stamp-inf"]
 script = [
-    # Load the Visual Studio Developer environment
-    "call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\%VSFOLDER%\\VC\\Auxiliary\\Build\\vcvars64.bat\"",
-
     # Create a self signed certificate (only if not already done)
     '''
       certutil -store "My" | findstr /i "DriverCertificate" >NUL 2>NUL
