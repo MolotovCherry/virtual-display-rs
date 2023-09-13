@@ -1,0 +1,5 @@
+[toolchain]
+channel = "1.72.0"
+components = []
+targets = []
+profile = "minimal"
