@@ -10,6 +10,8 @@ It has many uses, such as:
 - Getting a higher resolution (or higher refresh rate) display when you don't have a physical one on-hand (though note you can only use it in software/VR)
 - Other uses? Let me know!
 
+Support: Windows 10 x64 +
+
 # How to install
 - Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 - Download (you may receive a warning, just press accept)
