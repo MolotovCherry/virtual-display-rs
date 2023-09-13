@@ -52,5 +52,8 @@ To see panic messages and other information, download [DebugViewPP](https://gith
 - Work on allowing custom resolution / refresh rate, perhaps with app for easy configuring
 - More than 1 monitor
 
+# Extra notes
+Some applications may not be able to see the virtual monitor, if you enabled while everything has been booted for awhile. You can fix this by rebooting. This seems to be an issue with Windows itself, but I do not know why. If anyone does know, please feel free to share information 😃
+
 # Contributions
 All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
