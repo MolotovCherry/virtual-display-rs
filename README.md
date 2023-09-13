@@ -44,6 +44,7 @@ The certificate needs installation for Windows to accept the driver
 - Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
 - Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
 - You can build it with `cargo make -p dev build` (debug) or `cargo make -p prod build` (release)
+- ... Or, fork my project and build it with github actions
 
 ### Debugging
 To see panic messages and other information, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions)
