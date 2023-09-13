@@ -54,6 +54,7 @@ pub struct DeviceContext {
 WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
 
 // SAFETY: Raw ptr is managed by external library
+unsafe impl Send for DeviceContext {}
 unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
