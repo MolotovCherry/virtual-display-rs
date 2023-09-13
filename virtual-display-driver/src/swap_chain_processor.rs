@@ -1,7 +1,7 @@
 use std::{
     sync::{
         mpsc::{channel, Receiver, Sender},
-        Arc, Mutex,
+        Arc, Mutex, atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
 };
@@ -33,7 +33,7 @@ pub struct SwapChainProcessor {
     available_buffer_event: HANDLE,
     terminate_event: Mutex<Option<Sender<()>>>,
     thread: Mutex<Option<JoinHandle<()>>>,
-    dropped: bool,
+    dropped: AtomicBool,
 }
 
 unsafe impl Send for SwapChainProcessor {}
@@ -51,7 +51,7 @@ impl SwapChainProcessor {
             available_buffer_event: new_frame_event,
             terminate_event: Mutex::new(None),
             thread: Mutex::new(None),
-            dropped: false,
+            dropped: AtomicBool::new(false),
         })
     }
 
@@ -145,8 +145,9 @@ impl SwapChainProcessor {
     }
 
     /// Let it drop OR
-    pub fn terminate(&mut self) {
-        if !self.dropped {
+    pub fn terminate(&self) {
+        let dropped = self.dropped.load(Ordering::Relaxed);
+        if !dropped {
             // send signal to end thread
             self.terminate_event
                 .lock()
@@ -159,15 +160,13 @@ impl SwapChainProcessor {
             // wait until thread is finished
             self.thread.lock().unwrap().take().unwrap().join().unwrap();
 
-            self.dropped = true;
+            self.dropped.store(true, Ordering::Relaxed);
         }
     }
 }
 
 impl Drop for SwapChainProcessor {
     fn drop(&mut self) {
-        if !self.dropped {
-            self.terminate();
-        }
+        self.terminate();
     }
 }

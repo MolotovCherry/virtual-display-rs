@@ -202,7 +202,9 @@ impl DeviceContext {
         new_frame_event: HANDLE,
     ) {
         // drop processing thread
-        _ = self.swap_chain_processor.take();
+        if let Some(processor) = self.swap_chain_processor.take() {
+            processor.terminate();
+        }
 
         // Safety: wmd_umdf_sys::_LUID and windows::LUID both are repr c and both with the same layouts
         let device = Direct3DDevice::init(unsafe { std::mem::transmute(render_adapter) });
@@ -223,6 +225,8 @@ impl DeviceContext {
     }
 
     pub fn unassign_swap_chain(&mut self) {
-        self.swap_chain_processor.take();
+        if let Some(processor) = self.swap_chain_processor.take() {
+            processor.terminate();
+        }
     }
 }
