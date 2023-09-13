@@ -41,6 +41,10 @@ jobs:
           $env:PRIVATE_KEY | Out-File -FilePath private.txt
           certutil -decode private.txt private.pfx
 
+      - name: Export Public Certificate
+        run: |
+          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ secrets.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
+
       - name: Build Driver
         env:
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
@@ -56,11 +60,7 @@ jobs:
             target/debug/*.cat
             target/debug/*.dll
             target/debug/*.inf
-
-      - name: Export Public Certificate
-        if: github.event_name == 'release'
-        run: |
-          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ secrets.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
+            DriverCertificate.cer
 
       - uses: vimtor/action-zip@v1
         if: github.event_name == 'release'
