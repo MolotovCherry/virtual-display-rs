@@ -39,7 +39,7 @@ The certificate needs installation for Windows to accept the driver
 - Click `Browse my computer for drivers`, browse for the right location, and click `Next`
 
 # How to build
-- Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/)
+- Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
 - Select and install the `Desktop development with C++` workload as well as Windows SDK
 - Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
 - Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
