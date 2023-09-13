@@ -52,7 +52,7 @@ jobs:
         run: cargo make -p $env:RELEASE build
 
       - name: Upload Artifacts
-        if: github.event_name == 'push'
+        if: github.event_name != 'release'
         uses: actions/upload-artifact@v3
         with:
           name: driver
