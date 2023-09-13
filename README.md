@@ -11,7 +11,7 @@ It has many uses, such as:
 # How to install
 - Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 - Download (you may receive a warning, just press accept)
-- Run the `installCert.bat` file to install the certificate. This is required in order to install the driver.
+- Install certificate (see below section)
 - Open `Device Manager`
 - - Click on any item
   - Click on `Action` menu item -> `Add legacy hardware` -> `Next`
@@ -19,6 +19,12 @@ It has many uses, such as:
   - Click `Next` (`Show All Devices` will be selected)
   - Click `Have Disk`
   - Browse to the location of the folder, press `Ok`, and keep clicking the `Next` buttons
+
+# Updating
+- Open `Device Manager`
+- Under the `Display` section, find the `Virtual Display` driver and double click
+- Click the `Driver` tab and the `Update Driver` button
+- Click `Browse my computer for drivers`, browse for the right location, and click `Next`
 
 # Future goals
 - Work on allowing custom resolution / refresh rate, perhaps with app for easy configuring
