@@ -21,7 +21,7 @@ It has many uses, such as:
   - Browse to the location of the folder, press `Ok`, and keep clicking the `Next` buttons
 
 ### Installing the certificate
-The certificate needs installation for Windows to accept it.
+The certificate needs installation for Windows to accept the driver
 - In your downloaded zip, double click on the file `DriverCertificate.cer`
 - A window will popup with a `Install Certificate` button (click it)
 - Select `Local Machine`
