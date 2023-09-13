@@ -43,6 +43,9 @@ The certificate needs installation for Windows to accept the driver
 - Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
 - You can build it with `cargo make -p dev build` (debug) or `cargo make -p prod build` (release)
 
+Debugging:
+To see panic messages and other information, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions)
+
 # Future goals
 - Work on allowing custom resolution / refresh rate, perhaps with app for easy configuring
 - More than 1 monitor
