@@ -6,7 +6,6 @@ use std::{
     },
 };
 
-use log::info;
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1,
@@ -260,15 +259,25 @@ pub extern "C-unwind" fn assign_swap_chain(
     monitor_object: *mut IDDCX_MONITOR__,
     p_in_args: *const IDARG_IN_SETSWAPCHAIN,
 ) -> NTSTATUS {
-    // let Some(context) = (unsafe { DeviceContext::get(monitor_object as *mut _) }) else {
-    //     return NTSTATUS::STATUS_NOT_FOUND;
-    // };
-    // let a = *context;
+    let p_in_args = unsafe { &*p_in_args };
 
-    NTSTATUS::STATUS_SUCCESS
+    unsafe {
+        DeviceContext::get_mut(monitor_object as *mut _, |context| {
+            context.assign_swap_chain(
+                p_in_args.hSwapChain,
+                p_in_args.RenderAdapterLuid,
+                p_in_args.hNextSurfaceAvailable,
+            );
+        })
+    }
+    .into_status()
 }
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
-    info!("unassign_swap_chain");
-    todo!()
+    unsafe {
+        DeviceContext::get_mut(monitor_object as *mut _, |context| {
+            context.unassign_swap_chain();
+        })
+    }
+    .into_status()
 }

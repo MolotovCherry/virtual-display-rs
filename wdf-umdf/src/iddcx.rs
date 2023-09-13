@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
 
 use wdf_umdf_sys::{
-    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_OUT_ADAPTER_INIT,
-    IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER, IDDCX_MONITOR,
+    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_SWAPCHAINSETDEVICE,
+    IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE,
+    IDARG_OUT_RELEASEANDACQUIREBUFFER, IDDCX_ADAPTER, IDDCX_MONITOR, IDDCX_SWAPCHAIN,
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
 
@@ -14,6 +15,8 @@ pub enum IddCxError {
     IddCxFunctionNotAvailable(&'static str),
     #[error("{0}")]
     CallFailed(NTSTATUS),
+    #[error("{0}")]
+    NtStatus(NTSTATUS),
     // this is required for success status for ()
     #[error("This is not an error, ignore it")]
     Success,
@@ -26,6 +29,7 @@ impl From<IddCxError> for NTSTATUS {
             IddCxFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
             Success => 0.into(),
+            NtStatus(n) => n,
         }
     }
 }
@@ -39,6 +43,12 @@ impl From<NTSTATUS> for IddCxError {
 impl From<()> for IddCxError {
     fn from(_: ()) -> Self {
         IddCxError::Success
+    }
+}
+
+impl From<i32> for IddCxError {
+    fn from(val: i32) -> Self {
+        IddCxError::NtStatus(NTSTATUS(val))
     }
 }
 
@@ -176,6 +186,60 @@ pub unsafe fn IddCxMonitorArrival(
         IddCxMonitorArrival(
             MonitorObject,
             pOutArgs
+        )
+    )
+    .into_result()
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxSwapChainSetDevice(
+    // in
+    SwapChainObject: IDDCX_SWAPCHAIN,
+    // in
+    pInArgs: &IDARG_IN_SWAPCHAINSETDEVICE
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxSwapChainSetDevice(
+            SwapChainObject,
+            pInArgs
+        )
+    )
+    .into_result()
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxSwapChainReleaseAndAcquireBuffer(
+    // in
+    SwapChainObject: IDDCX_SWAPCHAIN,
+    // out
+    pOutArgs: &mut IDARG_OUT_RELEASEANDACQUIREBUFFER
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxSwapChainReleaseAndAcquireBuffer(
+            SwapChainObject,
+            pOutArgs
+        )
+    )
+    .into_result()
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxSwapChainFinishedProcessingFrame(
+    // in
+    SwapChainObject: IDDCX_SWAPCHAIN
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxSwapChainFinishedProcessingFrame(
+            SwapChainObject
         )
     )
     .into_result()

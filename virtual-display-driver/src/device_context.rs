@@ -1,21 +1,27 @@
-use std::{mem, sync::atomic::Ordering};
+use std::{
+    mem,
+    sync::{atomic::Ordering, Arc},
+};
 
 use wdf_umdf::{
-    IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper,
+    IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper, WdfObjectDelete,
     WDF_DECLARE_CONTEXT_TYPE,
 };
 use wdf_umdf_sys::{
-    DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY, IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE,
+    DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY, HANDLE, IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE,
     IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER,
     IDDCX_ADAPTER_CAPS, IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION,
     IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR, IDDCX_MONITOR_DESCRIPTION,
-    IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_TRANSMISSION_TYPE, NTSTATUS,
-    WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
+    IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE,
+    LUID, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
 use widestring::u16cstr;
 use windows::core::GUID;
 
-use crate::callbacks::MONITOR_COUNT;
+use crate::{
+    callbacks::MONITOR_COUNT, direct_3d_device::Direct3DDevice,
+    swap_chain_processor::SwapChainProcessor,
+};
 
 // Taken from
 // https://github.com/ge9/IddSampleDriver/blob/fe98ccff703b5c1e578a0d627aeac2fa77ac58e2/IddSampleDriver/Driver.cpp#L403
@@ -37,6 +43,7 @@ pub struct DeviceContext {
     pub device: WDFDEVICE,
     adapter: Option<IDDCX_ADAPTER>,
     monitors: Vec<IDDCX_MONITOR>,
+    swap_chain_processor: Option<Arc<SwapChainProcessor>>,
 }
 
 WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
@@ -50,6 +57,7 @@ impl DeviceContext {
             device,
             adapter: None,
             monitors: Vec::new(),
+            swap_chain_processor: None,
         }
     }
 
@@ -182,7 +190,34 @@ impl DeviceContext {
         status
     }
 
-    pub fn assign_swap_chain() {}
+    pub fn assign_swap_chain(
+        &mut self,
+        swap_chain: IDDCX_SWAPCHAIN,
+        render_adapter: LUID,
+        new_frame_event: HANDLE,
+    ) {
+        // drop processing thread
+        _ = self.swap_chain_processor.take();
 
-    pub fn unassign_swap_chain() {}
+        // Safety: wmd_umdf_sys::_LUID and windows::LUID both are repr c and both with the same layouts
+        let device = Direct3DDevice::init(unsafe { std::mem::transmute(render_adapter) });
+        if let Ok(device) = device {
+            let processor = SwapChainProcessor::new(swap_chain, device, new_frame_event);
+
+            processor.clone().run();
+
+            self.swap_chain_processor = Some(processor);
+        } else {
+            // It's important to delete the swap-chain if D3D initialization fails, so that the OS knows to generate a new
+            // swap-chain and try again.
+
+            unsafe {
+                let _ = WdfObjectDelete(swap_chain as *mut _);
+            }
+        }
+    }
+
+    pub fn unassign_swap_chain(&mut self) {
+        self.swap_chain_processor.take();
+    }
 }

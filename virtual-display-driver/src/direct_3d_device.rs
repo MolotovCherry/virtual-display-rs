@@ -28,11 +28,11 @@ impl From<&'static str> for Direct3DError {
 }
 
 pub struct Direct3DDevice {
-    adapter_luid: LUID,
-    dxgi_factory: IDXGIFactory5,
-    adapter: IDXGIAdapter1,
-    device: ID3D11Device,
-    device_context: ID3D11DeviceContext,
+    // The following are already refcounted, so they're safe to use directly without additional drop impls
+    _dxgi_factory: IDXGIFactory5,
+    _adapter: IDXGIAdapter1,
+    pub device: ID3D11Device,
+    _device_context: ID3D11DeviceContext,
 }
 
 impl Direct3DDevice {
@@ -62,11 +62,10 @@ impl Direct3DDevice {
         let device_context = device_context.ok_or("ID3D11DeviceContext not found")?;
 
         Ok(Self {
-            adapter_luid,
-            dxgi_factory,
-            adapter,
+            _dxgi_factory: dxgi_factory,
+            _adapter: adapter,
             device,
-            device_context,
+            _device_context: device_context,
         })
     }
 }

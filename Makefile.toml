@@ -48,7 +48,7 @@ SIGN_OPTIONS = { script = ['''
 if defined CI (
     echo /f private.pfx /p %PRIVATE_KEY_PASSWORD%
 ) else (
-    echo /n DriverCertificate
+    echo /sm /n DriverCertificate
 )
 '''] }
 
@@ -105,7 +105,7 @@ script = [
     '''
     inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
 
-    signtool sign /a /fd SHA256 /v /sm %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
+    signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
     ''',
 ]
 
@@ -123,7 +123,7 @@ script = [
     ''',
 
     # Sign the driver. If this fails, you probably installed the cert before this. Run it again
-    "signtool sign /a /fd SHA256 /v /sm %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
+    "signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
 ]
 
 [tasks.build]

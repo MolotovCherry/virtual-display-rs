@@ -55,6 +55,12 @@ impl From<u32> for NTSTATUS {
     }
 }
 
+impl From<NTSTATUS> for u32 {
+    fn from(value: NTSTATUS) -> Self {
+        bytemuck::cast(value.0)
+    }
+}
+
 impl Display for NTSTATUS {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "0x{:X}", self.0)

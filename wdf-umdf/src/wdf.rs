@@ -493,3 +493,17 @@ pub unsafe fn WdfObjectGetTypedContextWorker(
         )
     }
 }
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+pub unsafe fn WdfObjectDelete(
+    // in
+    Object: WDFOBJECT,
+) -> Result<(), WdfError> {
+    WdfCall! {
+        WdfObjectDelete(
+            Object
+        )
+    }
+}
