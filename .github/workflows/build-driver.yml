@@ -60,6 +60,14 @@ jobs:
             target/debug/*.cat
             target/debug/*.dll
             target/debug/*.inf
+
+      # this is split from the top in order to allow the files to all be at the top level of the archive
+      - name: Upload Artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v3
+        with:
+          name: driver
+          path: |
             DriverCertificate.cer
 
       - uses: vimtor/action-zip@v1
