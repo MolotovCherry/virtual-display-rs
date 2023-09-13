@@ -26,6 +26,7 @@ The certificate needs installation for Windows to accept the driver
 - A window will popup with a `Install Certificate` button (click it)
 - Select `Local Machine`
 - Select `Place All Certificates in the following store`, click `Browse` and select `Trusted Root Certification Authorities`
+- Cick `Next` and `Finish`
 
 # Updating
 - Open `Device Manager`
