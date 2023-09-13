@@ -105,7 +105,7 @@ script = [
     '''
     inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
 
-    signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
+    signtool sign /a /fd SHA256 /v /sm %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
     ''',
 ]
 
@@ -117,13 +117,13 @@ script = [
       certutil -store "My" | findstr /i "DriverCertificate" >NUL 2>NUL
       if not defined CI (
         if %errorlevel%==1 (
-            pwsh -Command "Start-Process pwsh -ArgumentList '-Command New-SelfSignedCertificate -KeyExportPolicy Exportable -CertStoreLocation \"Cert:\LocalMachine\My\" -Subject \"CN=DriverCertificate\" -Type CodeSigningCert' -Verb RunAs"
+            pwsh -Command Start-Process cmd -ArgumentList '/c "\"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat\" && makecert -r -pe -ss my -sr localmachine -n CN=DriverCertificate DriverCertificate.cer"' -Verb RunAs
         )
       )
     ''',
 
-    # Sign the driver
-    "signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
+    # Sign the driver. If this fails, you probably installed the cert before this. Run it again
+    "signtool sign /a /fd SHA256 /v /sm %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
 ]
 
 [tasks.build]
