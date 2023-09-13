@@ -33,6 +33,16 @@ The certificate needs installation for Windows to accept the driver
 - Click the `Driver` tab and the `Update Driver` button
 - Click `Browse my computer for drivers`, browse for the right location, and click `Next`
 
+# How to build
+- Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/)
+- Select and install the `Desktop development with C++` workload as well as Windows SDK
+- Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
+- Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
+- You can build it with `cargo make -p dev build` (debug) or `cargo make -p prod build` (release)
+
 # Future goals
 - Work on allowing custom resolution / refresh rate, perhaps with app for easy configuring
 - More than 1 monitor
+
+# Contributions
+All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
