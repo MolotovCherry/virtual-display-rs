@@ -20,6 +20,13 @@ It has many uses, such as:
   - Click `Have Disk`
   - Browse to the location of the folder, press `Ok`, and keep clicking the `Next` buttons
 
+### Installing the certificate
+The certificate needs installation for Windows to accept it.
+In your downloaded zip, double click on the file `DriverCertificate.cer`
+A window will popup with a `Install Certificate` button (click it)
+Select `Local Machine`
+Select `Place All Certificates in the following store`, click `Browse` and select `Trusted Root Certification Authorities`
+
 # Updating
 - Open `Device Manager`
 - Under the `Display` section, find the `Virtual Display` driver and double click
