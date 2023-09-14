@@ -32,6 +32,13 @@ The certificate needs installation for Windows to accept the driver
 - Select `Place All Certificates in the following store`, click `Browse` and select `Trusted Root Certification Authorities`
 - Cick `Next` and `Finish`
 
+# Disabling the display
+Disabling it can be done one of two ways
+- Disable the driver (and enable it only when you need to use)
+- Go to "Display Settings" and select "Show only on 1" (I don't think this setting gets saved across reboots however)
+
+At the moment, I don't have a specific tool written for disabling/re-enabling the driver, though in theory it's not very difficult
+
 # Updating
 - Open `Device Manager`
 - Under the `Display` section, find the `Virtual Display` driver and double click
