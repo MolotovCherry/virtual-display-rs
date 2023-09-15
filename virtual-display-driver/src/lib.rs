@@ -1,7 +1,9 @@
 mod callbacks;
 mod device_context;
 mod direct_3d_device;
+mod edid;
 mod entry;
+mod monitor_listener;
 mod panic;
 mod swap_chain_processor;
 mod wdf;

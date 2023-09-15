@@ -8,11 +8,15 @@ use wdf_umdf_sys::{
     WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
 };
 
-use crate::callbacks::{
-    adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry, load_monitors,
-    monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
-};
 use crate::device_context::DeviceContext;
+use crate::{
+    callbacks::{
+        adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
+        monitor_get_default_modes, monitor_query_modes, parse_monitor_description,
+        unassign_swap_chain,
+    },
+    monitor_listener::start_listener,
+};
 
 //
 // Our driver's entry point
@@ -58,8 +62,8 @@ extern "C-unwind" fn driver_add(
     _driver: *mut WDFDRIVER__,
     mut init: *mut WDFDEVICE_INIT,
 ) -> NTSTATUS {
-    // load monitor modes here into memory
-    load_monitors();
+    // start the socket listener to listen for messages from the client
+    start_listener();
 
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 

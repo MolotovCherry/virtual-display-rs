@@ -1,8 +1,13 @@
 use std::{
     mem,
-    sync::{atomic::Ordering, Arc},
+    ptr::NonNull,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
+use log::info;
 use wdf_umdf::{
     IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper, WdfObjectDelete,
     WDF_DECLARE_CONTEXT_TYPE,
@@ -11,35 +16,19 @@ use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY, HANDLE, IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE,
     IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER,
     IDDCX_ADAPTER_CAPS, IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION,
-    IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR, IDDCX_MONITOR_DESCRIPTION,
-    IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE,
-    LUID, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
+    IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR_DESCRIPTION, IDDCX_MONITOR_DESCRIPTION_TYPE,
+    IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE, LUID, NTSTATUS, WDFDEVICE,
+    WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
 use widestring::u16cstr;
 use windows::core::GUID;
 
 use crate::{
-    callbacks::MONITOR_COUNT, direct_3d_device::Direct3DDevice,
+    direct_3d_device::Direct3DDevice, edid::generate_edid_with, monitor_listener::MONITOR_MODES,
     swap_chain_processor::SwapChainProcessor,
 };
 
-static MONITOR_EDID: &[u8] = &[
-    0x0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0, 0xD, 0x19, 0x10, 0x0, 0x78, 0x56, 0x34, 0x12,
-    0xFF, 0x21, 0x1, 0x3, 0x81, 0x32, 0x1F, 0x78, 0x7, 0xEE, 0x95, 0xA3, 0x54, 0x4C, 0x99, 0x26,
-    0xF, 0x50, 0x54, 0xFF, 0xFF, 0x80, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
-    0x1, 0x1, 0x1, 0x1, 0x2, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D, 0x40, 0x58, 0x2C, 0x45, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x1E, 0x0, 0x0, 0x0, 0xFD, 0x0, 0x17, 0xF0, 0xF, 0xFF, 0xF, 0x0, 0xA, 0x20,
-    0x20, 0x20, 0x20, 0x20, 0x20, 0x0, 0x0, 0x0, 0xFC, 0x0, 0x56, 0x69, 0x72, 0x74, 0x75, 0x44,
-    0x69, 0x73, 0x70, 0x6C, 0x61, 0x79, 0x2B, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1, 0xAD, 0x2, 0x3, 0x1D, 0x0, 0x48, 0x3F, 0x2F, 0x10,
-    0x4, 0xC9, 0xC7, 0x76, 0x61, 0x67, 0x3, 0xC, 0x0, 0x0, 0x0, 0x10, 0xFF, 0x67, 0xD8, 0x5D, 0xC4,
-    0x1, 0xFF, 0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x48,
-];
+pub static FINISHED_INIT: AtomicBool = AtomicBool::new(false);
 
 // Maximum amount of monitors that can be connected
 pub const MAX_MONITORS: u8 = 10;
@@ -47,7 +36,6 @@ pub const MAX_MONITORS: u8 = 10;
 pub struct DeviceContext {
     pub device: WDFDEVICE,
     adapter: Option<IDDCX_ADAPTER>,
-    monitors: Vec<IDDCX_MONITOR>,
     swap_chain_processor: Option<Arc<SwapChainProcessor>>,
 }
 
@@ -62,7 +50,6 @@ impl DeviceContext {
         Self {
             device,
             adapter: None,
-            monitors: Vec::new(),
             swap_chain_processor: None,
         }
     }
@@ -124,21 +111,17 @@ impl DeviceContext {
     }
 
     pub fn finish_init(&mut self) -> NTSTATUS {
-        let mut status = NTSTATUS::STATUS_SUCCESS;
+        FINISHED_INIT.store(true, Ordering::Release);
 
-        for i in 0..MONITOR_COUNT.load(Ordering::Relaxed) {
-            status = self.create_monitor(i);
-            if !status.is_success() {
-                break;
-            }
-        }
-
-        status
+        NTSTATUS::STATUS_SUCCESS
     }
 
-    fn create_monitor(&mut self, index: u32) -> NTSTATUS {
+    pub fn create_monitor(&mut self, index: u32) -> NTSTATUS {
         let mut attr =
             WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { DeviceContext::get_type_info() });
+
+        // use the edid serial number to represent the monitor index for later identification
+        let edid = generate_edid_with(index);
 
         let mut monitor_info = IDDCX_MONITOR_INFO {
             Size: mem::size_of::<IDDCX_MONITOR_INFO>() as u32,
@@ -153,8 +136,8 @@ impl DeviceContext {
             MonitorDescription: IDDCX_MONITOR_DESCRIPTION {
                 Size: mem::size_of::<IDDCX_MONITOR_DESCRIPTION>() as u32,
                 Type: IDDCX_MONITOR_DESCRIPTION_TYPE::IDDCX_MONITOR_DESCRIPTION_TYPE_EDID,
-                DataSize: MONITOR_EDID.len() as u32,
-                pData: MONITOR_EDID.as_ptr() as *const _ as *mut _,
+                DataSize: edid.len() as u32,
+                pData: edid.as_ptr() as *const _ as *mut _,
             },
         };
 
@@ -174,7 +157,24 @@ impl DeviceContext {
         .into_status();
 
         if status.is_success() {
-            self.monitors.push(monitor_create_out.MonitorObject);
+            // store monitor object for later
+            {
+                let Some(lock) = MONITOR_MODES.get() else {
+                    // not initted yet
+                    panic!("MONITOR_MODES not initialized");
+                };
+
+                let Ok(mut lock) = lock.lock() else {
+                    panic!("Failed to lock MONITOR_MODES");
+                };
+
+                for monitor in &mut *lock {
+                    if monitor.monitor.id == index {
+                        monitor.monitor_object =
+                            Some(NonNull::new(monitor_create_out.MonitorObject).unwrap());
+                    }
+                }
+            }
 
             unsafe {
                 status = self

@@ -1,10 +1,9 @@
 use std::{
     mem::{self, MaybeUninit},
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        OnceLock,
-    },
+    ptr::NonNull,
 };
+
+use ipc_types::MonitorProperties;
 
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
@@ -19,29 +18,11 @@ use wdf_umdf_sys::{
     WDFDEVICE, WDF_POWER_DEVICE_STATE,
 };
 
-use crate::device_context::DeviceContext;
-
-static MONITOR_MODES: OnceLock<Vec<MonitorMode>> = OnceLock::new();
-pub static MONITOR_COUNT: AtomicU32 = AtomicU32::new(0);
-
-#[derive(Debug)]
-struct MonitorMode {
-    width: u32,
-    height: u32,
-    refresh_rate: u32,
-}
-
-pub fn load_monitors() {
-    MONITOR_MODES
-        .set(vec![MonitorMode {
-            width: 1920,
-            height: 1080,
-            refresh_rate: 120,
-        }])
-        .unwrap();
-
-    MONITOR_COUNT.store(1, Ordering::Relaxed);
-}
+use crate::{
+    device_context::DeviceContext,
+    edid::get_edid_serial,
+    monitor_listener::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
+};
 
 pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
@@ -57,6 +38,11 @@ pub extern "C-unwind" fn adapter_init_finished(
     if !status.is_success() {
         return status;
     }
+
+    // store adapter object for listener to use
+    ADAPTER
+        .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
+        .unwrap();
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -121,10 +107,30 @@ pub extern "C-unwind" fn parse_monitor_description(
     let in_args = unsafe { &*p_in_args };
     let out_args = unsafe { &mut *p_out_args };
 
-    let monitor_count = MONITOR_COUNT.load(Ordering::Relaxed);
+    let monitors = MONITOR_MODES
+        .get()
+        .expect("monitor_modes to be initialized");
 
-    out_args.MonitorModeBufferOutputCount = monitor_count;
-    if in_args.MonitorModeBufferInputCount < monitor_count {
+    let monitors = &*monitors.lock().expect("it to lock");
+
+    let edid = unsafe {
+        std::slice::from_raw_parts(
+            in_args.MonitorDescription.pData as *const u8,
+            in_args.MonitorDescription.DataSize as usize,
+        )
+    };
+
+    let monitor_index = get_edid_serial(edid);
+
+    let monitor = monitors
+        .iter()
+        .find(|&m| m.monitor.id == monitor_index)
+        .expect("to be found");
+
+    let number_of_modes = monitor.monitor.properties.len() as u32;
+
+    out_args.MonitorModeBufferOutputCount = number_of_modes;
+    if in_args.MonitorModeBufferInputCount < number_of_modes {
         // Return success if there was no buffer, since the caller was only asking for a count of modes
         return if in_args.MonitorModeBufferInputCount > 0 {
             NTSTATUS::STATUS_BUFFER_TOO_SMALL
@@ -141,14 +147,14 @@ pub extern "C-unwind" fn parse_monitor_description(
             )
         };
 
-        for (out_mode, in_mode) in monitor_modes.iter_mut().zip(MONITOR_MODES.get().unwrap()) {
+        for (out_mode, properties) in monitor_modes.iter_mut().zip(&monitor.monitor.properties) {
             out_mode.write(IDDCX_MONITOR_MODE {
                 Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
                 Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
                 MonitorVideoSignalInfo: display_info(
-                    in_mode.width,
-                    in_mode.height,
-                    in_mode.refresh_rate,
+                    properties.width,
+                    properties.height,
+                    properties.refresh_rate,
                 ),
             });
         }
@@ -173,18 +179,31 @@ pub extern "C-unwind" fn monitor_query_modes(
     p_in_args: *const IDARG_IN_QUERYTARGETMODES,
     p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
 ) -> NTSTATUS {
-    let monitor_count = MONITOR_COUNT.load(Ordering::Relaxed);
+    // find out which monitor this belongs too
+    let monitors = MONITOR_MODES
+        .get()
+        .expect("monitor_modes to be initialized");
+
+    let monitors = &*monitors.lock().expect("it to lock");
+
+    // we have stored the monitor object per id, so we should be able to compare pointers
+    let monitor = monitors
+        .iter()
+        .find(|&m| m.monitor_object.unwrap().as_ptr() == _monitor_object)
+        .unwrap();
+
+    let number_of_modes = monitor.monitor.properties.len() as u32;
 
     // Create a set of modes supported for frame processing and scan-out. These are typically not based on the
     // monitor's descriptor and instead are based on the static processing capability of the device. The OS will
     // report the available set of modes for a given output as the intersection of monitor modes with target modes.
 
     let out_args = unsafe { &mut *p_out_args };
-    out_args.TargetModeBufferOutputCount = monitor_count;
+    out_args.TargetModeBufferOutputCount = number_of_modes;
 
     let in_args = unsafe { &*p_in_args };
 
-    if in_args.TargetModeBufferInputCount >= monitor_count {
+    if in_args.TargetModeBufferInputCount >= number_of_modes {
         let out_target_modes = unsafe {
             std::slice::from_raw_parts_mut(
                 in_args
@@ -195,13 +214,13 @@ pub extern "C-unwind" fn monitor_query_modes(
         };
 
         for (
-            &MonitorMode {
+            &MonitorProperties {
                 width,
                 height,
                 refresh_rate,
             },
             out_target,
-        ) in MONITOR_MODES.get().unwrap().iter().zip(out_target_modes)
+        ) in monitor.monitor.properties.iter().zip(out_target_modes)
         {
             let total_size = DISPLAYCONFIG_2DREGION {
                 cx: width,

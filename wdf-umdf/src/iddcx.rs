@@ -244,3 +244,19 @@ pub unsafe fn IddCxSwapChainFinishedProcessingFrame(
     )
     .into_result()
 }
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorDeparture(
+    // in
+    MonitorObject: IDDCX_MONITOR
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorDeparture(
+            MonitorObject
+        )
+    )
+    .into_result()
+}
