@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 pub struct Monitor {
     // identifier
     pub id: u32,
-    pub properties: Vec<MonitorProperties>,
+    pub modes: Vec<MonitorMode>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct MonitorProperties {
+pub struct MonitorMode {
     pub width: u32,
     pub height: u32,
     pub refresh_rate: u32,
@@ -18,6 +18,5 @@ pub struct MonitorProperties {
 pub enum DriverCommand {
     Add(Vec<Monitor>),
     Remove(Vec<u32>),
-    Update(Vec<Monitor>),
     RemoveAll,
 }

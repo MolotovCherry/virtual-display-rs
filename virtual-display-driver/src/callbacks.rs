@@ -3,7 +3,7 @@ use std::{
     ptr::NonNull,
 };
 
-use driver_ipc::MonitorProperties;
+use driver_ipc::MonitorMode;
 
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
@@ -127,7 +127,7 @@ pub extern "C-unwind" fn parse_monitor_description(
         .find(|&m| m.monitor.id == monitor_index)
         .expect("to be found");
 
-    let number_of_modes = monitor.monitor.properties.len() as u32;
+    let number_of_modes = monitor.monitor.modes.len() as u32;
 
     out_args.MonitorModeBufferOutputCount = number_of_modes;
     if in_args.MonitorModeBufferInputCount < number_of_modes {
@@ -147,15 +147,11 @@ pub extern "C-unwind" fn parse_monitor_description(
             )
         };
 
-        for (out_mode, properties) in monitor_modes.iter_mut().zip(&monitor.monitor.properties) {
+        for (out_mode, mode) in monitor_modes.iter_mut().zip(&monitor.monitor.modes) {
             out_mode.write(IDDCX_MONITOR_MODE {
                 Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
                 Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
-                MonitorVideoSignalInfo: display_info(
-                    properties.width,
-                    properties.height,
-                    properties.refresh_rate,
-                ),
+                MonitorVideoSignalInfo: display_info(mode.width, mode.height, mode.refresh_rate),
             });
         }
 
@@ -172,6 +168,46 @@ pub extern "C-unwind" fn monitor_get_default_modes(
     _p_out_args: *mut IDARG_OUT_GETDEFAULTDESCRIPTIONMODES,
 ) -> NTSTATUS {
     NTSTATUS::STATUS_NOT_IMPLEMENTED
+}
+
+pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_MODE {
+    let total_size = DISPLAYCONFIG_2DREGION {
+        cx: width,
+        cy: height,
+    };
+
+    IDDCX_TARGET_MODE {
+        Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
+
+        TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
+            targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
+                pixelRate: refresh_rate as u64 * width as u64 * height as u64,
+                hSyncFreq: DISPLAYCONFIG_RATIONAL {
+                    Numerator: refresh_rate * height,
+                    Denominator: 1,
+                },
+                vSyncFreq: DISPLAYCONFIG_RATIONAL {
+                    Numerator: refresh_rate,
+                    Denominator: 1,
+                },
+                totalSize: total_size,
+                activeSize: total_size,
+                scanLineOrdering:
+                    DISPLAYCONFIG_SCANLINE_ORDERING::DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE,
+                __bindgen_anon_1: DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1 {
+                    AdditionalSignalInfo: unsafe {
+                        mem::transmute(
+                            DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1::new_bitfield_1(
+                                255, 1, 0,
+                            ),
+                        )
+                    },
+                },
+            },
+        },
+
+        ..Default::default()
+    }
 }
 
 pub extern "C-unwind" fn monitor_query_modes(
@@ -192,7 +228,7 @@ pub extern "C-unwind" fn monitor_query_modes(
         .find(|&m| m.monitor_object.unwrap().as_ptr() == _monitor_object)
         .unwrap();
 
-    let number_of_modes = monitor.monitor.properties.len() as u32;
+    let number_of_modes = monitor.monitor.modes.len() as u32;
 
     // Create a set of modes supported for frame processing and scan-out. These are typically not based on the
     // monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -214,51 +250,15 @@ pub extern "C-unwind" fn monitor_query_modes(
         };
 
         for (
-            &MonitorProperties {
+            &MonitorMode {
                 width,
                 height,
                 refresh_rate,
             },
             out_target,
-        ) in monitor.monitor.properties.iter().zip(out_target_modes)
+        ) in monitor.monitor.modes.iter().zip(out_target_modes)
         {
-            let total_size = DISPLAYCONFIG_2DREGION {
-                cx: width,
-                cy: height,
-            };
-
-            let target_mode = IDDCX_TARGET_MODE {
-                Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
-
-                TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
-                    targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
-                        pixelRate: refresh_rate as u64 * width as u64 * height as u64,
-                        hSyncFreq: DISPLAYCONFIG_RATIONAL {
-                            Numerator: refresh_rate * height,
-                            Denominator: 1,
-                        },
-                        vSyncFreq: DISPLAYCONFIG_RATIONAL {
-                            Numerator: refresh_rate,
-                            Denominator: 1,
-                        },
-                        totalSize: total_size,
-                        activeSize: total_size,
-                        scanLineOrdering:
-                            DISPLAYCONFIG_SCANLINE_ORDERING::DISPLAYCONFIG_SCANLINE_ORDERING_PROGRESSIVE,
-                        __bindgen_anon_1: DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1 {
-                            AdditionalSignalInfo: unsafe {
-                                mem::transmute(
-                                    DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1::new_bitfield_1(
-                                        255, 1, 0,
-                                    ),
-                                )
-                            },
-                        },
-                    },
-                },
-
-                ..Default::default()
-            };
+            let target_mode = target_mode(width, height, refresh_rate);
 
             out_target.write(target_mode);
         }

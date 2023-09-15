@@ -7,7 +7,6 @@ use std::{
     },
 };
 
-use log::info;
 use wdf_umdf::{
     IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper, WdfObjectDelete,
     WDF_DECLARE_CONTEXT_TYPE,

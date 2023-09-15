@@ -119,8 +119,6 @@ pub fn start_listener() {
                             }
                         }
 
-                        DriverCommand::Update(monitors) => todo!(),
-
                         DriverCommand::RemoveAll => {
                             if let Some(ControlFlow::Continue(_)) = remove_all() {
                                 continue;
