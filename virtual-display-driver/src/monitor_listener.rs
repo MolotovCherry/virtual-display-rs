@@ -8,7 +8,7 @@ use std::{
 };
 
 use driver_ipc::{DriverCommand, Monitor};
-use log::{error, warn};
+use log::{error, info, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 
@@ -47,10 +47,10 @@ pub fn monitor_count() -> usize {
     lock.len()
 }
 
-pub fn start_listener() {
+pub fn start_listener(port: u32) {
     MONITOR_MODES.set(Mutex::new(Vec::new())).unwrap();
 
-    thread::spawn(|| {
+    thread::spawn(move || {
         // wait until we can initialize
         while !FINISHED_INIT.load(Ordering::Acquire) {
             // The spin loop is a hint to the CPU that we're waiting, but probably
@@ -58,8 +58,10 @@ pub fn start_listener() {
             std::hint::spin_loop();
         }
 
+        info!("listening on 127.0.0.1:{port}");
+
         let connect = || {
-            let Ok(listener) = TcpListener::bind("127.0.0.1:12345") else {
+            let Ok(listener) = TcpListener::bind(format!("127.0.0.1:{port}")) else {
                 return None;
             };
 

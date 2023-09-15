@@ -7,6 +7,10 @@ use wdf_umdf_sys::{
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT, WDF_DRIVER_CONFIG,
     WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
 };
+use winreg::{
+    enums::{HKEY_LOCAL_MACHINE, KEY_READ},
+    RegKey,
+};
 
 use crate::device_context::DeviceContext;
 use crate::{
@@ -63,7 +67,7 @@ extern "C-unwind" fn driver_add(
     mut init: *mut WDFDEVICE_INIT,
 ) -> NTSTATUS {
     // start the socket listener to listen for messages from the client
-    start_listener();
+    start_listener(get_port());
 
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
@@ -116,4 +120,20 @@ extern "C-unwind" fn driver_add(
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
     _ = DeviceContext::drop(wdf_object);
+}
+
+fn get_port() -> u32 {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let key = "SOFTWARE\\VirtualDisplayDriver";
+    let port = 23112u32;
+
+    let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
+        return port;
+    };
+
+    let Ok(port) = driver_settings.get_value("port") else {
+        return port;
+    };
+
+    port
 }

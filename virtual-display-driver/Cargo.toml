@@ -16,6 +16,7 @@ widestring = "1.0.2"
 bytemuck = { version = "1.14.0", features = ["derive"] }
 serde_json = "1.0.107"
 driver-ipc = { path = "../driver-ipc" }
+winreg = "0.51.0"
 
 [dependencies.windows]
 version = "0.51.1"
