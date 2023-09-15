@@ -6,6 +6,7 @@ members = [
     "wdf-umdf",
     "windebug-logger",
     "driver-ipc",
+    "virtual-display-driver-control",
 ]
 
 [profile.release]
