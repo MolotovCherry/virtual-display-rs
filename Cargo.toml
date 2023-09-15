@@ -5,7 +5,7 @@ members = [
     "wdf-umdf-sys",
     "wdf-umdf",
     "windebug-logger",
-    "ipc-types",
+    "driver-ipc",
 ]
 
 [profile.release]

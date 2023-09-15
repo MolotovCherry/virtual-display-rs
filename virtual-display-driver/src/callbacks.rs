@@ -3,7 +3,7 @@ use std::{
     ptr::NonNull,
 };
 
-use ipc_types::MonitorProperties;
+use driver_ipc::MonitorProperties;
 
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{

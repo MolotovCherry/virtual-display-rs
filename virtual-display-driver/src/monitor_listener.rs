@@ -7,7 +7,7 @@ use std::{
     thread,
 };
 
-use ipc_types::{DriverCommand, Monitor};
+use driver_ipc::{DriverCommand, Monitor};
 use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
@@ -32,6 +32,7 @@ pub struct MonitorObject {
 unsafe impl Send for MonitorObject {}
 unsafe impl Sync for MonitorObject {}
 
+/// Warning, this method locks MONITOR_MODES
 pub fn monitor_count() -> usize {
     let Some(lock) = MONITOR_MODES.get() else {
         // not initted yet
@@ -176,7 +177,7 @@ fn remove_all() -> Option<ControlFlow<()>> {
         return Some(ControlFlow::Continue(()));
     };
 
-    for monitor in &*lock {
+    for monitor in lock.drain(..) {
         let Some(mut monitor_object) = monitor.monitor_object else {
             return Some(ControlFlow::Continue(()));
         };
@@ -185,8 +186,6 @@ fn remove_all() -> Option<ControlFlow<()>> {
             IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
         }
     }
-
-    lock.clear();
 
     None
 }
@@ -202,9 +201,13 @@ fn remove(ids: Vec<u32>) -> Option<ControlFlow<()>> {
         return Some(ControlFlow::Continue(()));
     };
 
+    let mut to_remove = Vec::new();
+
     for &id in ids.iter() {
-        for monitor in &*lock {
+        for (i, monitor) in lock.iter().enumerate() {
             if id == monitor.monitor.id {
+                to_remove.push(i);
+
                 let Some(mut monitor_object) = monitor.monitor_object else {
                     return Some(ControlFlow::Continue(()));
                 };
@@ -216,10 +219,8 @@ fn remove(ids: Vec<u32>) -> Option<ControlFlow<()>> {
         }
     }
 
-    for id in ids {
-        if let Some(idx) = lock.iter().position(|m| m.monitor.id == id) {
-            lock.remove(idx);
-        }
+    for r_id in to_remove {
+        lock.remove(r_id);
     }
 
     None
