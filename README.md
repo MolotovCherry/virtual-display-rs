@@ -57,8 +57,9 @@ At the moment, I don't have a specific tool written for disabling/re-enabling th
 To see panic messages and other information, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions)
 
 # Future goals
-- Work on allowing custom resolution / refresh rate, perhaps with app for easy configuring
-- More than 1 monitor
+- [X] Work on allowing custom resolution / refresh rate
+- [X] More than 1 monitor
+- [ ] App for easy configuring monitors
 
 # Extra notes
 If you enabled while everything has been booted for awhile, some applications may not be able to see the virtual monitor. You can fix this by rebooting while having it enabled (or enable it quickly after you boot up). This seems to be an issue with Windows itself, but I do not know why. It has affected every single virtual monitor driver I have ever tried. If anyone does know, please feel free to share information 😃
