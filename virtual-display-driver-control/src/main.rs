@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod panic;
 mod popup;
@@ -14,6 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let options = NativeOptions {
         //min_window_size: Some(Vec2::new(500.0, 400.0)),
+        icon_data: None,
         initial_window_size: Some(Vec2::new(600.0, 400.0)),
         transparent: false,
         resizable: true,
