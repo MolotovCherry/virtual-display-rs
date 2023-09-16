@@ -1,8 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+#[cfg(debug_assertions)]
+mod backtrace;
 mod panic;
 mod popup;
+mod save;
 
 use std::error::Error;
 

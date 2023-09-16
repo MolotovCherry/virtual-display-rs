@@ -13,7 +13,10 @@ use winreg::{
     RegKey,
 };
 
-use crate::popup::{display_popup, MessageBoxIcon};
+use crate::{
+    popup::{display_popup, MessageBoxIcon},
+    save::save,
+};
 
 #[derive(Default, Debug)]
 pub enum TcpWrapper {
@@ -63,13 +66,15 @@ impl Default for App {
         let config = dir.config_dir().join("config.json");
         let app = 'ret: {
             if config.exists() {
-                let Ok(config) = fs::read_to_string(&config) else {
+                let Ok(app_config) = fs::read_to_string(&config) else {
                     break 'ret None;
                 };
 
-                let Ok(app) = serde_json::from_str::<App>(&config) else {
+                let Ok(mut app) = serde_json::from_str::<App>(&app_config) else {
                     break 'ret None;
                 };
+
+                app.config = config.clone();
 
                 Some(app)
             } else {
@@ -106,25 +111,7 @@ impl App {
 
 impl eframe::App for App {
     fn on_close_event(&mut self) -> bool {
-        // write out app config
-        let json = serde_json::to_string(self).unwrap();
-        
-        _ = fs::create_dir_all(self.config.parent().unwrap());
-        fs::write(self.config.clone(), json.as_bytes()).unwrap();
-
-        // write out final config to registry for driver
-        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        let key = "SOFTWARE\\VirtualDisplayDriver";
-
-        let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_WRITE) else {
-            return true;
-        };
-
-        let data = serde_json::to_string(&self.monitors).unwrap();
-
-        driver_settings.set_value("port", &self.port).unwrap();
-        driver_settings.set_value("data", &data).unwrap();
-
+        save(self);
         true
     }
 
