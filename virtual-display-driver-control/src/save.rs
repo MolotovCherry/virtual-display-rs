@@ -7,7 +7,7 @@ use winreg::{
 
 use crate::app::App;
 
-pub fn save(app: &App) {
+pub fn save_config(app: &App) {
     // write out app config
     let json = serde_json::to_string(app).unwrap();
 
@@ -22,12 +22,16 @@ pub fn save(app: &App) {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let key = "SOFTWARE\\VirtualDisplayDriver";
 
-    let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_WRITE) else {
-        return;
+    let driver_settings = if let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_WRITE) {
+        driver_settings
+    } else {
+        hklm.create_subkey(key).unwrap().0
     };
 
     let data = serde_json::to_string(&app.monitors).unwrap();
 
     driver_settings.set_value("port", &app.port).unwrap();
-    driver_settings.set_value("data", &data).unwrap();
+    driver_settings
+        .set_value("data", &if app.enabled { &data } else { "[]" })
+        .unwrap();
 }

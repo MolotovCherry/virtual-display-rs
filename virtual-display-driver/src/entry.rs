@@ -1,3 +1,4 @@
+use driver_ipc::Monitor;
 use log::{error, Level};
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
@@ -19,7 +20,7 @@ use crate::{
         monitor_get_default_modes, monitor_query_modes, parse_monitor_description,
         unassign_swap_chain,
     },
-    monitor_listener::start_listener,
+    monitor_listener::startup,
 };
 
 //
@@ -67,7 +68,7 @@ extern "C-unwind" fn driver_add(
     mut init: *mut WDFDEVICE_INIT,
 ) -> NTSTATUS {
     // start the socket listener to listen for messages from the client
-    start_listener(get_port());
+    startup(get_data());
 
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
@@ -122,18 +123,21 @@ unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
     _ = DeviceContext::drop(wdf_object);
 }
 
-fn get_port() -> u32 {
+fn get_data() -> (u32, Vec<Monitor>) {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let key = "SOFTWARE\\VirtualDisplayDriver";
     let port = 23112u32;
 
     let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
-        return port;
+        return (port, Vec::new());
     };
 
-    let Ok(port) = driver_settings.get_value("port") else {
-        return port;
-    };
+    let port = driver_settings.get_value("port").unwrap_or(port);
 
-    port
+    let data = driver_settings
+        .get_value::<String, _>("data")
+        .map(|data| serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default())
+        .unwrap_or_default();
+
+    (port, data)
 }

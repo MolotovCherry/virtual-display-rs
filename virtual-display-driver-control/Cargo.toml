@@ -7,10 +7,11 @@ edition = "2021"
 winreg = "0.51.0"
 eframe = "0.22.0"
 serde_json = "1.0.107"
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive", "rc"] }
 driver-ipc = { path = "../driver-ipc" }
 directories = "5.0.1"
 backtrace = "0.3.69"
+egui = "0.22.0"
 
 [dependencies.windows]
 version = "0.51.1"

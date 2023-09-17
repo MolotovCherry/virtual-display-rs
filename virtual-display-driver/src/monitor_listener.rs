@@ -47,7 +47,7 @@ pub fn monitor_count() -> usize {
     lock.len()
 }
 
-pub fn start_listener(port: u32) {
+pub fn startup((port, monitors): (u32, Vec<Monitor>)) {
     MONITOR_MODES.set(Mutex::new(Vec::new())).unwrap();
 
     thread::spawn(move || {
@@ -59,6 +59,11 @@ pub fn start_listener(port: u32) {
         }
 
         info!("listening on 127.0.0.1:{port}");
+
+        // add default monitors saved in registry
+        if !monitors.is_empty() {
+            add(monitors);
+        }
 
         let connect = || {
             let Ok(listener) = TcpListener::bind(format!("127.0.0.1:{port}")) else {
