@@ -275,20 +275,22 @@ impl eframe::App for App {
 }
 
 fn port_edit(ui: &mut Ui, port: &mut u32) {
-    let mut port_s = port.to_string();
+    ui.horizontal_wrapped(|ui| {
+        let mut port_s = port.to_string();
 
-    let port_widget = egui::TextEdit::singleline(&mut port_s);
-    let res = ui.add_sized(vec2(75.0, 20.0), port_widget).on_hover_text(
-        "Port driver listens on. Driver must be restarted for port change to take effect",
-    );
+        let port_widget = egui::TextEdit::singleline(&mut port_s);
+        let res = ui.add_sized(vec2(75.0, 20.0), port_widget).on_hover_text(
+            "Port driver listens on. Driver must be restarted for port change to take effect",
+        );
 
-    if res.changed() {
-        if let Ok(port_p) = port_s.parse::<u32>() {
-            *port = port_p;
-        }
-    };
+        if res.changed() {
+            if let Ok(port_p) = port_s.parse::<u32>() {
+                *port = port_p;
+            }
+        };
 
-    ui.label("Port").labelled_by(res.id).on_hover_text(
-        "Port driver listens on. Driver must be restarted for port change to take effect",
-    );
+        ui.label("Port").labelled_by(res.id).on_hover_text(
+            "Port driver listens on. Driver must be restarted for port change to take effect",
+        );
+    });
 }
