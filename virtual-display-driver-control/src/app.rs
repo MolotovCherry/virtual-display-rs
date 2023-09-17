@@ -9,7 +9,7 @@ use std::{
 
 use directories::ProjectDirs;
 use driver_ipc::{DriverCommand, Monitor};
-use egui::{vec2, Align, CentralPanel, Direction, Id, Layout, Rounding, Ui};
+use egui::{vec2, Align, CentralPanel, Color32, Id, Layout, Margin, Rounding, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -146,86 +146,130 @@ impl eframe::App for App {
         true
     }
 
-    fn update(&mut self, ctx: &eframe::egui::Context, frame: &mut eframe::Frame) {
-        CentralPanel::default().show(ctx, |ui| {
-            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        let mut style: egui::Style = (*ctx.style()).clone();
+        style.spacing.item_spacing = egui::vec2(10.0, 10.0);
+        style.spacing.button_padding = vec2(10.0, 5.0);
+        style.spacing.scroll_bar_inner_margin = 10.0;
+        style.spacing.scroll_bar_outer_margin = 5.0;
+        style.spacing.tooltip_width = 300.0;
+
+        ctx.set_style(style.clone());
+
+        let frame = egui::containers::Frame::none()
+            .inner_margin(Margin {
+                left: 5.0,
+                right: 5.0,
+                top: 5.0,
+                bottom: 5.0,
+            })
+            .fill(Color32::from_gray(27));
+
+        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
+            egui::TopBottomPanel::top("top")
+                .show_separator_line(false)
+                .show_inside(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            let checkbox = ui.checkbox(&mut self.enabled, "");
+                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                            let checkbox = ui
+                                .checkbox(&mut self.enabled, "")
+                                .on_hover_text("Enable or disable all monitors");
                             if checkbox.clicked() {
                                 self.toggle_driver();
                             };
-                            ui.label("Enabled").labelled_by(checkbox.id);
+
+                            ui.label("Enabled")
+                                .labelled_by(checkbox.id)
+                                .on_hover_text("Enable or disable all monitors");
 
                             port_edit(ui, &mut self.port);
                         });
                     });
+                });
 
-                    ui.with_layout(
-                        Layout::centered_and_justified(Direction::LeftToRight),
-                        |ui| {
-                            let id = Id::new("scrollarea");
+            CentralPanel::default().show_inside(ui, |ui| {
+                let id = Id::new("scrollarea");
 
-                            let mut offset = 0.0;
-                            ui.ctx().data(|reader| {
-                                offset = reader.get_temp::<f32>(id).unwrap_or(0.0);
-                            });
+                let mut offset = 0.0;
+                ui.ctx().data(|reader| {
+                    offset = reader.get_temp::<f32>(id).unwrap_or(0.0);
+                });
 
-                            let scroll_area = egui::ScrollArea::new([false, true])
-                                .vertical_scroll_offset(offset)
-                                .max_height(ui.available_height() - 30.0);
+                let scroll_area = egui::ScrollArea::new([false, true])
+                    .vertical_scroll_offset(offset)
+                    .max_height(ui.available_height() - 30.0);
 
-                            let output = scroll_area.show(ui, |ui| {
-                                egui::Grid::new("grid").show(ui, |ui| {
-                                    let mut peek = self.monitors.iter().enumerate().peekable();
+                let output = scroll_area.show(ui, |ui| {
+                    egui::Grid::new("grid").show(ui, |ui| {
+                        let mut peek = self.monitors.iter().enumerate().peekable();
 
-                                    while let Some((idx, monitor)) = peek.next() {
-                                        let button =
-                                            egui::Button::new((monitor.id + 1).to_string())
-                                                .rounding(Rounding::same(8.0))
-                                                .min_size(vec2(200.0, 200.0));
-                                        ui.add(button);
+                        while let Some((idx, monitor)) = peek.next() {
+                            let button = egui::Button::new((monitor.id + 1).to_string())
+                                .rounding(Rounding::same(8.0))
+                                .min_size(vec2(200.0, 200.0));
+                            ui.add(button);
 
-                                        // only 3 per row
-                                        if (idx + 1) % 3 == 0 {
-                                            ui.end_row();
-                                        }
+                            // only 3 per row
+                            if (idx + 1) % 3 == 0 {
+                                ui.end_row();
+                            }
 
-                                        if peek.peek().is_none() && self.monitors.len() < 10 {
-                                            let button = egui::Button::new("+")
-                                                .rounding(Rounding::same(8.0))
-                                                .min_size(vec2(200.0, 200.0));
-                                            ui.add(button);
-                                        }
-                                    }
-                                });
-                            });
+                            if peek.peek().is_none() && self.monitors.len() < 10 {
+                                let button = egui::Button::new("+")
+                                    .rounding(Rounding::same(8.0))
+                                    .min_size(vec2(200.0, 200.0));
+                                ui.add(button);
+                            }
+                        }
+                    });
+                });
 
-                            ui.ctx().data_mut(|writer| {
-                                writer.insert_temp(id, output.state.offset.y);
-                            });
-                        },
-                    );
+                ui.ctx().data_mut(|writer| {
+                    writer.insert_temp(id, output.state.offset.y);
+                });
 
+                let id = Id::new("init");
+                let mut initted = false;
+                let mut size = ui.available_width();
+                ui.ctx().data(|reader| {
+                    initted = reader.get_temp::<bool>(id).unwrap_or(false);
+                    size = reader.get_temp::<f32>(id).unwrap_or(ui.available_width());
+                });
+
+                if !initted {
+                    ui.ctx().data_mut(|writer| {
+                        writer.insert_temp(id, true);
+                        writer.insert_temp(id, ui.available_width() + 88.0);
+                    });
+                }
+
+                _frame.set_window_size(vec2(size, 500.0));
+            });
+
+            egui::TopBottomPanel::bottom("bottom")
+                .show_separator_line(false)
+                .show_inside(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
                             let enabled = !self.actions.is_empty();
                             let button = egui::Button::new("Apply");
-                            let res = ui.add_enabled(enabled, button);
+                            let res = ui
+                                .add_enabled(enabled, button)
+                                .on_hover_text("Apply all pending operations");
                             if res.clicked() {
                                 save_config(self);
                             }
 
                             let button = egui::Button::new("Clear");
-                            let res = ui.add_enabled(enabled, button);
+                            let res = ui
+                                .add_enabled(enabled, button)
+                                .on_hover_text("Clear all pending operations");
                             if res.clicked() {
                                 self.actions.clear();
                             }
                         });
                     });
                 });
-            });
         });
     }
 }
@@ -244,5 +288,7 @@ fn port_edit(ui: &mut Ui, port: &mut u32) {
         }
     };
 
-    ui.label("Port").labelled_by(res.id);
+    ui.label("Port").labelled_by(res.id).on_hover_text(
+        "Port driver listens on. Driver must be restarted for port change to take effect",
+    );
 }

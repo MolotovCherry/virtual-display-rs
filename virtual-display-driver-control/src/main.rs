@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         icon_data: None,
         initial_window_size: Some(Vec2::new(600.0, 400.0)),
         transparent: false,
-        resizable: true,
+        resizable: false,
         centered: true,
         decorated: true,
         ..Default::default()
