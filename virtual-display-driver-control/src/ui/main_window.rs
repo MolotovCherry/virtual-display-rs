@@ -23,6 +23,7 @@ impl<'a> MainWindow<'a> {
         egui::Window::new("Monitor Settings")
             .constrain(true)
             .auto_sized()
+            .collapsible(false)
             .show(ctx, |ui| self.ui(ctx, ui));
     }
 
@@ -134,7 +135,7 @@ impl<'a> MainWindow<'a> {
 
                     let response = ui.interact(rect, Id::new("rect").with(idx + 1), Sense::click());
                     let state = &mut self.app.monitors[idx];
-                    if response.clicked() || state.monitor_window {
+                    if response.clicked() || state.monitor_window && idx > 0 {
                         state.monitor_window = true;
                         MonitorWindow::new().show(ctx, state);
                     }
@@ -189,20 +190,21 @@ impl<'a> MainWindow<'a> {
                         }
 
                         if state.delete_window {
-                            egui::Window::new(format!("Delete Monitor {}?", state.id))
-                                .auto_sized()
-                                .collapsible(false)
-                                .show(ctx, |ui| {
-                                    egui::Grid::new("grid").show(ui, |ui| {
-                                        if ui.button("Ok").clicked() {
-                                            idx_to_remove = Some(idx);
-                                        }
-
-                                        if ui.button("Cancel").clicked() {
-                                            state.delete_window = false;
-                                        }
-                                    });
+                            egui::Window::new(if !state.name.is_empty() {
+                                format!("Delete {}?", state.name)
+                            } else {
+                                format!("Delete Monitor {}?", state.id)
+                            })
+                            .open(&mut state.delete_window)
+                            .auto_sized()
+                            .collapsible(false)
+                            .show(ctx, |ui| {
+                                egui::Grid::new("grid").show(ui, |ui| {
+                                    if ui.button("Ok").clicked() {
+                                        idx_to_remove = Some(idx);
+                                    }
                                 });
+                            });
                         }
 
                         //

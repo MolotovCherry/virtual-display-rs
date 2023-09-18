@@ -28,6 +28,7 @@ impl MonitorWindow {
                         ui.label("Name");
 
                         let name = egui::TextEdit::singleline(&mut monitor.name)
+                            .hint_text(format!("Monitor {}", monitor.id))
                             .vertical_align(Align::Center);
 
                         ui.add_sized(vec2(100.0, ui.available_height()), name);
