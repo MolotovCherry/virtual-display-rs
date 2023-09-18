@@ -28,7 +28,13 @@ pub fn save_config(app: &App) {
         hklm.create_subkey(key).unwrap().0
     };
 
-    let data = serde_json::to_string(&app.monitors).unwrap();
+    let monitors = app
+        .monitors
+        .iter()
+        .flat_map(|i| i.monitor.as_ref())
+        .collect::<Vec<_>>();
+
+    let data = serde_json::to_string(&monitors).unwrap();
 
     driver_settings.set_value("port", &app.port).unwrap();
     driver_settings

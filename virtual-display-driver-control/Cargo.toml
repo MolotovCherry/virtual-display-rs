@@ -12,6 +12,7 @@ driver-ipc = { path = "../driver-ipc" }
 directories = "5.0.1"
 backtrace = "0.3.69"
 egui = "0.22.0"
+egui_extras = "0.22.0"
 
 [dependencies.windows]
 version = "0.51.1"

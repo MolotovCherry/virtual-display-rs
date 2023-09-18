@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fs,
     net::TcpStream,
@@ -9,7 +10,10 @@ use std::{
 
 use directories::ProjectDirs;
 use driver_ipc::{DriverCommand, Monitor};
-use egui::{vec2, Align, CentralPanel, Color32, Id, Layout, Margin, Rounding, Ui};
+
+use eframe::CreationContext;
+use egui::vec2;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -17,6 +21,7 @@ use crate::{
     ipc::ipc_call,
     popup::{display_popup, MessageBoxIcon},
     save::save_config,
+    ui::main_window::MainWindow,
 };
 
 #[derive(Default, Debug)]
@@ -50,13 +55,28 @@ impl DerefMut for TcpWrapper {
 pub struct App {
     pub enabled: bool,
     pub port: u32,
-    pub monitors: Vec<Arc<Monitor>>,
+    pub monitors: Vec<MonitorState>,
     #[serde(skip)]
-    pub connection: TcpWrapper,
+    pub connection: RefCell<TcpWrapper>,
     #[serde(skip)]
     pub config: PathBuf,
     #[serde(skip)]
     pub actions: HashMap<u32, Action>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct MonitorState {
+    pub name: String,
+    // whether monitor is enabled or not
+    pub enabled: bool,
+    pub id: u32,
+    #[serde(skip)]
+    pub delete_window: bool,
+    #[serde(skip)]
+    pub monitor_window: bool,
+    // when a monitor is first added, it is not initialized
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monitor: Option<Arc<Monitor>>,
 }
 
 impl Default for App {
@@ -91,7 +111,7 @@ impl Default for App {
                     std::process::exit(1);
                 };
 
-                app.connection = TcpWrapper::Connected(stream);
+                app.connection = RefCell::new(TcpWrapper::Connected(stream));
 
                 Some(app)
             } else {
@@ -114,7 +134,7 @@ impl Default for App {
             enabled: true,
             port: 23112u32,
             monitors: Default::default(),
-            connection: TcpWrapper::Connected(stream),
+            connection: RefCell::new(TcpWrapper::Connected(stream)),
             config,
             actions: HashMap::new(),
         })
@@ -122,22 +142,66 @@ impl Default for App {
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(cc: &CreationContext) -> Self {
+        setup(&cc.egui_ctx);
         App::default()
     }
 
-    pub fn toggle_driver(&mut self) {
+    pub fn toggle_driver(&self) {
         if !self.enabled {
-            ipc_call(self, DriverCommand::RemoveAll);
+            ipc_call(&mut self.connection.borrow_mut(), DriverCommand::RemoveAll);
         } else {
             ipc_call(
-                self,
-                DriverCommand::Add(self.monitors.iter().map(|m| m.as_ref().clone()).collect()),
+                &mut self.connection.borrow_mut(),
+                DriverCommand::Add(
+                    self.monitors
+                        .iter()
+                        .flat_map(|m| m.monitor.as_ref().map(|m| m.as_ref().clone()))
+                        .collect(),
+                ),
             );
         }
 
         save_config(self);
     }
+}
+
+fn setup(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+
+    // this cannot be redistributed due to copyright
+    let font =
+        std::fs::read("C:/Windows/Fonts/seguiemj.ttf").expect("Windows emoji font not found");
+
+    fonts
+        .font_data
+        .insert("emoji".to_owned(), egui::FontData::from_owned(font));
+
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .push("emoji".to_owned());
+
+    fonts
+        .families
+        .entry(egui::FontFamily::Monospace)
+        .or_default()
+        .push("emoji".to_owned());
+
+    // Tell egui to use these fonts:
+    ctx.set_fonts(fonts);
+
+    let mut style: egui::Style = (*ctx.style()).clone();
+    style.spacing.button_padding = vec2(10.0, 5.0);
+    style.spacing.scroll_bar_inner_margin = 10.0;
+    style.spacing.scroll_bar_outer_margin = 5.0;
+    style.spacing.tooltip_width = 300.0;
+
+    // style.debug.show_blocking_widget = true;
+    // style.debug.show_interactive_widgets = true;
+
+    ctx.set_style(style.clone());
 }
 
 impl eframe::App for App {
@@ -147,150 +211,6 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        let mut style: egui::Style = (*ctx.style()).clone();
-        style.spacing.item_spacing = egui::vec2(10.0, 10.0);
-        style.spacing.button_padding = vec2(10.0, 5.0);
-        style.spacing.scroll_bar_inner_margin = 10.0;
-        style.spacing.scroll_bar_outer_margin = 5.0;
-        style.spacing.tooltip_width = 300.0;
-
-        ctx.set_style(style.clone());
-
-        let frame = egui::containers::Frame::none()
-            .inner_margin(Margin {
-                left: 5.0,
-                right: 5.0,
-                top: 5.0,
-                bottom: 5.0,
-            })
-            .fill(Color32::from_gray(27));
-
-        egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
-            egui::TopBottomPanel::top("top")
-                .show_separator_line(false)
-                .show_inside(ui, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
-                            let checkbox = ui
-                                .checkbox(&mut self.enabled, "")
-                                .on_hover_text("Enable or disable all monitors");
-                            if checkbox.clicked() {
-                                self.toggle_driver();
-                            };
-
-                            ui.label("Enabled")
-                                .labelled_by(checkbox.id)
-                                .on_hover_text("Enable or disable all monitors");
-
-                            port_edit(ui, &mut self.port);
-                        });
-                    });
-                });
-
-            CentralPanel::default().show_inside(ui, |ui| {
-                let id = Id::new("scrollarea");
-
-                let mut offset = 0.0;
-                ui.ctx().data(|reader| {
-                    offset = reader.get_temp::<f32>(id).unwrap_or(0.0);
-                });
-
-                let scroll_area = egui::ScrollArea::new([false, true])
-                    .vertical_scroll_offset(offset)
-                    .max_height(ui.available_height() - 30.0);
-
-                let output = scroll_area.show(ui, |ui| {
-                    egui::Grid::new("grid").show(ui, |ui| {
-                        let mut peek = self.monitors.iter().enumerate().peekable();
-
-                        while let Some((idx, monitor)) = peek.next() {
-                            let button = egui::Button::new((monitor.id + 1).to_string())
-                                .rounding(Rounding::same(8.0))
-                                .min_size(vec2(200.0, 200.0));
-                            ui.add(button);
-
-                            // only 3 per row
-                            if (idx + 1) % 3 == 0 {
-                                ui.end_row();
-                            }
-
-                            if peek.peek().is_none() && self.monitors.len() < 10 {
-                                let button = egui::Button::new("+")
-                                    .rounding(Rounding::same(8.0))
-                                    .min_size(vec2(200.0, 200.0));
-                                ui.add(button);
-                            }
-                        }
-                    });
-                });
-
-                ui.ctx().data_mut(|writer| {
-                    writer.insert_temp(id, output.state.offset.y);
-                });
-
-                let id = Id::new("init");
-                let mut initted = false;
-                let mut size = ui.available_width();
-                ui.ctx().data(|reader| {
-                    initted = reader.get_temp::<bool>(id).unwrap_or(false);
-                    size = reader.get_temp::<f32>(id).unwrap_or(ui.available_width());
-                });
-
-                if !initted {
-                    ui.ctx().data_mut(|writer| {
-                        writer.insert_temp(id, true);
-                        writer.insert_temp(id, ui.available_width() + 88.0);
-                    });
-                }
-
-                _frame.set_window_size(vec2(size, 500.0));
-            });
-
-            egui::TopBottomPanel::bottom("bottom")
-                .show_separator_line(false)
-                .show_inside(ui, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
-                            let enabled = !self.actions.is_empty();
-                            let button = egui::Button::new("Apply");
-                            let res = ui
-                                .add_enabled(enabled, button)
-                                .on_hover_text("Apply all pending operations");
-                            if res.clicked() {
-                                save_config(self);
-                            }
-
-                            let button = egui::Button::new("Clear");
-                            let res = ui
-                                .add_enabled(enabled, button)
-                                .on_hover_text("Clear all pending operations");
-                            if res.clicked() {
-                                self.actions.clear();
-                            }
-                        });
-                    });
-                });
-        });
+        MainWindow::new(self).show(ctx);
     }
-}
-
-fn port_edit(ui: &mut Ui, port: &mut u32) {
-    ui.horizontal_wrapped(|ui| {
-        let mut port_s = port.to_string();
-
-        let port_widget = egui::TextEdit::singleline(&mut port_s);
-        let res = ui.add_sized(vec2(75.0, 20.0), port_widget).on_hover_text(
-            "Port driver listens on. Driver must be restarted for port change to take effect",
-        );
-
-        if res.changed() {
-            if let Ok(port_p) = port_s.parse::<u32>() {
-                *port = port_p;
-            }
-        };
-
-        ui.label("Port").labelled_by(res.id).on_hover_text(
-            "Port driver listens on. Driver must be restarted for port change to take effect",
-        );
-    });
 }
