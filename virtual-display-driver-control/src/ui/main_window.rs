@@ -186,25 +186,7 @@ impl<'a> MainWindow<'a> {
                         let button_add = ui.add(button);
 
                         if button_add.clicked() {
-                            state.delete_window = true;
-                        }
-
-                        if state.delete_window {
-                            egui::Window::new(if !state.name.is_empty() {
-                                format!("Delete {}?", state.name)
-                            } else {
-                                format!("Delete Monitor {}?", state.id)
-                            })
-                            .open(&mut state.delete_window)
-                            .auto_sized()
-                            .collapsible(false)
-                            .show(ctx, |ui| {
-                                egui::Grid::new("grid").show(ui, |ui| {
-                                    if ui.button("Ok").clicked() {
-                                        idx_to_remove = Some(idx);
-                                    }
-                                });
-                            });
+                            idx_to_remove = Some(idx);
                         }
 
                         //

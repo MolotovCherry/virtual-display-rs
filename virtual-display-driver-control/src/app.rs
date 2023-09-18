@@ -71,8 +71,6 @@ pub struct MonitorState {
     pub enabled: bool,
     pub id: u32,
     #[serde(skip)]
-    pub delete_window: bool,
-    #[serde(skip)]
     pub monitor_window: bool,
     // when a monitor is first added, it is not initialized
     #[serde(skip_serializing_if = "Option::is_none")]
