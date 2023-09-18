@@ -37,7 +37,7 @@ Disabling it can be done one of two ways
 - Disable the driver (and enable it only when you need to use)
 - Go to "Display Settings" and select "Show only on 1" (I don't think this setting gets saved across reboots however)
 
-At the moment, I don't have a specific tool written for disabling/re-enabling the driver, though in theory it's not very difficult
+Note: Disabling any/all monitors can be done dynamically at runtime in the upcoming driver/control panel. 😄
 
 # Updating
 - Open `Device Manager`
