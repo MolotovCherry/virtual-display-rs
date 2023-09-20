@@ -11,6 +11,8 @@ pub struct MonitorState {
     // Runtime state variables
     #[serde(skip)]
     pub monitor_window: bool,
+    #[serde(skip)]
+    pub add_resolution_window: bool,
     // input boxes for adding new monitor
     #[serde(skip)]
     pub tmp_w: u32,
