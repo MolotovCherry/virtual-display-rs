@@ -61,6 +61,8 @@ Configuring:
 - You can press the red "-" button next to a resolution or refresh rate to delete those specifically. Warning!! If you delete all monitor modes, the monitor will be disconnected from the system
 - If you add any resolutions/refresh rates and press save, the monitor changes will NOT show up on your system initially. If you just setup your monitor for the first time, enable the monitor in the main window. If you configured an existing monitor, you NEED to disable and re-enable the monitor manually for it to update.
 
+The save button in the main window forcefully saves any changes. You DO NOT need to press this to make your settings get saved. Settings are automatically saved when the application is closed.
+
 # Updating
 - Open `Device Manager`
 - Under the `Display` section, find the `Virtual Display` driver and double click
