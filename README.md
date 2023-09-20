@@ -12,6 +12,12 @@ It has many uses, such as:
 
 Support: Windows 10 x64 +
 
+## Features
+- Multiple monitors
+- Multiple resolutions per monitor
+- Multiple refresh rates per resolution
+- App to configure them all, disable all/individual monitors
+
 # How to install
 - Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 - Download (you may receive a warning, just press accept)
@@ -32,12 +38,8 @@ The certificate needs installation for Windows to accept the driver
 - Select `Place All Certificates in the following store`, click `Browse` and select `Trusted Root Certification Authorities`
 - Cick `Next` and `Finish`
 
-# Disabling the display
-Disabling it can be done one of two ways
-- Disable the driver (and enable it only when you need to use)
-- Go to "Display Settings" and select "Show only on 1" (I don't think this setting gets saved across reboots however)
-
-Note: Disabling any/all monitors can be done dynamically at runtime in the upcoming driver/control panel. 😄
+# Disabling the display(s)
+- Open the app, and either check the global "enabled" switch to turn all monitors off, or click an individual switch next to the monitor in the list
 
 # Updating
 - Open `Device Manager`
@@ -55,11 +57,6 @@ Note: Disabling any/all monitors can be done dynamically at runtime in the upcom
 
 ### Debugging
 To see panic messages and other information, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions)
-
-# Future goals
-- [X] Work on allowing custom resolution / refresh rate
-- [X] More than 1 monitor
-- [ ] App for easy configuring monitors
 
 # Extra notes
 If you enabled while everything has been booted for awhile, some applications may not be able to see the virtual monitor. You can fix this by rebooting while having it enabled (or enable it quickly after you boot up). This seems to be an issue with Windows itself, but I do not know why. It has affected every single virtual monitor driver I have ever tried. If anyone does know, please feel free to share information 😃
