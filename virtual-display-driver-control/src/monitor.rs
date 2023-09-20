@@ -57,7 +57,7 @@ impl Monitor {
     }
 
     /// Mark all pending as fine
-    pub fn clear_pending(&mut self) {
+    pub fn accept_pending(&mut self) {
         if let Some(modes) = &mut self.modes {
             for mode in modes.values_mut() {
                 if mode.pending {

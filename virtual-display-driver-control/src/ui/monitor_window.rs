@@ -1,14 +1,21 @@
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap};
 
+use driver_ipc::DriverCommand;
 use egui::{vec2, Align, CollapsingHeader, Color32, Context, Grid, Id, Layout};
 
-use crate::monitor::{MonitorMode, MonitorState, RefreshRate};
+use crate::{
+    app::TcpWrapper,
+    ipc::ipc_call,
+    monitor::{MonitorMode, MonitorState, RefreshRate},
+};
 
-pub struct MonitorWindow;
+pub struct MonitorWindow<'a> {
+    con: &'a RefCell<TcpWrapper>,
+}
 
-impl MonitorWindow {
-    pub fn new() -> Self {
-        Self
+impl<'a> MonitorWindow<'a> {
+    pub fn new(con: &'a RefCell<TcpWrapper>) -> Self {
+        Self { con }
     }
 
     pub fn show(&self, ctx: &Context, state: &mut MonitorState) {
@@ -206,6 +213,11 @@ impl MonitorWindow {
                                 // no more modes, so entire mode is dead, remove it
                                 if remove_mode {
                                     modes.remove(&key);
+
+                                    if modes.is_empty() {
+                                        state.enabled = false;
+                                        ipc_call(&mut self.con.borrow_mut(), DriverCommand::Remove(vec![state.monitor.id]));
+                                    }
                                 }
                             }
                         }
@@ -213,6 +225,12 @@ impl MonitorWindow {
                         if let Some(mode) = mode_to_remove {
                             if let Some(modes) = &mut state.monitor.modes {
                                 modes.remove(&mode);
+
+                                // if this was the last mode, then it needs to be disabled and removed
+                                if modes.is_empty() {
+                                    state.enabled = false;
+                                    ipc_call(&mut self.con.borrow_mut(), DriverCommand::Remove(vec![state.monitor.id]));
+                                }
                             }
                         }
 
@@ -233,6 +251,21 @@ impl MonitorWindow {
                                 }
                             }
                         }
+
+                        //
+                        // Save / clear section
+                        //
+                        if ui.button("Clear").clicked() {
+                            state.monitor.remove_pending();
+                        }
+
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui.button("Save").clicked() {
+                                state.monitor.accept_pending();
+                            }
+                        });
+
+                        ui.end_row();
 
                         //
                         // Add new monitor section

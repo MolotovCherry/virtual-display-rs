@@ -103,7 +103,8 @@ impl<'a> MainWindow<'a> {
                     let response = ui.interact(rect, Id::new("rect1"), Sense::click());
                     if response.clicked() || self.app.monitors[0].monitor_window {
                         self.app.monitors[0].monitor_window = true;
-                        MonitorWindow::new().show(ctx, &mut self.app.monitors[0]);
+                        MonitorWindow::new(&self.app.connection)
+                            .show(ctx, &mut self.app.monitors[0]);
                     }
 
                     // Paint a color on hover / not hover
@@ -143,7 +144,7 @@ impl<'a> MainWindow<'a> {
                     let state = &mut self.app.monitors[idx];
                     if response.clicked() || state.monitor_window && idx > 0 {
                         state.monitor_window = true;
-                        MonitorWindow::new().show(ctx, state);
+                        MonitorWindow::new(&self.app.connection).show(ctx, state);
                     }
 
                     // Paint a color on hover
@@ -214,7 +215,7 @@ impl<'a> MainWindow<'a> {
                         // Enable/disable monitor switch
                         //
                         let switch = ui
-                            .add(toggle(&mut state.enabled))
+                            .add_enabled(!needs_setup, toggle(&mut state.enabled))
                             .on_hover_text("Enable/disable monitor");
 
                         if anim_bool_finished(ui, switch.id.with("anim"), switch.clicked()) {
@@ -240,6 +241,13 @@ impl<'a> MainWindow<'a> {
                     ui.end_row();
                 }
 
+                // if no monitors are here, display a nice message
+                if self.app.monitors.is_empty() {
+                    ui.colored_label(Color32::from_rgb(196, 166, 38), "No monitors ⚠️")
+                        .on_hover_text("Click the + button to add a monitor");
+                    ui.end_row();
+                }
+
                 // remove monitor if requested
                 if let Some(idx) = idx_to_remove {
                     self.app.monitors.remove(idx);
@@ -260,7 +268,7 @@ impl<'a> MainWindow<'a> {
                         self.app.monitors.insert(
                             id.saturating_sub(1),
                             MonitorState {
-                                enabled: true,
+                                enabled: false,
                                 monitor: Monitor {
                                     id: id as u32,
                                     modes: None,

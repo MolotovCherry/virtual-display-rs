@@ -1,5 +1,5 @@
 [toolchain]
 channel = "1.72.0"
-components = []
+components = ["rustfmt"]
 targets = []
 profile = "minimal"
