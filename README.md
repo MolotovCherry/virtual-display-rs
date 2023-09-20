@@ -63,6 +63,9 @@ Configuring:
 
 The save button in the main window forcefully saves any changes. You DO NOT need to press this to make your settings get saved. Settings are automatically saved when the application is closed.
 
+# Ok, I set it up, but what then?
+You can change your monitors, resolutions, and refresh rates in Windows itself just like you would any other monitor 😃
+
 # Updating
 - Open `Device Manager`
 - Under the `Display` section, find the `Virtual Display` driver and double click
