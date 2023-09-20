@@ -13,7 +13,7 @@ It has many uses, such as:
 Support: Windows 10 x64 +
 
 ## Features
-- Multiple monitors
+- Multiple monitors (up to 10)
 - Multiple resolutions per monitor
 - Multiple refresh rates per resolution
 - App to configure them all, disable all/individual monitors
