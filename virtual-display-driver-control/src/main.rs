@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod actions;
 mod app;
 #[cfg(debug_assertions)]
 mod backtrace;
 mod ipc;
+mod monitor;
 mod panic;
 mod popup;
 mod save;
@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let options = NativeOptions {
         //min_window_size: Some(Vec2::new(500.0, 400.0)),
         icon_data: None,
-        initial_window_size: Some(Vec2::new(600.0, 400.0)),
+        initial_window_size: Some(Vec2::new(1000.0, 800.0)),
         transparent: true,
         resizable: true,
         centered: true,

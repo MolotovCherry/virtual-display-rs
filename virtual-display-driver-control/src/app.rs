@@ -1,15 +1,13 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
     fs,
     net::TcpStream,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    sync::Arc,
 };
 
 use directories::ProjectDirs;
-use driver_ipc::{DriverCommand, Monitor};
+use driver_ipc::DriverCommand;
 
 use eframe::CreationContext;
 use egui::vec2;
@@ -17,8 +15,8 @@ use egui::vec2;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    actions::Action,
     ipc::ipc_call,
+    monitor::{IntoIpc, MonitorState},
     popup::{display_popup, MessageBoxIcon},
     save::save_config,
     ui::main_window::MainWindow,
@@ -60,21 +58,6 @@ pub struct App {
     pub connection: RefCell<TcpWrapper>,
     #[serde(skip)]
     pub config: PathBuf,
-    #[serde(skip)]
-    pub actions: HashMap<u32, Action>,
-}
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct MonitorState {
-    pub name: String,
-    // whether monitor is enabled or not
-    pub enabled: bool,
-    pub id: u32,
-    #[serde(skip)]
-    pub monitor_window: bool,
-    // when a monitor is first added, it is not initialized
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub monitor: Option<Arc<Monitor>>,
 }
 
 impl Default for App {
@@ -134,7 +117,6 @@ impl Default for App {
             monitors: Default::default(),
             connection: RefCell::new(TcpWrapper::Connected(stream)),
             config,
-            actions: HashMap::new(),
         })
     }
 }
@@ -151,12 +133,7 @@ impl App {
         } else {
             ipc_call(
                 &mut self.connection.borrow_mut(),
-                DriverCommand::Add(
-                    self.monitors
-                        .iter()
-                        .flat_map(|m| m.monitor.as_ref().map(|m| m.as_ref().clone()))
-                        .collect(),
-                ),
+                DriverCommand::Add(self.monitors.clone().into_monitors()),
             );
         }
 

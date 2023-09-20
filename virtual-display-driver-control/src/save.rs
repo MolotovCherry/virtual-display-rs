@@ -1,15 +1,27 @@
-use std::fs;
+use std::{cell::RefCell, fs};
 
 use winreg::{
     enums::{HKEY_LOCAL_MACHINE, KEY_WRITE},
     RegKey,
 };
 
-use crate::app::App;
+use crate::{
+    app::{App, TcpWrapper},
+    monitor::RemovePending,
+};
 
 pub fn save_config(app: &App) {
+    // effective clone, but with all pending removed. we don't want to persist pending
+    let app = App {
+        enabled: app.enabled,
+        port: app.port,
+        monitors: app.monitors.clone().remove_pending(),
+        connection: RefCell::new(TcpWrapper::Disconnected),
+        config: app.config.clone(),
+    };
+
     // write out app config
-    let json = serde_json::to_string(app).unwrap();
+    let json = serde_json::to_string(&app).unwrap();
 
     let parent = app.config.parent().unwrap();
     if !parent.exists() {
@@ -31,8 +43,8 @@ pub fn save_config(app: &App) {
     let monitors = app
         .monitors
         .iter()
-        .flat_map(|i| i.monitor.as_ref())
-        .collect::<Vec<_>>();
+        .map(|state| state.monitor.clone().into())
+        .collect::<Vec<driver_ipc::Monitor>>();
 
     let data = serde_json::to_string(&monitors).unwrap();
 

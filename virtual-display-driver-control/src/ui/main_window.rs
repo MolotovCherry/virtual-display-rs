@@ -1,9 +1,10 @@
 use driver_ipc::DriverCommand;
-use egui::{vec2, Align, Color32, Context, Id, Sense, Ui};
+use egui::{vec2, Align, Color32, Context, Id, Layout, Sense, Ui};
 
 use crate::{
-    app::{App, MonitorState},
+    app::App,
     ipc::ipc_call,
+    monitor::{Monitor, MonitorState},
     save::save_config,
     toggle_switch::toggle,
 };
@@ -39,8 +40,17 @@ impl<'a> MainWindow<'a> {
                     .on_hover_text("Enable/disable all monitors");
 
                 let switch = ui
-                    .add(toggle(&mut self.app.enabled))
-                    .on_hover_text("Enable/disable all monitors");
+                    .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        // alligns it up with the others
+                        ui.allocate_exact_size(
+                            vec2(0.0, ui.available_height()),
+                            Sense::focusable_noninteractive(),
+                        );
+
+                        ui.add(toggle(&mut self.app.enabled))
+                            .on_hover_text("Enable/disable all monitors")
+                    })
+                    .inner;
 
                 if anim_bool_finished(ui, switch.id.with("anim"), switch.clicked()) {
                     self.app.toggle_driver();
@@ -97,13 +107,9 @@ impl<'a> MainWindow<'a> {
                     }
 
                     // Paint a color on hover / not hover
-                    let color = if response.hovered() {
-                        Color32::from_gray(50)
-                    } else {
-                        Color32::from_gray(27)
-                    };
-
-                    ui.painter().rect_filled(rect, 2.0, color);
+                    if response.hovered() {
+                        ui.painter().rect_filled(rect, 2.0, Color32::from_gray(50));
+                    }
                 }
 
                 ui.end_row();
@@ -140,16 +146,10 @@ impl<'a> MainWindow<'a> {
                         MonitorWindow::new().show(ctx, state);
                     }
 
-                    // Paint a color on hover / not hover
-                    let color = if response.hovered() {
-                        Color32::from_gray(50)
-                    } else if (idx + 1) % 2 == 0 {
-                        Color32::from_gray(27)
-                    } else {
-                        Color32::from_gray(32)
-                    };
-
-                    ui.painter().rect_filled(rect, 2.0, color);
+                    // Paint a color on hover
+                    if response.hovered() {
+                        ui.painter().rect_filled(rect, 2.0, Color32::from_gray(50));
+                    }
 
                     // update the full one for the next iter
                     cumulative_rect = ui.min_rect();
@@ -160,13 +160,25 @@ impl<'a> MainWindow<'a> {
 
                     let state = &mut self.app.monitors[idx];
 
-                    if state.monitor.is_none() {
+                    let needs_setup = if let Some(modes) = &state.monitor.modes {
+                        // len is 0
+                        modes.is_empty()
+                        // or, if all resolutions are pending or all refresh rates of that resolution are pending
+                            || modes.iter().all(|(_, mode)| {
+                                mode.pending || mode.refresh_rates.iter().all(|r| r.pending)
+                            })
+                    } else {
+                        // it's empty, definitely needs setup
+                        true
+                    };
+
+                    if needs_setup {
                         ui.colored_label(
                             Color32::from_rgb(196, 166, 38),
                             if !state.name.is_empty() {
                                 state.name.clone() + " ⚠️"
                             } else {
-                                format!("Monitor {} ⚠️", state.id)
+                                format!("Monitor {} ⚠️", state.monitor.id)
                             },
                         )
                         .on_hover_text("This monitor requires setup");
@@ -174,7 +186,7 @@ impl<'a> MainWindow<'a> {
                         ui.label(if !state.name.is_empty() {
                             state.name.clone()
                         } else {
-                            format!("Monitor {}", state.id)
+                            format!("Monitor {}", state.monitor.id)
                         });
                     }
 
@@ -187,6 +199,15 @@ impl<'a> MainWindow<'a> {
 
                         if button_add.clicked() {
                             idx_to_remove = Some(idx);
+
+                            if state.enabled
+                                && state.monitor.modes.as_ref().is_some_and(|l| !l.is_empty())
+                            {
+                                ipc_call(
+                                    &mut self.app.connection.borrow_mut(),
+                                    DriverCommand::Remove(vec![state.monitor.id]),
+                                )
+                            }
                         }
 
                         //
@@ -200,16 +221,16 @@ impl<'a> MainWindow<'a> {
                             let state = &state;
 
                             // if monitor is set up, then add or remove it
-                            if let Some(monitor) = &state.monitor {
+                            if state.monitor.modes.as_ref().is_some_and(|l| !l.is_empty()) {
                                 if state.enabled {
                                     ipc_call(
                                         &mut self.app.connection.borrow_mut(),
-                                        DriverCommand::Add(vec![monitor.as_ref().clone()]),
+                                        DriverCommand::Add(vec![state.monitor.clone().into()]),
                                     )
                                 } else {
                                     ipc_call(
                                         &mut self.app.connection.borrow_mut(),
-                                        DriverCommand::Remove(vec![monitor.id]),
+                                        DriverCommand::Remove(vec![state.monitor.id]),
                                     )
                                 }
                             }
@@ -228,9 +249,9 @@ impl<'a> MainWindow<'a> {
                 if should_add_plus {
                     if ui.button("+").clicked() {
                         let mut id = self.app.monitors.len() + 1;
-                        for (idx, mon) in self.app.monitors.iter().enumerate() {
+                        for (idx, state) in self.app.monitors.iter().enumerate() {
                             let idx = idx + 1;
-                            if mon.id != idx as u32 {
+                            if state.monitor.id != idx as u32 {
                                 id = idx;
                                 break;
                             }
@@ -240,7 +261,10 @@ impl<'a> MainWindow<'a> {
                             id.saturating_sub(1),
                             MonitorState {
                                 enabled: true,
-                                id: id as u32,
+                                monitor: Monitor {
+                                    id: id as u32,
+                                    modes: None,
+                                },
                                 ..Default::default()
                             },
                         );
