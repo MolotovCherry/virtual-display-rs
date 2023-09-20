@@ -12,6 +12,8 @@ It has many uses, such as:
 
 Support: Windows 10 x64 +
 
+https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d2-4c99-91f7-4e8b352e3ebe
+
 ## Features
 - Multiple monitors
 - Multiple resolutions per monitor
