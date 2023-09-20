@@ -219,16 +219,15 @@ impl<'a> MainWindow<'a> {
                             .on_hover_text("Enable/disable monitor");
 
                         if anim_bool_finished(ui, switch.id.with("anim"), switch.clicked()) {
-                            let state = &state;
-
                             // if monitor is set up, then add or remove it
                             if state.monitor.modes.as_ref().is_some_and(|l| !l.is_empty()) {
-                                if state.enabled {
+                                // allow monitor to enable only if monitor AND global switch is on, but it WILL turn off a monitor if it was on
+                                if state.enabled && self.app.enabled {
                                     ipc_call(
                                         &mut self.app.connection.borrow_mut(),
                                         DriverCommand::Add(vec![state.monitor.clone().into()]),
                                     )
-                                } else {
+                                } else if !state.enabled {
                                     ipc_call(
                                         &mut self.app.connection.borrow_mut(),
                                         DriverCommand::Remove(vec![state.monitor.id]),

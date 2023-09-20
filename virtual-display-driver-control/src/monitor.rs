@@ -135,10 +135,18 @@ impl From<Monitor> for driver_ipc::Monitor {
 
 pub trait IntoIpc {
     fn into_monitors(self) -> Vec<driver_ipc::Monitor>;
+    fn into_monitors_enabled(self) -> Vec<driver_ipc::Monitor>;
 }
 
 impl IntoIpc for Vec<MonitorState> {
     fn into_monitors(self) -> Vec<driver_ipc::Monitor> {
         self.into_iter().map(|i| i.monitor.into()).collect()
+    }
+
+    fn into_monitors_enabled(self) -> Vec<driver_ipc::Monitor> {
+        self.into_iter()
+            .filter(|s| s.enabled)
+            .map(|i| i.monitor.into())
+            .collect()
     }
 }

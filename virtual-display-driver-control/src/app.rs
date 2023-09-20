@@ -129,12 +129,22 @@ impl App {
 
     pub fn toggle_driver(&self) {
         if !self.enabled {
-            ipc_call(&mut self.connection.borrow_mut(), DriverCommand::RemoveAll);
+            // only make ipc call if any monitors are actually enabled
+            let enabled = self.monitors.iter().any(|s| s.enabled);
+
+            if enabled {
+                ipc_call(&mut self.connection.borrow_mut(), DriverCommand::RemoveAll);
+            }
         } else {
-            ipc_call(
-                &mut self.connection.borrow_mut(),
-                DriverCommand::Add(self.monitors.clone().into_monitors()),
-            );
+            // this removes pending monitors and monitors that are not enabled
+            let monitors = self.monitors.clone().into_monitors_enabled();
+
+            if !monitors.is_empty() {
+                ipc_call(
+                    &mut self.connection.borrow_mut(),
+                    DriverCommand::Add(monitors),
+                );
+            }
         }
 
         save_config(self);
