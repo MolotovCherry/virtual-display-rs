@@ -1,9 +1,8 @@
 use std::panic;
 
-use crate::{
-    backtrace::CaptureBacktrace,
-    popup::{display_popup, MessageBoxIcon},
-};
+#[cfg(debug_assertions)]
+use crate::backtrace::CaptureBacktrace;
+use crate::popup::{display_popup, MessageBoxIcon};
 
 pub fn set_hook() {
     panic::set_hook(Box::new(|v| {
