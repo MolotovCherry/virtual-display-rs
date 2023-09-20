@@ -38,7 +38,7 @@ jobs:
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v3
         with:
-          name: driver
+          name: app
           path: |
             target/debug/*.exe
 
