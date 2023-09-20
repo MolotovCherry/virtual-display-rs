@@ -159,7 +159,7 @@ impl MonitorWindow {
                                                                     &mut add,
                                                                 )
                                                                 .vertical_align(Align::Center)
-                                                                .desired_width(30.0);
+                                                                .desired_width(40.0);
 
                                                             let res_add = ui.add(add_widget);
 
@@ -167,7 +167,7 @@ impl MonitorWindow {
                                                                 if let Ok(a) = add.parse::<u32>() {
                                                                     state.tmp_add = a;
                                                                 } else if add.is_empty() {
-                                                                    state.tmp_w = 0;
+                                                                    state.tmp_add = 0;
                                                                 }
                                                             }
                                                         },
