@@ -40,6 +40,12 @@ The certificate needs installation for Windows to accept the driver
 - Select `Place All Certificates in the following store`, click `Browse` and select `Trusted Root Certification Authorities`
 - Cick `Next` and `Finish`
 
+# Updating
+- Open `Device Manager`
+- Under the `Display` section, find the `Virtual Display` driver and double click
+- Click the `Driver` tab and the `Update Driver` button
+- Click `Browse my computer for drivers`, browse for the right location, and click `Next`
+
 # Disabling the display(s)
 - Open the app, and either check the global "enabled" switch to turn all monitors off, or click an individual switch next to the monitor in the list
 
@@ -65,12 +71,6 @@ The save button in the main window forcefully saves any changes. You DO NOT need
 
 # Ok, I set it up, but what then?
 You can change your monitors, resolutions, and refresh rates in Windows itself just like you would any other monitor 😃
-
-# Updating
-- Open `Device Manager`
-- Under the `Display` section, find the `Virtual Display` driver and double click
-- Click the `Driver` tab and the `Update Driver` button
-- Click `Browse my computer for drivers`, browse for the right location, and click `Next`
 
 # How to build
 - Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
