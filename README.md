@@ -12,6 +12,9 @@ It has many uses, such as:
 
 Support: Windows 10 x64 +
 
+_Note about downloads:  
+Chrome and Windows likes to vet software by amount of downloads. If you receive a download warning, or a smartscreen warning when you try to run it, this is because of Chrome/Windows respectively, not the software. If for any reason you are unsure, the source code is in the repo, and you can build it yourself from scratch using the [build instructions](https://github.com/MolotovCherry/virtual-display-rs#how-to-build)._
+
 ## Features
 - Multiple monitors (up to 10)
 - Multiple resolutions per monitor
