@@ -49,31 +49,8 @@ The certificate needs installation for Windows to accept the driver
 - Click the `Driver` tab and the `Update Driver` button
 - Click `Browse my computer for drivers`, browse for the right location, and click `Next`
 
-# Disabling the display(s)
-- Open the app, and either check the global "enabled" switch to turn all monitors off, or click an individual switch next to the monitor in the list
-
 # Using the app
-- All settings made in the app are persisted for the app and driver config
-- If you change the port, a manual driver restart is required for it to listen on the new port
-
-Disabling/enabling monitors:
-- In the main window, click the switch at the top to disable all monitors, or the switch beside an individual monitor to disable only that one
-- You can do the same thing to re-enable any
-
-Configuring:
-- Give your monitor a name (if you want)
-- After clicking the "+" button to add a new monitor, click on the row to open the settings.
-- You can also click the red "-" to delete a monitor
-- Click the "+" button at the bottom to add an initial resolution/refresh rate. You can add more refresh rates for that particular resolution in the main monitor settings window refresh rate dropdown
-- Press SAVE when you are done. Any entry with `*` before it will NOT be saved.
-- If you don't want to save, press the "Clear" button, and all your pending changes will be cleared
-- You can press the red "-" button next to a resolution or refresh rate to delete those specifically. Warning!! If you delete all monitor modes, the monitor will be disconnected from the system
-- If you add any resolutions/refresh rates and press save, the monitor changes will NOT show up on your system initially. If you just setup your monitor for the first time, enable the monitor in the main window. If you configured an existing monitor, you NEED to disable and re-enable the monitor manually for it to update.
-
-The save button in the main window forcefully saves any changes. You DO NOT need to press this to make your settings get saved. Settings are automatically saved when the application is closed.
-
-# Ok, I set it up, but what then?
-You can change your monitors, resolutions, and refresh rates in Windows itself just like you would any other monitor 😃
+Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/Virtual-Display-Driver-Control) for instructions on using the app.
 
 # How to build
 - Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
