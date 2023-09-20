@@ -6,7 +6,6 @@ mod entry;
 mod monitor_listener;
 mod panic;
 mod swap_chain_processor;
-mod wdf;
 
 use wdf_umdf_sys::{NTSTATUS, PUNICODE_STRING, PVOID};
 
