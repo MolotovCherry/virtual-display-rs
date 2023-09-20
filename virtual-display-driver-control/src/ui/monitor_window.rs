@@ -255,9 +255,11 @@ impl<'a> MonitorWindow<'a> {
                         //
                         // Save / clear section
                         //
-                        if ui.button("Clear").clicked() {
-                            state.monitor.remove_pending();
-                        }
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            if ui.button("Clear").clicked() {
+                                state.monitor.remove_pending();
+                            }
+                        });
 
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                             if ui.button("Save").clicked() {
