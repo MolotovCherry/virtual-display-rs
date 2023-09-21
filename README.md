@@ -63,10 +63,5 @@ Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/V
 ### Debugging
 To see panic messages and other information, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions)
 
-# Extra notes
-If driver was disabled before and you enabled while everything has been booted for awhile, some applications may not be able to see the virtual monitor. You can fix this by rebooting while having it enabled (or enable it quickly after you boot up). This seems to be an issue with Windows itself, but I do not know why. It has affected every single virtual monitor driver I have ever tried. If anyone does know, please feel free to share information 😃
-
-However, this is in practice not a problem. You can keep the driver enabled at all times and just disable all the monitors in the app. Enable or disable them as you please.
-
 # Contributions
 All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
