@@ -103,11 +103,10 @@ jobs:
           $version = $tagName.TrimStart('v')
           echo "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - uses: vimtor/action-zip@v1
+      - name: Zip files up
         if: github.event_name == 'release'
-        with:
-          files: DriverCertificate.cer installer/install-cert.bat target/wix/virtual-display-driver-$RELEASE_VERSION-x86_64.msi
-          dest: virtual-desktop-driver-x64.zip
+        run: |
+          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/wix/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
