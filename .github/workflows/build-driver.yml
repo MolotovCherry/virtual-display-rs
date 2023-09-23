@@ -34,6 +34,12 @@ jobs:
         with:
           crate: cargo-make
 
+      - name: Install cargo-wix
+        if: github.event_name == 'release'
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-wix
+
       - name: Export Private Certificate
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -51,12 +57,18 @@ jobs:
           RELEASE: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
         run: cargo make -p $env:RELEASE build
 
+      - name: Build App
+        env:
+          RELEASE: ${{ github.event_name == 'release' && '--release' || '' }}
+        run: cargo build $env:RELEASE -p virtual-display-driver-control
+
       - name: Upload Artifacts
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v3
         with:
           name: driver
           path: |
+            target/debug/*.exe
             target/debug/*.cat
             target/debug/*.dll
             target/debug/*.inf
@@ -70,10 +82,31 @@ jobs:
           path: |
             DriverCertificate.cer
 
+      # this is split from the top in order to allow the files to all be at the top level of the archive
+      - name: Upload Artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v3
+        with:
+          name: driver
+          path: |
+            installer/install-cert.bat
+
+      # package with wix
+      - name: Create installer
+        if: github.event_name == 'release'
+        run: cargo wix -p virtual-display-driver --nocapture -I installer/main.wxs
+
+      - name: Set release version
+        if: github.event_name == 'release'
+        run: |
+          $tagName = "${{ github.event.release.tag_name }}"
+          $version = $tagName.TrimStart('v')
+          echo "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - uses: vimtor/action-zip@v1
         if: github.event_name == 'release'
         with:
-          files: target/release/VirtualDisplayDriver.cat target/release/VirtualDisplayDriver.dll target/release/VirtualDisplayDriver.inf DriverCertificate.cer
+          files: DriverCertificate.cer installer/install-cert.bat target/wix/virtual-display-driver-$RELEASE_VERSION-x86_64.msi
           dest: virtual-desktop-driver-x64.zip
 
       - name: Attach assets to release
