@@ -1,6 +1,6 @@
 # Virtual Display Driver
 
-[![Build App](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-app.yml/badge.svg?event=push)](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-app.yml) [![Build Driver](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-driver.yml/badge.svg?event=push)](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-driver.yml) [![GitHub release (with filter)](https://img.shields.io/github/v/release/MolotovCherry/virtual-display-rs)](https://github.com/MolotovCherry/virtual-display-rs/releases)
+[![Build Driver](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-driver.yml/badge.svg?event=push)](https://github.com/MolotovCherry/virtual-display-rs/actions/workflows/build-driver.yml) [![GitHub release (with filter)](https://img.shields.io/github/v/release/MolotovCherry/virtual-display-rs)](https://github.com/MolotovCherry/virtual-display-rs/releases)
 
 This is a Windows driver made in Rust which creates a virtual desktop.
 
