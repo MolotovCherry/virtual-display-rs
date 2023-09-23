@@ -91,17 +91,17 @@ jobs:
           path: |
             installer/install-cert.bat
 
-      # package with wix
-      - name: Create installer
-        if: github.event_name == 'release'
-        run: cargo wix -p virtual-display-driver --nocapture -I installer/main.wxs
-
       - name: Set release version
         if: github.event_name == 'release'
         run: |
           $tagName = "${{ github.event.release.tag_name }}"
           $version = $tagName.TrimStart('v')
           echo "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # package with wix
+      - name: Create installer
+        if: github.event_name == 'release'
+        run: cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs
 
       - name: Zip files up
         if: github.event_name == 'release'
