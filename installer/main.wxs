@@ -65,7 +65,7 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
 
     <Product
-        Id='86ddb158-91bf-4820-aba6-82e2037b757a'
+        Id='*'
         Name='Virtual Display Driver'
         UpgradeCode='DAE03BB7-B41F-47C6-AB07-C2ABB4215CB8'
         Manufacturer='Cherry'
@@ -185,6 +185,12 @@
               Impersonate='no'
               ExeCommand='--install-driver --inf-path "[ARPINSTALLLOCATION]driver\VirtualDisplayDriver.inf"'
               Return='check' />
+        <CustomAction Id='InstallDriverRollback'
+              BinaryKey='NEFCONW'
+              Execute='rollback'
+              Impersonate='no'
+              ExeCommand='--remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid 4d36e968-e325-11ce-bfc1-08002be10318'
+              Return='ignore' />
         <CustomAction Id='UninstallDriver'
               BinaryKey='NEFCONW'
               Execute='deferred'
@@ -194,9 +200,12 @@
 
         <InstallExecuteSequence>
             <Custom Action='UninstallDriver' After='InstallFiles'>Installed</Custom>
+            <Custom Action="InstallDriverRollback" Before="InstallDriverNode">NOT REMOVE="ALL"</Custom>
             <Custom Action='InstallDriverNode' After='UninstallDriver'>NOT REMOVE="ALL"</Custom>
             <Custom Action='InstallDriver' After='InstallDriverNode'>NOT REMOVE="ALL"</Custom>
         </InstallExecuteSequence>
+
+        <CustomActionRef Id="WixFailWhenDeferred" />
 
         <Feature
             Id='Core'
