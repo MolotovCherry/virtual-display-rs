@@ -93,15 +93,30 @@
         <Property Id='DiskPrompt' Value='installer Installation'/>
         <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
 
+        <!-- Directory structure and files -->
         <Directory Id='TARGETDIR' Name='SourceDir'>
-            <Component Id="RegistryEntries" Guid="8FBA73F4-EEA4-4602-AC96-E6B7B1FE2CC4">
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Virtual Display Driver"/>
+            </Directory>
+
+            <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
+                <Directory Id='APPLICATIONFOLDER' Name='VirtualDisplayDriver'>
+                    <Directory Id='Bin' Name='bin'/>
+                    <Directory Id='Driver' Name='driver'/>
+                </Directory>
+            </Directory>
+        </Directory>
+
+        <!-- Registry -->
+        <DirectoryRef Id="TARGETDIR">
+            <Component Id="RegistryEntries" Guid="*">
                 <RegistryKey
                     Root="HKLM"
                     Key="Software\VirtualDisplayDriver"
                     ForceDeleteOnUninstall="yes"
                 >
                     <RegistryValue Type="integer" Name="port" Value="23112" KeyPath="yes"/>
-                    <RegistryValue Type="string" Name="data" Value=""/>
+                    <RegistryValue Type="string" Name="data" Value="[\[][\]]"/>
                 </RegistryKey>
 
                 <RegistryKey
@@ -113,64 +128,80 @@
                     <RegistryValue Type="string" Name="EventMessageFile" Value="[ARPINSTALLLOCATION]driver\VirtualDisplayDriver.dll"/>
                 </RegistryKey>
             </Component>
+        </DirectoryRef>
 
-            <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='VirtualDisplayDriver'>
-                    <!--
-                      Disabling the license sidecar file in the installer is a two step process:
+        <!-- Shortcuts -->
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="*">
+                <Shortcut Id="ApplicationStartMenuShortcut"
+                        Name="Virtual Display Driver Control"
+                        Description="Manages your virtual displays"
+                        Target="[#exe0]"
+                        WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
 
-                      1. Comment out or remove the `Component` tag along with its contents.
-                      2. Comment out or remove the `ComponentRef` tag with the "License" Id
-                         attribute value further down in this file.
-                    -->
-                    <Component Id='License' Guid='*'>
-                        <File Id='LicenseFile'
-                            Name='License.rtf'
-                            DiskId='1'
-                            Source='$(sys.SOURCEFILEDIR)\files\License.rtf'
-                            KeyPath='yes'/>
-                    </Component>
+                <Shortcut Id="UninstallProduct"
+                        Name="Uninstall Virtual Display Driver"
+                        Target="[SystemFolder]msiexec.exe"
+                        Arguments="/x [ProductCode]"
+                        Description="Uninstalls Virtual Display Driver" />
 
-                    <Directory Id='Bin' Name='bin'>
-                        <Component Id='VirtualDisplayDriverControlExe' Guid='*'>
-                            <File
-                                Id='exe0'
-                                Name='VirtualDisplayDriverControl.exe'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\virtual-display-driver-control.exe'
-                                KeyPath='yes'/>
-                        </Component>
-                    </Directory>
+                <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\Virtual Display Driver" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
 
-                    <Directory Id='Driver' Name='driver'>
-                        <Component Id='VirtualDisplayDriverInf' Guid='*'>
-                            <File
-                                Id='inf0'
-                                Name='VirtualDisplayDriver.inf'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.inf'
-                                KeyPath='yes'/>
-                        </Component>
-                        <Component Id='VirtualDisplayDriverDll' Guid='*'>
-                            <File
-                                Id='dll0'
-                                Name='VirtualDisplayDriver.dll'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.dll'
-                                KeyPath='yes'/>
-                        </Component>
-                        <Component Id='VirtualDisplayDriverCat' Guid='*'>
-                            <File
-                                Id='cat0'
-                                Name='$(var.CatFile)'
-                                DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\$(var.CatFile)'
-                                KeyPath='yes'/>
-                        </Component>
-                    </Directory>
-                </Directory>
-            </Directory>
-        </Directory>
+        <!-- Main App folder -->
+        <DirectoryRef Id='APPLICATIONFOLDER'>
+            <Component Id='License' Guid='*'>
+                <File Id='LicenseFile'
+                    Name='License.rtf'
+                    DiskId='1'
+                    Source='$(sys.SOURCEFILEDIR)\files\License.rtf'
+                    KeyPath='yes'/>
+            </Component>
+        </DirectoryRef>
+
+        <!-- App bin folder -->
+        <DirectoryRef Id='Bin'>
+            <Component Id='VirtualDisplayDriverControlExe' Guid='*'>
+                <File
+                    Id='exe0'
+                    Name='VirtualDisplayDriverControl.exe'
+                    DiskId='1'
+                    Source='$(var.CargoTargetBinDir)\virtual-display-driver-control.exe'
+                    KeyPath='yes'/>
+            </Component>
+        </DirectoryRef>
+
+        <!-- Driver folder in app directory -->
+        <DirectoryRef Id='Driver'>
+            <Component Id='VirtualDisplayDriverInf' Guid='*'>
+                <File
+                    Id='inf0'
+                    Name='VirtualDisplayDriver.inf'
+                    DiskId='1'
+                    Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.inf'
+                    KeyPath='yes'/>
+            </Component>
+            <Component Id='VirtualDisplayDriverDll' Guid='*'>
+                <File
+                    Id='dll0'
+                    Name='VirtualDisplayDriver.dll'
+                    DiskId='1'
+                    Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.dll'
+                    KeyPath='yes'/>
+            </Component>
+            <Component Id='VirtualDisplayDriverCat' Guid='*'>
+                <File
+                    Id='cat0'
+                    Name='$(var.CatFile)'
+                    DiskId='1'
+                    Source='$(var.CargoTargetBinDir)\$(var.CatFile)'
+                    KeyPath='yes'/>
+            </Component>
+        </DirectoryRef>
+
+        <!-- Custom actions for install -->
 
         <Binary Id="NEFCONW" SourceFile="$(sys.SOURCEFILEDIR)\files\nefconw.exe"/>
         <CustomAction Id='InstallDriverNode'
@@ -207,6 +238,7 @@
 
         <CustomActionRef Id="WixFailWhenDeferred" />
 
+        <!-- Features -->
         <Feature
             Id='Core'
             Title='Application'
@@ -217,10 +249,7 @@
             AllowAdvertise='no'
             Display='hidden'
             Absent='disallow'>
-            <!--
-              Comment out or remove the following `ComponentRef` tag to remove
-              the license sidecar file from the installer.
-            -->
+
             <ComponentRef Id='License'/>
 
             <ComponentRef Id='VirtualDisplayDriverInf'/>
@@ -228,6 +257,8 @@
             <ComponentRef Id='VirtualDisplayDriverControlExe'/>
             <ComponentRef Id='VirtualDisplayDriverCat'/>
             <ComponentRef Id="RegistryEntries"/>
+
+            <ComponentRef Id="ApplicationShortcut" />
         </Feature>
 
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
