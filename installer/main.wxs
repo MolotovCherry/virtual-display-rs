@@ -125,7 +125,7 @@
                     ForceDeleteOnUninstall="yes"
                 >
                     <RegistryValue Type="integer" Name="TypesSupported" Value="7"/>
-                    <RegistryValue Type="string" Name="EventMessageFile" Value="[ARPINSTALLLOCATION]driver\VirtualDisplayDriver.dll"/>
+                    <RegistryValue Type="string" Name="EventMessageFile" Value="%SystemRoot%\System32\drivers\UMDF\VirtualDisplayDriver.dll"/>
                 </RegistryKey>
             </Component>
         </DirectoryRef>
