@@ -75,7 +75,7 @@
 
         <Package Id='*'
             Keywords='Installer'
-            Description='Foo'
+            Description='Virtual Display Driver allows you to add multiple virtual monitors to your system'
             Manufacturer='Cherry'
             InstallerVersion='450'
             Languages='1033'
