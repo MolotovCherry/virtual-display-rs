@@ -1,0 +1,152 @@
+env_scripts = [
+    # set the visual studio dev console environment for everyone
+    '''
+#!@duckscript
+CI = get_env CI
+Program_Files = get_env ProgramFiles
+BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat"
+if not is_empty ${CI}
+    BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat"
+end
+
+output = exec cmd /c call "${BAT_PATH}" && set
+stdout = set ${output.stdout}
+
+env_vars = split ${stdout} \r\n
+# remove the first 4 since they are only a header
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+array_remove ${env_vars} 0
+
+for var in ${env_vars}
+    handle = split ${var} =
+
+    key = array_get ${handle} 0
+    array_remove ${handle} 0
+
+    value = array_join ${handle} =
+
+    if not is_empty ${key}
+        if not is_empty ${value}
+            set_env ${key} ${value}
+        end
+    end
+
+    release ${handle}
+end
+
+release ${env_vars}
+''',
+]
+
+[env]
+BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
+BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
+SIGN_OPTIONS = { script = ['''
+if defined CI (
+    echo /f ../private.pfx /p %PRIVATE_KEY_PASSWORD%
+) else (
+    echo /sm /n DriverCertificate
+)
+'''] }
+# default development env settings (set by default)
+TARGET_PATH = "x86_64-pc-windows-msvc\\debug"
+CAT_FILE = "delta.cat"
+
+[env.dev]
+# for developer inf stamping mode
+PRIVATE_DRIVER_PACKAGE = "true"
+
+[env.development]
+# for developer inf stamping mode
+PRIVATE_DRIVER_PACKAGE = "true"
+
+[env.prod]
+TARGET_PATH = "x86_64-pc-windows-msvc\\release"
+BUILD_FLAGS = "--release"
+CAT_FILE = "VirtualDisplayDriver.cat"
+
+[tasks.set-build-path]
+env = { "BUILD_TARGET_PATH" = { script = ['''
+    for /f "tokens=*" %%a in ('cargo target-dir') do set target_dir=%%a
+
+    echo %target_dir%/%TARGET_PATH%
+'''] } }
+
+[tasks.build-driver]
+dependencies = ["set-build-path"]
+script = ["cargo b %BUILD_FLAGS%"]
+
+[tasks.rename]
+dependencies = ["build-driver"]
+script = ['''
+    cd /D %BUILD_TARGET_PATH%
+    del  /f /q "%BUILD_DLL_NAME%"
+    ren "%BUILD_DLL_OLD_NAME%" "%BUILD_DLL_NAME%"
+    ''']
+
+[tasks.stamp-inf]
+dependencies = ["build-driver"]
+script = [
+    # copy inf to target dir
+    "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
+
+    # Stamp inf
+    "stampinf.exe -v \"%CARGO_MAKE_PROJECT_VERSION%\" -d * -a amd64 -u 2.15.0 -f \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
+]
+
+[tasks.gen-cat]
+dependencies = ["build-driver", "rename", "stamp-inf", "sign"]
+script = [
+    # generate and sign cat file
+    '''
+    inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
+
+    signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
+    ''',
+]
+
+[tasks.sign]
+dependencies = ["build-driver", "rename", "stamp-inf"]
+script = [
+    # Create a self signed certificate (only if not already done)
+    '''
+      certutil -store "My" | findstr /i "DriverCertificate" >NUL 2>NUL
+      if not defined CI (
+        if %errorlevel%==1 (
+            pwsh -Command Start-Process cmd -ArgumentList '/c "\"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat\" && makecert -r -pe -ss my -sr localmachine -n CN=DriverCertificate DriverCertificate.cer"' -Verb RunAs
+        )
+      )
+    ''',
+
+    # Sign the driver. If this fails, you probably installed the cert before this. Run it again
+    "signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
+]
+
+# copy all files to an output folder of artifacts
+[tasks.copy]
+dependencies = ["set-build-path"]
+script = [
+    '''
+    if not exist "..\\target\\output" (
+        echo Directory not found, creating it...
+        mkdir ..\\target\\output
+    ) else (
+        echo Directory found, deleting files...
+        del /S /Q /F ..\\target\\output\\*.dll
+        del /S /Q /F ..\\target\\output\\*.inf
+        del /S /Q /F ..\\target\\output\\*.cat
+    )
+    ''',
+    # copy output files to it
+    '''
+        cp %BUILD_TARGET_PATH%/*.dll ../target/output
+        cp %BUILD_TARGET_PATH%/*.inf ../target/output
+        cp %BUILD_TARGET_PATH%/*.cat ../target/output
+    ''',
+]
+
+[tasks.build]
+dependencies = ["build-driver", "rename", "sign", "stamp-inf", "gen-cat"]
+clear = true

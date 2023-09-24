@@ -1,135 +1,54 @@
-env_scripts = [
-    # set the visual studio dev console environment for everyone
-    '''
-#!@duckscript
-CI = get_env CI
-Program_Files = get_env ProgramFiles
-BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Community\\Common7\\Tools\\VsDevCmd.bat"
-if not is_empty ${CI}
-    BAT_PATH = set "${Program_Files}\\Microsoft Visual Studio\\2022\\Enterprise\\Common7\\Tools\\VsDevCmd.bat"
-end
-
-output = exec cmd /c call "${BAT_PATH}" && set
-stdout = set ${output.stdout}
-
-env_vars = split ${stdout} \r\n
-# remove the first 4 since they are only a header
-array_remove ${env_vars} 0
-array_remove ${env_vars} 0
-array_remove ${env_vars} 0
-array_remove ${env_vars} 0
-
-for var in ${env_vars}
-    handle = split ${var} =
-
-    key = array_get ${handle} 0
-    array_remove ${handle} 0
-
-    value = array_join ${handle} =
-
-    if not is_empty ${key}
-        if not is_empty ${value}
-            set_env ${key} ${value}
-        end
-    end
-
-    release ${handle}
-end
-
-release ${env_vars}
-''',
-]
-
 [env]
-CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
-BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
-BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
-SIGN_OPTIONS = { script = ['''
-if defined CI (
-    echo /f private.pfx /p %PRIVATE_KEY_PASSWORD%
-) else (
-    echo /sm /n DriverCertificate
-)
+BUILD_TARGET_PATH = { script = ['''
+    for /f "tokens=*" %%a in ('cargo target-dir') do set target_dir=%%a
+
+    echo %target_dir%
 '''] }
 
-[env.dev]
-# for developer inf stamping mode
-PRIVATE_DRIVER_PACKAGE = "true"
-TARGET_PATH = "debug"
-CAT_FILE = "delta.cat"
-
 [env.prod]
-TARGET_PATH = "release"
+PROD = "1"
+PROFILE = "-p prod"
 BUILD_FLAGS = "--release"
-CAT_FILE = "VirtualDisplayDriver.cat"
 
-[tasks.set-build-path]
-env = { "BUILD_TARGET_PATH" = { script = ['''
-    if defined CARGO_TARGET_DIR (
-        set "target_dir=%CARGO_TARGET_DIR%"
-    ) else if defined CARGO_BUILD_TARGET_DIR (
-        set "target_dir=%CARGO_BUILD_TARGET_DIR%"
-    ) else (
-        set "target_dir=target"
-    )
-
-    echo %target_dir%/%TARGET_PATH%
-'''] } }
-
-[tasks.build-driver]
-dependencies = ["set-build-path"]
-script = ["cargo b %BUILD_FLAGS% -p virtual-display-driver"]
-
-[tasks.rename]
-dependencies = ["build-driver"]
+[tasks.tests]
 script = ['''
-    cd /D %BUILD_TARGET_PATH%
-    del  /f /q "%BUILD_DLL_NAME%"
-    ren "%BUILD_DLL_OLD_NAME%" "%BUILD_DLL_NAME%"
-    ''']
-
-[tasks.stamp-inf]
-dependencies = ["build-driver"]
-script = [
-    # copy inf to target dir
-    "copy /y VirtualDisplayDriver.inf \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
-
-    # Stamp inf
-    "stampinf.exe -v \"%CARGO_MAKE_PROJECT_VERSION%\" -d * -a amd64 -u 2.15.0 -f \"%BUILD_TARGET_PATH%/VirtualDisplayDriver.inf\"",
-]
-
-[tasks.gen-cat]
-dependencies = ["build-driver", "rename", "stamp-inf", "sign"]
-script = [
-    # generate and sign cat file
-    '''
-    inf2cat /driver:%BUILD_TARGET_PATH% /os:10_x64
-
-    signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com "%BUILD_TARGET_PATH%/%CAT_FILE%"
-    ''',
-]
-
-[tasks.sign]
-dependencies = ["build-driver", "rename", "stamp-inf"]
-script = [
-    # Create a self signed certificate (only if not already done)
-    '''
-      certutil -store "My" | findstr /i "DriverCertificate" >NUL 2>NUL
-      if not defined CI (
-        if %errorlevel%==1 (
-            pwsh -Command Start-Process cmd -ArgumentList '/c "\"%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat\" && makecert -r -pe -ss my -sr localmachine -n CN=DriverCertificate DriverCertificate.cer"' -Verb RunAs
-        )
-      )
-    ''',
-
-    # Sign the driver. If this fails, you probably installed the cert before this. Run it again
-    "signtool sign /a /fd SHA256 /v %SIGN_OPTIONS% /t http://timestamp.digicert.com \"%BUILD_TARGET_PATH%/%BUILD_DLL_NAME%\"",
-]
+cd virtual-display-driver
+cargo target-dir
+''']
 
 [tasks.build]
-dependencies = ["build-driver", "rename", "sign", "stamp-inf", "gen-cat"]
 clear = true
+script = [
+    # build virtual-display-driver
+    "cargo make %PROFILE% --cwd virtual-display-driver build",
+    # copy all files to single output directory
+    "cargo make %PROFILE% --cwd virtual-display-driver copy",
+    # build the control app
+    "cargo build -p virtual-display-driver-control %BUILD_FLAGS%",
+    # copy all files to single output directory
+    "cargo make %PROFILE% --cwd virtual-display-driver-control copy",
+]
+
+[tasks.build-installer]
+dependencies = ["build"]
+script = [
+    # 999 represents dev build
+    '''
+    if defined RELEASE_VERSION (
+        set release=-i %RELEASE_VERSION%
+    ) else if not defined PROD (
+        set release=-i 9.9.9
+    )
+
+    if not defined PROD (
+        set mode=-d
+    )
+
+    del /S /Q /F target\output\*.msi
+
+    cargo wix -p virtual-display-driver %release% %mode% --nocapture -I installer/main.wxs -o target\output
+    ''',
+]
 
 [config]
 default_to_workspace = false
-main_project_member = "virtual-display-driver"

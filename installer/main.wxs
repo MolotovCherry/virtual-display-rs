@@ -56,11 +56,13 @@
     <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
 <?endif ?>
 
-<?if $(var.CargoProfile) = "debug" ?>
+<?if $(var.CargoProfile) = "dev" ?>
     <?define CatFile = "delta.cat" ?>
 <?elseif $(var.CargoProfile) = "release" ?>
     <?define CatFile = "virtualdisplaydriver.cat" ?>
 <?endif ?>
+
+<?define OutPath = "$(sys.SOURCEFILEDIR)\..\target\output" ?>
 
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'
     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
@@ -174,7 +176,7 @@
                     Id='exe0'
                     Name='VirtualDisplayDriverControl.exe'
                     DiskId='1'
-                    Source='$(var.CargoTargetBinDir)\virtual-display-driver-control.exe'
+                    Source='$(var.OutPath)\virtual-display-driver-control.exe'
                     KeyPath='yes'/>
             </Component>
         </DirectoryRef>
@@ -186,7 +188,7 @@
                     Id='inf0'
                     Name='VirtualDisplayDriver.inf'
                     DiskId='1'
-                    Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.inf'
+                    Source='$(var.OutPath)\VirtualDisplayDriver.inf'
                     KeyPath='yes'/>
             </Component>
             <Component Id='VirtualDisplayDriverDll' Guid='*'>
@@ -194,7 +196,7 @@
                     Id='dll0'
                     Name='VirtualDisplayDriver.dll'
                     DiskId='1'
-                    Source='$(var.CargoTargetBinDir)\VirtualDisplayDriver.dll'
+                    Source='$(var.OutPath)\VirtualDisplayDriver.dll'
                     KeyPath='yes'/>
             </Component>
             <Component Id='VirtualDisplayDriverCat' Guid='*'>
@@ -202,7 +204,7 @@
                     Id='cat0'
                     Name='$(var.CatFile)'
                     DiskId='1'
-                    Source='$(var.CargoTargetBinDir)\$(var.CatFile)'
+                    Source='$(var.OutPath)\$(var.CatFile)'
                     KeyPath='yes'/>
             </Component>
         </DirectoryRef>

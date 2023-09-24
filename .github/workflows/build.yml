@@ -1,4 +1,4 @@
-name: Build Driver
+name: Build
 
 on:
   workflow_dispatch:
@@ -21,9 +21,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Rust toolchain
-        run: rustup toolchain install stable --profile minimal
-
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -33,6 +30,12 @@ jobs:
         uses: baptiste0928/cargo-install@v2
         with:
           crate: cargo-make
+
+      - name: Install cargo-make
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-target-dir
+          git: https://github.com/MolotovCherry/cargo-target-dir
 
       - name: Install cargo-wix
         if: github.event_name == 'release'
@@ -51,16 +54,11 @@ jobs:
         run: |
           Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ secrets.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
 
-      - name: Build Driver
+      - name: Build
         env:
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
           RELEASE: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
         run: cargo make -p $env:RELEASE build
-
-      - name: Build App
-        env:
-          RELEASE: ${{ github.event_name == 'release' && '--release' || '' }}
-        run: cargo build $env:RELEASE -p virtual-display-driver-control
 
       - name: Upload Artifacts
         if: github.event_name != 'release'
@@ -68,10 +66,10 @@ jobs:
         with:
           name: driver
           path: |
-            target/debug/*.exe
-            target/debug/*.cat
-            target/debug/*.dll
-            target/debug/*.inf
+            target/output/*.exe
+            target/output/*.cat
+            target/output/*.dll
+            target/output/*.inf
 
       # this is split from the top in order to allow the files to all be at the top level of the archive
       - name: Upload Artifacts
@@ -101,12 +99,12 @@ jobs:
       # package with wix
       - name: Create installer
         if: github.event_name == 'release'
-        run: cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs
+        run: cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs -o target\output
 
       - name: Zip files up
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/wix/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
