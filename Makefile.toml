@@ -10,12 +10,6 @@ PROD = "1"
 PROFILE = "-p prod"
 BUILD_FLAGS = "--release"
 
-[tasks.tests]
-script = ['''
-cd virtual-display-driver
-cargo target-dir
-''']
-
 [tasks.build]
 clear = true
 script = [
