@@ -62,7 +62,8 @@
     <?define CatFile = "virtualdisplaydriver.cat" ?>
 <?endif ?>
 
-<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'
+    xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
     <Product
         Id='*'
@@ -158,6 +159,11 @@
                     DiskId='1'
                     Source='$(sys.SOURCEFILEDIR)\files\License.rtf'
                     KeyPath='yes'/>
+            </Component>
+
+            <Component Id="CleanupMainApplicationFolder" Guid="*">
+                <RegistryValue Root="HKLM" Key="SOFTWARE\VirtualDisplayDriver" Name="Path" Type="string" Value="[APPLICATIONFOLDER]" KeyPath="yes" />
+                <util:RemoveFolderEx On="uninstall" Property="APPLICATIONFOLDERID" />
             </Component>
         </DirectoryRef>
 
@@ -259,6 +265,8 @@
             <ComponentRef Id="RegistryEntries"/>
 
             <ComponentRef Id="ApplicationShortcut" />
+
+            <ComponentRef Id="CleanupMainApplicationFolder" />
         </Feature>
 
         <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
@@ -267,6 +275,10 @@
         <Property Id='ARPPRODUCTICON' Value='ProductICO' />
 
         <Property Id='ARPHELPLINK' Value='https://github.com/MolotovCherry/virtual-display-rs'/>
+
+        <Property Id="APPLICATIONFOLDERID" Secure="yes">
+            <RegistrySearch Key="SOFTWARE\VirtualDisplayDriver" Root="HKLM" Type="raw" Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
+        </Property>
 
         <UI>
             <UIRef Id='WixUI_Minimal'/>
