@@ -31,7 +31,7 @@ jobs:
         with:
           crate: cargo-make
 
-      - name: Install cargo-make
+      - name: Install cargo-target-dir
         uses: baptiste0928/cargo-install@v2
         with:
           crate: cargo-target-dir
