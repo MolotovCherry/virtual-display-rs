@@ -11,12 +11,12 @@ thiserror = "1.0.47"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.20"
-windebug-logger = { path = "../windebug-logger" }
 widestring = "1.0.2"
 bytemuck = { version = "1.14.0", features = ["derive"] }
 serde_json = "1.0.107"
 driver-ipc = { path = "../driver-ipc" }
 winreg = "0.51.0"
+winlog = { path = "../winlog" }
 
 [dependencies.windows]
 version = "0.51.1"

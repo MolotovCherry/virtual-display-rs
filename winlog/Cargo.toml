@@ -1,0 +1,34 @@
+[package]
+name = "winlog"
+version = "0.3.1"
+edition = "2021"
+authors = [
+    "Jeroen C. van Gelderen <jeroen@vangelderen.org>",
+    "Berrysoft <Strawberry_Str@hotmail.com>",
+]
+categories = ["development-tools::debugging", "os::windows-apis"]
+description = "A simple Rust log backend to send messages to the Windows event log."
+documentation = "https://github.com/Berrysoft/winlog"
+homepage = "https://github.com/Berrysoft/winlog"
+repository = "https://github.com/Berrysoft/winlog"
+keywords = ["eventlog", "logging", "windows"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+
+[build-dependencies]
+winresource = "0.1.17"
+
+[dev-dependencies]
+rand = "0.8.5"
+scopeguard = "1.2.0"
+
+[dependencies]
+env_logger = { version = "0.10.0", default-features = false, optional = true }
+log = { version = "0.4.20", features = ["std"] }
+windows-sys = { version = "0.48", features = ["Win32_System_EventLog"] }
+widestring = "1.0.2"
+winreg = "0.51.0"
+thiserror = "1.0.48"

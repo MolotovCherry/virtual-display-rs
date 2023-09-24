@@ -4,7 +4,7 @@ members = [
     "virtual-display-driver",
     "wdf-umdf-sys",
     "wdf-umdf",
-    "windebug-logger",
+    "winlog",
     "driver-ipc",
     "virtual-display-driver-control",
 ]

@@ -1,5 +1,5 @@
 use driver_ipc::Monitor;
-use log::{error, Level};
+use log::{error, LevelFilter};
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
     WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
@@ -32,11 +32,14 @@ extern "C-unwind" fn DriverEntry(
     driver_object: *mut _DRIVER_OBJECT,
     registry_path: *mut _UNICODE_STRING,
 ) -> NTSTATUS {
-    let status = windebug_logger::init_with_level(if cfg!(debug_assertions) {
-        Level::Debug
-    } else {
-        Level::Info
-    })
+    let status = winlog::init(
+        "VirtualDisplayDriver",
+        if cfg!(debug_assertions) {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        },
+    )
     .map(|_| NTSTATUS::STATUS_SUCCESS)
     .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
 
