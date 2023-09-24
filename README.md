@@ -12,6 +12,8 @@ It has many uses, such as:
 
 Support: Windows 10 x64 +
 
+_For any bug reports, please see the [debugging or reporting crashes](https://github.com/MolotovCherry/virtual-display-rs#debugging-or-reporting-crashes) section to get the panic message for the bug report_
+
 ## Features
 - Multiple monitors (up to 10)
 - Multiple resolutions per monitor
