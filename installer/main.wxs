@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='windows-1252'?>
+<?xml version="1.0" encoding="utf-8"?>
 <!--
   Copyright (C) 2017 Christopher R. Field.
 
@@ -64,48 +64,49 @@
 
 <?define OutPath = "$(sys.SOURCEFILEDIR)\..\target\output" ?>
 
-<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'
-    xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+    xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
+    xmlns:difxapp="http://schemas.microsoft.com/wix/DifxAppExtension">
 
     <Product
-        Id='*'
-        Name='Virtual Display Driver'
-        UpgradeCode='DAE03BB7-B41F-47C6-AB07-C2ABB4215CB8'
-        Manufacturer='Cherry'
-        Language='1033'
-        Codepage='1252'
-        Version='$(var.Version)'>
+        Id="*"
+        Name="Virtual Display Driver"
+        UpgradeCode="DAE03BB7-B41F-47C6-AB07-C2ABB4215CB8"
+        Manufacturer="Cherry"
+        Language="1033"
+        Codepage="1252"
+        Version="$(var.Version)">
 
-        <Package Id='*'
-            Keywords='Installer'
-            Description='Virtual Display Driver allows you to add multiple virtual monitors to your system'
-            Manufacturer='Cherry'
-            InstallerVersion='450'
-            Languages='1033'
-            Compressed='yes'
-            InstallScope='perMachine'
-            SummaryCodepage='1252'
+        <Package Id="*"
+            Keywords="Installer"
+            Description="Virtual Display Driver allows you to add multiple virtual monitors to your system"
+            Manufacturer="Cherry"
+            InstallerVersion="450"
+            Languages="1033"
+            Compressed="yes"
+            InstallScope="perMachine"
+            SummaryCodepage="1252"
             InstallPrivileges="elevated"
         />
 
         <MajorUpgrade
-            Schedule='afterInstallInitialize'
-            DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
+            Schedule="afterInstallInitialize"
+            DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit." />
 
-        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='installer Installation'/>
+        <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" DiskPrompt="CD-ROM #1" />
+        <Property Id="DiskPrompt" Value="installer Installation" />
         <Property Id="MSIUSEREALADMINDETECTION" Value="1" />
 
         <!-- Directory structure and files -->
-        <Directory Id='TARGETDIR' Name='SourceDir'>
+        <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="Virtual Display Driver"/>
+                <Directory Id="ApplicationProgramsFolder" Name="Virtual Display Driver" />
             </Directory>
 
-            <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='VirtualDisplayDriver'>
-                    <Directory Id='Bin' Name='bin'/>
-                    <Directory Id='Driver' Name='driver'/>
+            <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+                <Directory Id="APPLICATIONFOLDER" Name="VirtualDisplayDriver">
+                    <Directory Id="Bin" Name="bin" />
+                    <Directory Id="Driver" Name="driver" />
                 </Directory>
             </Directory>
         </Directory>
@@ -118,8 +119,8 @@
                     Key="Software\VirtualDisplayDriver"
                     ForceDeleteOnUninstall="yes"
                 >
-                    <RegistryValue Type="integer" Name="port" Value="23112" KeyPath="yes"/>
-                    <RegistryValue Type="string" Name="data" Value="[\[][\]]"/>
+                    <RegistryValue Type="integer" Name="port" Value="23112" KeyPath="yes" />
+                    <RegistryValue Type="string" Name="data" Value="[\[][\]]" />
                 </RegistryKey>
 
                 <RegistryKey
@@ -127,8 +128,8 @@
                     Key="SYSTEM\CurrentControlSet\Services\EventLog\System\VirtualDisplayDriver"
                     ForceDeleteOnUninstall="yes"
                 >
-                    <RegistryValue Type="integer" Name="TypesSupported" Value="7"/>
-                    <RegistryValue Type="string" Name="EventMessageFile" Value="%SystemRoot%\System32\drivers\UMDF\VirtualDisplayDriver.dll"/>
+                    <RegistryValue Type="integer" Name="TypesSupported" Value="7" />
+                    <RegistryValue Type="string" Name="EventMessageFile" Value="%SystemRoot%\System32\drivers\UMDF\VirtualDisplayDriver.dll" />
                 </RegistryKey>
             </Component>
         </DirectoryRef>
@@ -140,7 +141,7 @@
                         Name="Virtual Display Driver Control"
                         Description="Manages your virtual displays"
                         Target="[#exe0]"
-                        WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+                        WorkingDirectory="APPLICATIONROOTDIRECTORY" />
 
                 <Shortcut Id="UninstallProduct"
                         Name="Uninstall Virtual Display Driver"
@@ -148,19 +149,19 @@
                         Arguments="/x [ProductCode]"
                         Description="Uninstalls Virtual Display Driver" />
 
-                <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\VirtualDisplayDriver" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+                <RegistryValue Root="HKCU" Key="Software\VirtualDisplayDriver" Name="installed" Type="integer" Value="1" KeyPath="yes" />
             </Component>
         </DirectoryRef>
 
         <!-- Main App folder -->
-        <DirectoryRef Id='APPLICATIONFOLDER'>
-            <Component Id='License' Guid='*'>
-                <File Id='LicenseFile'
-                    Name='License.rtf'
-                    DiskId='1'
-                    Source='$(sys.SOURCEFILEDIR)\files\License.rtf'
-                    KeyPath='yes'/>
+        <DirectoryRef Id="APPLICATIONFOLDER">
+            <Component Id="License" Guid="*">
+                <File Id="LicenseFile"
+                    Name="License.rtf"
+                    DiskId="1"
+                    Source="$(sys.SOURCEFILEDIR)\files\License.rtf"
+                    KeyPath="yes" />
             </Component>
 
             <Component Id="CleanupMainApplicationFolder" Guid="*">
@@ -170,130 +171,122 @@
         </DirectoryRef>
 
         <!-- App bin folder -->
-        <DirectoryRef Id='Bin'>
-            <Component Id='VirtualDisplayDriverControlExe' Guid='*'>
+        <DirectoryRef Id="Bin">
+            <Component Id="VirtualDisplayDriverControlExe" Guid="*">
                 <File
-                    Id='exe0'
-                    Name='VirtualDisplayDriverControl.exe'
-                    DiskId='1'
-                    Source='$(var.OutPath)\virtual-display-driver-control.exe'
-                    KeyPath='yes'/>
+                    Id="exe0"
+                    Name="VirtualDisplayDriverControl.exe"
+                    DiskId="1"
+                    Source="$(var.OutPath)\virtual-display-driver-control.exe"
+                    KeyPath="yes" />
             </Component>
         </DirectoryRef>
 
         <!-- Driver folder in app directory -->
-        <DirectoryRef Id='Driver'>
-            <Component Id='VirtualDisplayDriverInf' Guid='*'>
+        <DirectoryRef Id="Driver">
+            <Component Id="VirtualDisplayDriver" Guid="79FB0AD2-E338-4D38-98B2-EDA8486A3107">
+                <difxapp:Driver AddRemovePrograms="no" Legacy="no" ForceInstall="yes" PlugAndPlayPrompt="no" />
+
                 <File
-                    Id='inf0'
-                    Name='VirtualDisplayDriver.inf'
-                    DiskId='1'
-                    Source='$(var.OutPath)\VirtualDisplayDriver.inf'
-                    KeyPath='yes'/>
-            </Component>
-            <Component Id='VirtualDisplayDriverDll' Guid='*'>
+                    Id="inf0"
+                    Name="VirtualDisplayDriver.inf"
+                    DiskId="1"
+                    Source="$(var.OutPath)\VirtualDisplayDriver.inf"
+                    Vital="yes" />
+
                 <File
-                    Id='dll0'
-                    Name='VirtualDisplayDriver.dll'
-                    DiskId='1'
-                    Source='$(var.OutPath)\VirtualDisplayDriver.dll'
-                    KeyPath='yes'/>
-            </Component>
-            <Component Id='VirtualDisplayDriverCat' Guid='*'>
+                    Id="dll0"
+                    Name="VirtualDisplayDriver.dll"
+                    DiskId="1"
+                    Source="$(var.OutPath)\VirtualDisplayDriver.dll"
+                    Vital="yes"
+                    KeyPath="yes" />
+
                 <File
-                    Id='cat0'
-                    Name='$(var.CatFile)'
-                    DiskId='1'
-                    Source='$(var.OutPath)\$(var.CatFile)'
-                    KeyPath='yes'/>
+                    Id="cat0"
+                    Name="$(var.CatFile)"
+                    DiskId="1"
+                    Source="$(var.OutPath)\$(var.CatFile)"
+                    Vital="yes" />
             </Component>
         </DirectoryRef>
 
         <!-- Custom actions for install -->
 
         <Binary Id="NEFCONW" SourceFile="$(sys.SOURCEFILEDIR)\files\nefconw.exe"/>
-        <CustomAction Id='InstallDriverNode'
-              BinaryKey='NEFCONW'
-              Execute='deferred'
-              Impersonate='no'
-              ExeCommand='--create-device-node --hardware-id Root\VirtualDisplayDriver --class-name Display --class-guid 4d36e968-e325-11ce-bfc1-08002be10318'
-              Return='check' />
-        <CustomAction Id='InstallDriver'
-              BinaryKey='NEFCONW'
-              Execute='deferred'
-              Impersonate='no'
-              ExeCommand='--install-driver --inf-path "[ARPINSTALLLOCATION]driver\VirtualDisplayDriver.inf"'
-              Return='check' />
-        <CustomAction Id='InstallDriverRollback'
-              BinaryKey='NEFCONW'
-              Execute='rollback'
-              Impersonate='no'
-              ExeCommand='--remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid 4d36e968-e325-11ce-bfc1-08002be10318'
-              Return='ignore' />
-        <CustomAction Id='UninstallDriver'
-              BinaryKey='NEFCONW'
-              Execute='deferred'
-              Impersonate='no'
-              ExeCommand='--remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid 4d36e968-e325-11ce-bfc1-08002be10318'
-              Return='ignore' />
+        <CustomAction Id="InstallDriverNode"
+              BinaryKey="NEFCONW"
+              Execute="deferred"
+              Impersonate="no"
+              ExeCommand="--create-device-node --hardware-id Root\VirtualDisplayDriver --class-name Display --class-guid 4d36e968-e325-11ce-bfc1-08002be10318"
+              Return="check" />
+        <CustomAction Id="InstallDriverRollback"
+              BinaryKey="NEFCONW"
+              Execute="rollback"
+              Impersonate="no"
+              ExeCommand="--remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid 4d36e968-e325-11ce-bfc1-08002be10318"
+              Return="ignore" />
+        <CustomAction Id="UninstallDriver"
+              BinaryKey="NEFCONW"
+              Execute="deferred"
+              Impersonate="no"
+              ExeCommand="--remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid 4d36e968-e325-11ce-bfc1-08002be10318"
+              Return="ignore" />
 
         <InstallExecuteSequence>
-            <Custom Action='UninstallDriver' After='InstallFiles'>Installed</Custom>
+            <Custom Action='UninstallDriver' After='InstallInitialize'>Installed</Custom>
             <Custom Action="InstallDriverRollback" Before="InstallDriverNode">NOT REMOVE="ALL"</Custom>
-            <Custom Action='InstallDriverNode' After='UninstallDriver'>NOT REMOVE="ALL"</Custom>
-            <Custom Action='InstallDriver' After='InstallDriverNode'>NOT REMOVE="ALL"</Custom>
+            <Custom Action="InstallDriverNode" After="UninstallDriver">NOT REMOVE="ALL"</Custom>
         </InstallExecuteSequence>
 
         <CustomActionRef Id="WixFailWhenDeferred" />
 
         <!-- Features -->
         <Feature
-            Id='Core'
-            Title='Application'
-            Description='Installs all binaries and the license.'
-            Level='1'
-            ConfigurableDirectory='APPLICATIONFOLDER'
-            InstallDefault='source'
-            AllowAdvertise='no'
-            Display='hidden'
-            Absent='disallow'>
+            Id="Core"
+            Title="Application"
+            Description="Installs all binaries and the license."
+            Level="1"
+            ConfigurableDirectory="APPLICATIONFOLDER"
+            InstallDefault="source"
+            AllowAdvertise="no"
+            Display="hidden"
+            Absent="disallow">
 
-            <ComponentRef Id='License'/>
+            <ComponentRef Id="License" />
 
-            <ComponentRef Id='VirtualDisplayDriverInf'/>
-            <ComponentRef Id='VirtualDisplayDriverDll'/>
-            <ComponentRef Id='VirtualDisplayDriverControlExe'/>
-            <ComponentRef Id='VirtualDisplayDriverCat'/>
-            <ComponentRef Id="RegistryEntries"/>
+            <ComponentRef Id="VirtualDisplayDriver" />
+            <ComponentRef Id="VirtualDisplayDriverControlExe" />
+            <ComponentRef Id="RegistryEntries" />
 
             <ComponentRef Id="ApplicationShortcut" />
 
             <ComponentRef Id="CleanupMainApplicationFolder" />
         </Feature>
 
-        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+        <SetProperty Id="ARPINSTALLLOCATION" Value="[APPLICATIONFOLDER]" After="CostFinalize" />
 
-        <Icon Id='ProductICO' SourceFile='$(sys.SOURCEFILEDIR)\files\icon.ico'/>
-        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
+        <Icon Id="ProductICO" SourceFile="$(sys.SOURCEFILEDIR)\files\icon.ico" />
+        <Property Id="ARPPRODUCTICON" Value="ProductICO" />
 
-        <Property Id='ARPHELPLINK' Value='https://github.com/MolotovCherry/virtual-display-rs'/>
+        <Property Id="ARPHELPLINK" Value="https://github.com/MolotovCherry/virtual-display-rs" />
 
         <Property Id="APPLICATIONFOLDERID" Secure="yes">
             <RegistrySearch Key="SOFTWARE\VirtualDisplayDriver" Root="HKLM" Type="raw" Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
         </Property>
 
         <UI>
-            <UIRef Id='WixUI_Minimal'/>
-            <!--<UIRef Id='WixUI_FeatureTree'/>-->
+            <UIRef Id="WixUI_Minimal" />
+            <!--<UIRef Id="WixUI_FeatureTree" />-->
             <!--
               Disabling the EULA dialog in the installer is a two step process:
 
                  1. Uncomment the following two `Publish` tags
-                 2. Comment out or remove the `<WiXVariable Id='WixUILicenseRtf'...` tag further down
+                 2. Comment out or remove the `<WiXVariable Id="WixUILicenseRtf"...` tag further down
 
             -->
-            <!--<Publish Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='CustomizeDlg' Order='99'>1</Publish>-->
-            <!--<Publish Dialog='CustomizeDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg' Order='99'>1</Publish>-->
+            <!--<Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg" Order="99">1</Publish>-->
+            <!--<Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99">1</Publish>-->
 
         </UI>
 
@@ -301,29 +294,29 @@
           Disabling the EULA dialog in the installer requires commenting out
           or removing the following `WixVariable` tag
         -->
-        <WixVariable Id='WixUILicenseRtf' Value='$(sys.SOURCEFILEDIR)\files\License.rtf'/>
+        <WixVariable Id="WixUILicenseRtf" Value="$(sys.SOURCEFILEDIR)\files\License.rtf" />
 
 
         <!--
-          Uncomment the next `WixVariable` tag to customize the installer's
+          Uncomment the next `WixVariable` tag to customize the installer"s
           Graphical User Interface (GUI) and add a custom banner image across
           the top of each screen. See the WiX Toolset documentation for details
           about customization.
 
           The banner BMP dimensions are 493 x 58 pixels.
         -->
-        <!--<WixVariable Id='WixUIBannerBmp' Value='wix\Banner.bmp'/>-->
+        <!--<WixVariable Id="WixUIBannerBmp" Value="wix\Banner.bmp" />-->
 
 
         <!--
-          Uncomment the next `WixVariable` tag to customize the installer's
+          Uncomment the next `WixVariable` tag to customize the installer"s
           Graphical User Interface (GUI) and add a custom image to the first
           dialog, or screen. See the WiX Toolset documentation for details about
           customization.
 
           The dialog BMP dimensions are 493 x 312 pixels.
         -->
-        <!--<WixVariable Id='WixUIDialogBmp' Value='wix\Dialog.bmp'/>-->
+        <!--<WixVariable Id="WixUIDialogBmp" Value="wix\Dialog.bmp" />-->
 
     </Product>
 

@@ -26,21 +26,36 @@ script = [
 [tasks.build-installer]
 dependencies = ["build"]
 script = [
-    # 999 represents dev build
     '''
     if defined RELEASE_VERSION (
         set release=-i %RELEASE_VERSION%
-    ) else if not defined PROD (
-        set release=-i 9.9.9
     )
 
     if not defined PROD (
-        set mode=-d
+        set mode=-d -D
     )
 
     del /S /Q /F target\output\*.msi
 
-    cargo wix -p virtual-display-driver %release% %mode% --nocapture -I installer/main.wxs -o target\output
+    cargo wix -p virtual-display-driver %release% %mode% --nocapture -I installer/main.wxs -o target\output -C -ext -C WixDifxAppExtension -L -ext -L WixDifxAppExtension -L "C:\Program Files (x86)\WiX Toolset v3.11\bin\difxapp_x64.wixlib"
+    ''',
+    # load env
+    '''
+    if defined CI (
+        call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat"
+    ) else (
+        call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"
+    )
+    ''',
+    # sign installer
+    '''
+    if defined CI (
+        set sign_options=/f private.pfx /p %PRIVATE_KEY_PASSWORD%
+    ) else (
+        set sign_options=/sm /n DriverCertificate
+    )
+
+    signtool sign /a /fd SHA256 /v %sign_options% /t http://timestamp.digicert.com target/output/*.msi
     ''',
 ]
 
