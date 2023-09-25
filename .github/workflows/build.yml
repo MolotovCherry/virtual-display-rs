@@ -99,7 +99,15 @@ jobs:
       # package with wix
       - name: Create installer
         if: github.event_name == 'release'
-        run: cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs -o target\output
+        run: |
+          cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs -o target\output -C -ext -C WixDifxAppExtension -L -ext -L WixDifxAppExtension -L "C:\Program Files (x86)\WiX Toolset v3.11\bin\difxapp_x64.wixlib"
+
+      - name: Sign installer
+        if: github.event_name == 'release'
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat"
+          signtool sign /a /fd SHA256 /v /f private.pfx /p ${{ secrets.PRIVATE_KEY_PASSWORD }} /t http://timestamp.digicert.com target/output/*.msi
 
       - name: Zip files up
         if: github.event_name == 'release'
