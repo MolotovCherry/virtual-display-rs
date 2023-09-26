@@ -4,8 +4,9 @@ use std::ffi::c_void;
 
 use wdf_umdf_sys::{
     NTSTATUS, PCUNICODE_STRING, PCWDF_OBJECT_CONTEXT_TYPE_INFO, PDRIVER_OBJECT, PWDFDEVICE_INIT,
-    PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, WDFDEVICE, WDFDRIVER, WDFOBJECT, WDF_NO_HANDLE,
-    WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES, _WDF_PNPPOWER_EVENT_CALLBACKS,
+    PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, WDFDEVICE, WDFDRIVER, WDFOBJECT,
+    WDF_DEVICE_FAILED_ACTION, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES,
+    _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
 
 use crate::IntoHelper;
@@ -504,6 +505,23 @@ pub unsafe fn WdfObjectDelete(
     WdfCall! {
         WdfObjectDelete(
             Object
+        )
+    }
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+pub unsafe fn WdfDeviceSetFailed(
+    // in
+    Device: WDFDEVICE,
+    // in
+    FailedAction: WDF_DEVICE_FAILED_ACTION,
+) -> Result<(), WdfError> {
+    WdfCall! {
+        WdfDeviceSetFailed(
+            Device,
+            FailedAction
         )
     }
 }

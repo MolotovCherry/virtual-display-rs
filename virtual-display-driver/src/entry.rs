@@ -1,12 +1,13 @@
 use driver_ipc::Monitor;
-use log::{error, LevelFilter};
+use log::{error, info, LevelFilter};
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
-    WdfDeviceInitSetPnpPowerEventCallbacks, WdfDriverCreate,
+    WdfDeviceInitSetPnpPowerEventCallbacks, WdfDeviceSetFailed, WdfDriverCreate,
 };
 use wdf_umdf_sys::{
-    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT, WDF_DRIVER_CONFIG,
-    WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
+    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT,
+    WDF_DEVICE_FAILED_ACTION, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
+    WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
 };
 use winreg::{
     enums::{HKEY_LOCAL_MACHINE, KEY_READ},
@@ -32,19 +33,68 @@ extern "C-unwind" fn DriverEntry(
     driver_object: *mut _DRIVER_OBJECT,
     registry_path: *mut _UNICODE_STRING,
 ) -> NTSTATUS {
-    let status = winlog::init(
-        "VirtualDisplayDriver",
-        if cfg!(debug_assertions) {
-            LevelFilter::Debug
-        } else {
-            LevelFilter::Info
-        },
-    )
-    .map(|_| NTSTATUS::STATUS_SUCCESS)
-    .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
+    // During system bootup, `RegisterEventSourceW` fails and causes the driver to not bootup
+    // Pretty unfortunate, therefore, we will run this on a thread until it succeeds and let the rest of
+    // the driver start. I know this is suboptimal considering it's our main code to catch panics.
+    //
+    // It always starts immediately when the computer is already booted up.
+    // If you have a better solution, please by all means open an issue report
+    let init_log = || {
+        winlog::init(
+            "VirtualDisplayDriver",
+            if cfg!(debug_assertions) {
+                LevelFilter::Debug
+            } else {
+                LevelFilter::Info
+            },
+        )
+        .map(|_| NTSTATUS::STATUS_SUCCESS)
+        .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL)
+    };
+
+    let status = init_log();
 
     if !status.is_success() {
-        return status;
+        // Okay, let's try another method then
+        struct Sendable<T>(T);
+        unsafe impl<T> Send for Sendable<T> {}
+        unsafe impl<T> Sync for Sendable<T> {}
+
+        let device = Sendable(driver_object);
+
+        std::thread::spawn(move || {
+            #[allow(clippy::redundant_locals)]
+            let device = device;
+            let mut time_waited = 0u64;
+            // in ms
+            let sleep_for = 500;
+
+            loop {
+                let status = init_log();
+                std::thread::sleep(std::time::Duration::from_millis(sleep_for));
+
+                time_waited += sleep_for;
+
+                // if it succeeds, great. if it didn't conclude after
+                // 1 second in ms * 60 seconds * 5 minutes = 5 minutes
+                // Surely a users system is booted up before then?
+                let timeout = time_waited >= 1000 * 60 * 5;
+                if status.is_success() || timeout {
+                    if timeout {
+                        unsafe {
+                            _ = WdfDeviceSetFailed(
+                                device.0 as *mut _,
+                                WDF_DEVICE_FAILED_ACTION::WdfDeviceFailedNoRestart,
+                            );
+                        }
+                    } else {
+                        info!("Service took {} seconds to start", time_waited / 1000);
+                    }
+
+                    break;
+                }
+            }
+        });
     }
 
     // set the panic hook to capture and log panics
