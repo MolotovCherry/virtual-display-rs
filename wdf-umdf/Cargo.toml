@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 paste = "1.0.14"
-thiserror = "1.0.47"
+thiserror = "1.0.49"

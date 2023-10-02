@@ -31,4 +31,4 @@ log = { version = "0.4.20", features = ["std"] }
 windows-sys = { version = "0.48", features = ["Win32_System_EventLog"] }
 widestring = "1.0.2"
 winreg = "0.51.0"
-thiserror = "1.0.48"
+thiserror = "1.0.49"
