@@ -2582,7 +2582,7 @@ dependencies = [
  "directories",
  "driver-ipc",
  "eframe",
- "egui 0.22.0",
+ "egui 0.23.0",
  "egui_extras",
  "serde",
  "serde_json",
