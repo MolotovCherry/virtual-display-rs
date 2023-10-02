@@ -44,19 +44,26 @@ jobs:
           crate: cargo-wix
 
       - name: Export Private Certificate
+        if: github.event_name != 'pull_request'
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
           $env:PRIVATE_KEY | Out-File -FilePath private.txt
           certutil -decode private.txt private.pfx
 
+      - name: Export PR Private Certificate
+        if: github.event_name == 'pull_request'
+        run: cp .github/workflows/build_res/pr.pfx private.pfx
+
       - name: Export Public Certificate
+        env:
+          PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
         run: |
-          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ secrets.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
+          Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ env.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
 
       - name: Build
         env:
-          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
           RELEASE: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
         run: cargo make -p $env:RELEASE build
 
@@ -105,9 +112,11 @@ jobs:
       - name: Sign installer
         if: github.event_name == 'release'
         shell: cmd
+        env:
+          PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
         run: |
           call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat"
-          signtool sign /a /fd SHA256 /v /f private.pfx /p ${{ secrets.PRIVATE_KEY_PASSWORD }} /t http://timestamp.digicert.com target/output/*.msi
+          signtool sign /a /fd SHA256 /v /f private.pfx /p ${{ env.PRIVATE_KEY_PASSWORD }} /t http://timestamp.digicert.com target/output/*.msi
 
       - name: Zip files up
         if: github.event_name == 'release'
