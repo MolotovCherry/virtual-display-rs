@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 winreg = "0.51.0"
-eframe = "0.22.0"
+eframe = "0.23.0"
 serde_json = "1.0.107"
 serde = { version = "1.0.188", features = ["derive", "rc"] }
 driver-ipc = { path = "../driver-ipc" }
