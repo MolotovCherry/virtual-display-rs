@@ -10,7 +10,7 @@ It has many uses, such as:
 - Getting a higher resolution (or higher refresh rate) display when you don't have a physical one on-hand (though note you can only use it in software/VR)
 - Other uses? Let me know!
 
-Supports: Windows 10 version 2004+ (x64 only)
+Supports: Windows 10 2004+ (x64 only)
 
 _For any bug reports, please see the [debugging or reporting crashes](https://github.com/MolotovCherry/virtual-display-rs#debugging-or-reporting-crashes) section to get the panic message for the bug report_
 
