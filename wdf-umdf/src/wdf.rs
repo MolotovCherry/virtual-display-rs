@@ -62,7 +62,7 @@ macro_rules! WdfCall {
 
                 if is_available {
                     // SAFETY: Only immutable accesses are done to this
-                    let fn_table = unsafe { ::wdf_umdf_sys::WdfFunctions_02033 };
+                    let fn_table = unsafe { ::wdf_umdf_sys::WdfFunctions_02031 };
 
                     // SAFETY: Read-only, initialized by the time we use it, and checked to be in bounds
                     let fn_handle = unsafe {

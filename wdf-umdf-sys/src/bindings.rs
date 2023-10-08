@@ -11,4 +11,4 @@ unsafe impl Sync for _WDF_OBJECT_CONTEXT_TYPE_INFO {}
 
 // fails to build without this symbol
 #[no_mangle]
-pub static IddMinimumVersionRequired: ULONG = 6;
+pub static IddMinimumVersionRequired: ULONG = 4;

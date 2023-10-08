@@ -64,8 +64,8 @@ pub fn get_um_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
 
 pub fn get_umdf_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
     Ok(get_windows_kits_dir()?.join(match dir_type {
-        DirectoryType::Include => PathBuf::from_iter(["Include", "wdf", "umdf", "2.33"]),
-        DirectoryType::Library => PathBuf::from_iter(["Lib", "wdf", "umdf", "x64", "2.33"]),
+        DirectoryType::Include => PathBuf::from_iter(["Include", "wdf", "umdf", "2.31"]),
+        DirectoryType::Library => PathBuf::from_iter(["Lib", "wdf", "umdf", "x64", "2.31"]),
     }))
 }
 
@@ -131,7 +131,7 @@ fn generate() {
 
     let mut iddcx_lib_dir = lib_um_dir.clone();
     iddcx_lib_dir.push("iddcx");
-    iddcx_lib_dir.push("1.9");
+    iddcx_lib_dir.push("1.4");
 
     println!("cargo:rustc-link-search={}", iddcx_lib_dir.display());
 
