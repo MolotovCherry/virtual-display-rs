@@ -7,6 +7,7 @@ This is a Windows driver made in Rust which creates a virtual desktop.
 It has many uses, such as:
 - A private virtual desktop for VR use
 - For remote desktops
+- For screenshare presentations, to give you more workspace with a second monitor
 - Getting a higher resolution (or higher refresh rate) display when you don't have a physical one on-hand (though note you can only use it in software/VR)
 - Other uses? Let me know!
 
