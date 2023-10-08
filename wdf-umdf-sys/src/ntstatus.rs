@@ -11,6 +11,7 @@ impl NTSTATUS {
     //
 
     // NT_SUCCESS
+    #[allow(clippy::manual_range_patterns)]
     pub fn is_success(&self) -> bool {
         let val = bytemuck::cast::<_, u32>(self.0);
         // NT_SUCCESS | NT_INFORMATION

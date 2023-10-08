@@ -25,5 +25,5 @@ LANGUAGE 0x9, 0x1
 
     // need linked c runtime for umdf includes
     println!("cargo:rustc-link-lib=static=ucrt");
-    println!("cargo:rustc-link-lib=static=vcruntime");
+    //println!("cargo:rustc-link-lib=static=vcruntime");
 }

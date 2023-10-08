@@ -103,6 +103,7 @@ fn toggle_ui_compact(ui: &mut egui::Ui, on: &mut bool) -> egui::Response {
 /// ``` ignore
 /// ui.add(toggle(&mut my_bool));
 /// ```
+#[allow(clippy::needless_pass_by_ref_mut)]
 pub fn toggle(on: &mut bool) -> impl egui::Widget + '_ {
     move |ui: &mut egui::Ui| toggle_ui(ui, on)
 }

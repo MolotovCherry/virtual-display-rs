@@ -288,7 +288,7 @@ impl<'a> MainWindow<'a> {
 }
 
 /// Returns if animation for condition is finished
-fn anim_bool_finished(ui: &mut Ui, id: Id, cond: bool) -> bool {
+fn anim_bool_finished(ui: &Ui, id: Id, cond: bool) -> bool {
     let result = ui.ctx().animate_bool(id, cond);
     if cond {
         ui.data_mut(|data| data.insert_temp(id, true));
