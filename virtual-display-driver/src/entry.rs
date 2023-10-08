@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use driver_ipc::Monitor;
 use log::{error, info, LevelFilter};
 use wdf_umdf::{
@@ -65,22 +67,22 @@ extern "C-unwind" fn DriverEntry(
         std::thread::spawn(move || {
             #[allow(clippy::redundant_locals)]
             let device = device;
-            let mut time_waited = 0u64;
+            let time_waited = Instant::now();
+            // 5 minutes
+            let timeout_duration = Duration::from_secs(60 * 5);
             // in ms
             let sleep_for = 500;
 
             loop {
                 let status = init_log();
-                std::thread::sleep(std::time::Duration::from_millis(sleep_for));
+                std::thread::sleep(Duration::from_millis(sleep_for));
 
-                time_waited += sleep_for;
-
-                // if it succeeds, great. if it didn't conclude after
-                // 1 second in ms * 60 seconds * 5 minutes = 5 minutes
+                // if it succeeds, great. if it didn't conclude after 5 minutes
                 // Surely a users system is booted up before then?
-                let timeout = time_waited >= 1000 * 60 * 5;
-                if status.is_success() || timeout {
-                    if timeout {
+                let timedout = time_waited.elapsed() >= timeout_duration;
+                if status.is_success() || timedout {
+                    if timedout {
+                        // Service took too long to start. Unfortunately, there is no way to log this failure
                         unsafe {
                             _ = WdfDeviceSetFailed(
                                 device.0 as *mut _,
@@ -88,7 +90,10 @@ extern "C-unwind" fn DriverEntry(
                             );
                         }
                     } else {
-                        info!("Service took {} seconds to start", time_waited / 1000);
+                        info!(
+                            "Service took {} seconds to start",
+                            time_waited.elapsed().as_secs()
+                        );
                     }
 
                     break;
