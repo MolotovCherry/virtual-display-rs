@@ -24,9 +24,10 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
 
 # How to install
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
-1. Download (you may receive a warning, just press accept)
-1. Install certificate (see below section)
-1. Run the msi installer
+2. Download (you may receive a warning, just press accept)
+3. Install certificate (see below section)
+4. Run the msi installer
+5. The driver will be installed, started, and you can find a shortcut to the control app in the start menu, named "Virtual Display Driver Control"
 
 _Note about driver install:  
 If you're getting an error about an unverified driver during install, it's either because the provided certificate isn't installed, or was installed incorrectly. You can also just install it anyways and it should still work._
@@ -34,11 +35,11 @@ If you're getting an error about an unverified driver during install, it's eithe
 ### Installing the certificate
 The certificate needs installation for Windows to accept the driver
 1. In your downloaded zip, there is a file `DriverCertificate.cer` and `install-cert.bat`
-1. Open a cmd window as admin and run `install-cert.bat`
+2. Open a cmd window as admin and run `install-cert.bat`
 
 # Updating
 1. Download the new release
-1. Install the msi package
+2. Install the msi package
 
 # Using the app
 Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/Virtual-Display-Driver-Control) for instructions on using the app.
@@ -46,9 +47,9 @@ Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/V
 # How to build
 1. Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
    - Select and install the `Desktop development with C++` workload as well as Windows SDK
-1. Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
-1. Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
-1. Install [`cargo-target-dir`](https://github.com/MolotovCherry/cargo-target-dir)
+2. Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
+3. Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
+4. Install [`cargo-target-dir`](https://github.com/MolotovCherry/cargo-target-dir)
 
 You can build it with `cargo make build` (debug) or `cargo make -p prod build` (release), and check the `target/output` directory for all the files
 
@@ -59,8 +60,8 @@ If you want to debug a problem or need to report a crash, follow the below instr
 
 All messages from the driver are logged in the Windows Event Viewer.
 1. Open the Event Viewer
-1. Go to `Windows Logs` -> `Application`
-1. You will see logs for the driver under the source name `VirtualDisplayDriver`
+3. Go to `Windows Logs` -> `Application`
+4. You will see logs for the driver under the source name `VirtualDisplayDriver`
 
 If you want to make them easier to see
 1. right click on `Custom Views`
@@ -68,7 +69,7 @@ If you want to make them easier to see
      - select `By source`
      - find and select `VirtualDisplayDriver` in the list, then press `Ok`
      - type in `VirtualDisplayDriver` for the name, and press `Ok`
-1. You should now see any log messages under the `Custom Views` section for `VirtualDisplayDriver`
+2. You should now see any log messages under the `Custom Views` section for `VirtualDisplayDriver`
 
 # Contributions
 All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
