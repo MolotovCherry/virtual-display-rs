@@ -8,7 +8,7 @@ static MONITOR_EDID: &[u8] = &[
     0x45, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0xFD, 0x00, 0x17, 0xF0, 0x0F,
     0xFF, 0x0F, 0x00, 0x0A, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x00, 0x00, 0xFC, 0x00, 0x56,
     0x69, 0x72, 0x74, 0x75, 0x44, 0x69, 0x73, 0x70, 0x6C, 0x61, 0x79, 0x2B, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x51,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
 #[repr(C)]
@@ -35,11 +35,30 @@ pub fn generate_edid_with(serial: u32) -> Vec<u8> {
     let data = &MONITOR_EDID[std::mem::size_of::<EdidHeader>()..];
 
     // splice together header and the rest of the EDID
-    header.iter().cloned().chain(data.iter().cloned()).collect()
+    let mut edid: Vec<u8> = header.iter().cloned().chain(data.iter().cloned()).collect();
+    // regenerate checksum
+    gen_checksum(&mut edid);
+
+    edid
 }
 
 pub fn get_edid_serial(edid: &[u8]) -> u32 {
     let header_bytes = &edid[0..std::mem::size_of::<EdidHeader>()];
     let header = bytemuck::pod_read_unaligned::<EdidHeader>(header_bytes);
     header.serial_number
+}
+
+fn gen_checksum(data: &mut [u8]) {
+    // important, this is the bare minimum length
+    assert!(data.len() >= 128);
+
+    // slice to the entire data minus the last checksum byte
+    let edid_data = &data[..=126];
+
+    // do checksum calculation
+    let sum: u32 = edid_data.iter().copied().map(|b| b as u32).sum();
+    let checksum = (256 - (sum % 256)) as u8;
+
+    // update last byte with new checksum
+    data[127] = checksum;
 }
