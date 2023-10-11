@@ -118,10 +118,15 @@ jobs:
           call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat"
           signtool sign /a /fd SHA256 /v /f private.pfx /p ${{ env.PRIVATE_KEY_PASSWORD }} /t http://timestamp.digicert.com target/output/*.msi
 
-      - name: Zip files up
+      - name: Zip up install package
         if: github.event_name == 'release'
         run: |
           Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-x64.zip"
+
+      - name: Zip up portable package
+        if: github.event_name == 'release'
+        run: |
+          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.inf , target/output/*.dll , target/output/*.cat , target/output/*.exe | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
