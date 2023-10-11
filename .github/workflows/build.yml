@@ -126,7 +126,7 @@ jobs:
       - name: Zip up portable package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.inf , target/output/*.dll , target/output/*.cat , target/output/*.exe | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.inf, target/output/*.dll, target/output/*.cat, target/output/*.exe, installer/files/*.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
