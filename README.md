@@ -23,17 +23,17 @@ _For any bug reports, please see the [debugging or reporting crashes](https://gi
 
 https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d2-4c99-91f7-4e8b352e3ebe
 
-# How to install
+## How to install
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 2. Download (you may receive a warning, just press accept)
-3. Install certificate (see below section)
+3. [Install certificate](https://github.com/MolotovCherry/virtual-display-rs#installing-the-certificate)
 4. Run the msi installer
 5. The driver will be installed, started, and you can find a shortcut to the control app in the start menu, named "Virtual Display Driver Control"
 
-# How to install portable version
+## How to install portable version
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 2. Download (you may receive a warning, just press accept)
-3. Install certificate (see below section)
+3. [Install certificate](https://github.com/MolotovCherry/virtual-display-rs#installing-the-certificate)
 4. Install `install.reg`
 5. Open device manager
    * click on any item in the list
@@ -44,21 +44,21 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
    * finish the setup
 7. The driver will be installed and started. The control panel exe you see in the folder will work from anywhere you put it.
 
-### Installing the certificate
+## Installing the certificate
 The certificate needs installation for Windows to accept the driver
 1. In your downloaded zip, there is a file `DriverCertificate.cer` and `install-cert.bat`
 2. Open a cmd window as admin and run `install-cert.bat`
 
 _If an install error is occurring and you can't install the driver, check to make sure the certificate got installed properly! Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat)_
 
-# Updating
+## Updating
 1. Download the new release
 2. Install the msi package
 
-# Using the app
+## Using the app
 Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/Virtual-Display-Driver-Control) for instructions on using the app.
 
-# How to build
+## How to build
 1. Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
    - Select and install the `Desktop development with C++` workload as well as Windows SDK
 2. Install the [WDK](https://learn.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk)
@@ -85,5 +85,5 @@ If you want to make them easier to see
      - type in `VirtualDisplayDriver` for the name, and press `Ok`
 2. You should now see any log messages under the `Custom Views` section for `VirtualDisplayDriver`
 
-# Contributions
+## Contributions
 All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
