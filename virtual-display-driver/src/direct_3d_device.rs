@@ -1,12 +1,12 @@
 use windows::{
     core::Error,
     Win32::{
-        Foundation::{HMODULE, LUID},
+        Foundation::LUID,
         Graphics::{
             Direct3D::D3D_DRIVER_TYPE_UNKNOWN,
             Direct3D11::{
                 D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext,
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION,
             },
             Dxgi::{CreateDXGIFactory2, IDXGIAdapter1, IDXGIFactory5},
         },
@@ -27,6 +27,7 @@ impl From<&'static str> for Direct3DError {
     }
 }
 
+#[derive(Debug)]
 pub struct Direct3DDevice {
     // The following are already refcounted, so they're safe to use directly without additional drop impls
     _dxgi_factory: IDXGIFactory5,
@@ -48,10 +49,10 @@ impl Direct3DDevice {
             D3D11CreateDevice(
                 &adapter,
                 D3D_DRIVER_TYPE_UNKNOWN,
-                HMODULE::default(),
+                None,
                 D3D11_CREATE_DEVICE_BGRA_SUPPORT,
                 None,
-                0,
+                D3D11_SDK_VERSION,
                 Some(&mut device),
                 None,
                 Some(&mut device_context),

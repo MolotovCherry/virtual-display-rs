@@ -206,14 +206,20 @@ impl DeviceContext {
             processor.terminate();
         }
 
-        // Safety: wmd_umdf_sys::_LUID and windows::LUID both are repr c and both with the same layouts
-        let device = Direct3DDevice::init(unsafe { std::mem::transmute(render_adapter) });
+        // transmute would work, but one less unsafe block, so why not
+        let luid = windows::Win32::Foundation::LUID {
+            LowPart: render_adapter.LowPart,
+            HighPart: render_adapter.HighPart,
+        };
+
+        let device = Direct3DDevice::init(luid);
+
         if let Ok(device) = device {
             let processor = SwapChainProcessor::new(swap_chain, device, new_frame_event);
 
-            processor.clone().run();
+            self.swap_chain_processor = Some(processor.clone());
 
-            self.swap_chain_processor = Some(processor);
+            processor.run();
         } else {
             // It's important to delete the swap-chain if D3D initialization fails, so that the OS knows to generate a new
             // swap-chain and try again.
