@@ -69,7 +69,11 @@ Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/V
 
 You can build it with `cargo make build` (debug) or `cargo make -p prod build` (release), and check the `target/output` directory for all the files
 
-To build the installer, do a `cargo make build-installer` (dev) or `cargo make -p prod build-installer` (release). In order to build the installer, you need [wix toolset](https://github.com/wixtoolset/wix3/releases) installed and on `Path`... Or, fork my project and build it with github actions
+To build the installer, do a `cargo make build-installer` (dev) or `cargo make -p prod build-installer` (release). In order to build the installer, you need [wix toolset](https://github.com/wixtoolset/wix3/releases) installed and on `Path`
+
+... Or, fork my project and build it with github actions. You will require 2 repository secrets:
+* `PRIVATE_KEY` - a windows code signing pfx certificate encoded in base64 (use `certutil -encode`)
+* `PRIVATE_KEY_PASSWORD` - self explanatory
 
 ### Debugging or Reporting Crashes
 If you want to debug a problem or need to report a crash, follow the below instructions:
