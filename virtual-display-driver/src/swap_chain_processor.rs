@@ -99,8 +99,7 @@ impl SwapChainProcessor {
             pDevice: dxgi_device.into_raw() as *mut _,
         };
 
-        if let Err(e) = unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) } {
-            error!("Failed to set up IddcxSwapChainDevice: {e}");
+        if unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) }.is_err() {
             return;
         }
 
