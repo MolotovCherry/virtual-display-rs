@@ -16,7 +16,6 @@ use winreg::{
     RegKey,
 };
 
-use crate::device_context::DeviceContext;
 use crate::{
     callbacks::{
         adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
@@ -25,6 +24,7 @@ use crate::{
     },
     monitor_listener::startup,
 };
+use crate::{device_context::DeviceContext, helpers::Sendable};
 
 //
 // Our driver's entry point
@@ -58,11 +58,7 @@ extern "C-unwind" fn DriverEntry(
 
     if !status.is_success() {
         // Okay, let's try another method then
-        struct Sendable<T>(T);
-        unsafe impl<T> Send for Sendable<T> {}
-        unsafe impl<T> Sync for Sendable<T> {}
-
-        let device = Sendable(driver_object);
+        let device = unsafe { Sendable::new(driver_object) };
 
         std::thread::spawn(move || {
             #[allow(clippy::redundant_locals)]
@@ -85,7 +81,7 @@ extern "C-unwind" fn DriverEntry(
                         // Service took too long to start. Unfortunately, there is no way to log this failure
                         unsafe {
                             _ = WdfDeviceSetFailed(
-                                device.0 as *mut _,
+                                *device as *mut _,
                                 WDF_DEVICE_FAILED_ACTION::WdfDeviceFailedNoRestart,
                             );
                         }

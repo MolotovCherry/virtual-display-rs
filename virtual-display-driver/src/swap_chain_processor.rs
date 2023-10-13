@@ -1,7 +1,7 @@
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc,
     },
     thread::{self, JoinHandle},
 };
@@ -23,41 +23,33 @@ use windows::{
     },
 };
 
-use crate::direct_3d_device::Direct3DDevice;
+use crate::{direct_3d_device::Direct3DDevice, helpers::Sendable};
 
 pub struct SwapChainProcessor {
-    swap_chain: IDDCX_SWAPCHAIN,
-    device: Direct3DDevice,
-    available_buffer_event: HANDLE,
-    terminate_event: AtomicBool,
-    thread: Mutex<Option<JoinHandle<()>>>,
+    terminate: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
 }
 
 unsafe impl Send for SwapChainProcessor {}
 unsafe impl Sync for SwapChainProcessor {}
 
 impl SwapChainProcessor {
-    pub fn new(
-        swap_chain: IDDCX_SWAPCHAIN,
-        device: Direct3DDevice,
-        new_frame_event: HANDLE,
-    ) -> Arc<Self> {
-        Arc::new(Self {
-            swap_chain,
-            device,
-            available_buffer_event: new_frame_event,
-            terminate_event: AtomicBool::new(false),
-            thread: Mutex::new(None),
-        })
+    pub fn new() -> Self {
+        Self {
+            terminate: Arc::new(AtomicBool::new(false)),
+            thread: None,
+        }
     }
 
-    pub fn run(self: Arc<Self>) {
-        struct Sendable<T>(T);
-        unsafe impl<T> Send for Sendable<T> {}
-        unsafe impl<T> Sync for Sendable<T> {}
-
-        let swap_chain_ptr = Sendable(self.swap_chain);
-        let thread_self = self.clone();
+    pub fn run(
+        &mut self,
+        swap_chain: IDDCX_SWAPCHAIN,
+        device: Direct3DDevice,
+        available_buffer_event: HANDLE,
+    ) {
+        let available_buffer_event = unsafe { Sendable::new(available_buffer_event) };
+        let swap_chain = unsafe { Sendable::new(swap_chain) };
+        let terminate = self.terminate.clone();
 
         let join_handle = thread::spawn(move || {
             // It is very important to prioritize this thread by making use of the Multimedia Scheduler Service.
@@ -71,11 +63,10 @@ impl SwapChainProcessor {
             //     return;
             // }
 
-            thread_self.run_core();
+            Self::run_core(*swap_chain, device, *available_buffer_event, terminate);
 
-            let swap_chain = swap_chain_ptr;
             unsafe {
-                WdfObjectDelete(swap_chain.0 as WDFOBJECT).unwrap();
+                WdfObjectDelete(*swap_chain as WDFOBJECT).unwrap();
             }
 
             // Revert the thread to normal once it's done
@@ -85,12 +76,16 @@ impl SwapChainProcessor {
             // }
         });
 
-        let mut handle = self.thread.lock().unwrap();
-        *handle = Some(join_handle);
+        self.thread = Some(join_handle);
     }
 
-    fn run_core(&self) {
-        let dxgi_device = self.device.device.cast::<IDXGIDevice>();
+    fn run_core(
+        swap_chain: IDDCX_SWAPCHAIN,
+        device: Direct3DDevice,
+        available_buffer_event: HANDLE,
+        terminate: Arc<AtomicBool>,
+    ) {
+        let dxgi_device = device.device.cast::<IDXGIDevice>();
         let Ok(dxgi_device) = dxgi_device else {
             error!(
                 "Failed to cast ID3D11Device to IDXGIDevice: {}",
@@ -104,24 +99,24 @@ impl SwapChainProcessor {
             pDevice: dxgi_device.into_raw() as *mut _,
         };
 
-        if let Err(e) = unsafe { IddCxSwapChainSetDevice(self.swap_chain, &set_device) } {
+        if let Err(e) = unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) } {
             error!("Failed to set up IddcxSwapChainDevice: {e}");
             return;
         }
 
         loop {
             let mut buffer = IDARG_OUT_RELEASEANDACQUIREBUFFER::default();
-            let hr = unsafe { IddCxSwapChainReleaseAndAcquireBuffer(self.swap_chain, &mut buffer) }
+            let hr = unsafe { IddCxSwapChainReleaseAndAcquireBuffer(swap_chain, &mut buffer) }
                 .into_status();
 
             const E_PENDING: u32 = 0x8000000A;
             if u32::from(hr) == E_PENDING {
                 let wait_result =
-                    unsafe { WaitForSingleObject(WHANDLE(self.available_buffer_event as _), 16).0 };
+                    unsafe { WaitForSingleObject(WHANDLE(available_buffer_event as _), 16).0 };
 
                 // thread requested an end
-                let terminate = self.terminate_event.load(Ordering::Relaxed);
-                if terminate {
+                let should_terminate = terminate.load(Ordering::Relaxed);
+                if should_terminate {
                     break;
                 }
 
@@ -136,7 +131,7 @@ impl SwapChainProcessor {
             } else if hr.is_success() {
                 // This is the most performance-critical section of code in an IddCx driver. It's important that whatever
                 // is done with the acquired surface be finished as quickly as possible.
-                let hr = unsafe { IddCxSwapChainFinishedProcessingFrame(self.swap_chain) };
+                let hr = unsafe { IddCxSwapChainFinishedProcessingFrame(swap_chain) };
 
                 if hr.is_err() {
                     break;
@@ -147,22 +142,16 @@ impl SwapChainProcessor {
             }
         }
     }
-
-    /// Terminate swap chain if it hasn't already been
-    pub fn terminate(&self) {
-        let terminated = self.terminate_event.load(Ordering::Relaxed);
-        if !terminated {
-            // send signal to end thread
-            self.terminate_event.store(true, Ordering::Relaxed);
-
-            // wait until thread is finished
-            self.thread.lock().unwrap().take().unwrap().join().unwrap();
-        }
-    }
 }
 
 impl Drop for SwapChainProcessor {
     fn drop(&mut self) {
-        self.terminate();
+        if let Some(handle) = self.thread.take() {
+            // send signal to end thread
+            self.terminate.store(true, Ordering::Relaxed);
+
+            // wait until thread is finished
+            handle.join().unwrap()
+        }
     }
 }

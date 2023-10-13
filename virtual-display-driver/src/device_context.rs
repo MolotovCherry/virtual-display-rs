@@ -1,10 +1,7 @@
 use std::{
     mem,
     ptr::NonNull,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 use wdf_umdf::{
@@ -35,7 +32,7 @@ pub const MAX_MONITORS: u8 = 10;
 pub struct DeviceContext {
     pub device: WDFDEVICE,
     adapter: Option<IDDCX_ADAPTER>,
-    swap_chain_processor: Option<Arc<SwapChainProcessor>>,
+    swap_chain_processor: Option<SwapChainProcessor>,
 }
 
 WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
@@ -202,9 +199,7 @@ impl DeviceContext {
         new_frame_event: HANDLE,
     ) {
         // drop processing thread
-        if let Some(processor) = self.swap_chain_processor.take() {
-            processor.terminate();
-        }
+        drop(self.swap_chain_processor.take());
 
         // transmute would work, but one less unsafe block, so why not
         let luid = windows::Win32::Foundation::LUID {
@@ -215,11 +210,11 @@ impl DeviceContext {
         let device = Direct3DDevice::init(luid);
 
         if let Ok(device) = device {
-            let processor = SwapChainProcessor::new(swap_chain, device, new_frame_event);
+            let mut processor = SwapChainProcessor::new();
 
-            self.swap_chain_processor = Some(processor.clone());
+            processor.run(swap_chain, device, new_frame_event);
 
-            processor.run();
+            self.swap_chain_processor = Some(processor);
         } else {
             // It's important to delete the swap-chain if D3D initialization fails, so that the OS knows to generate a new
             // swap-chain and try again.
@@ -231,8 +226,6 @@ impl DeviceContext {
     }
 
     pub fn unassign_swap_chain(&mut self) {
-        if let Some(processor) = self.swap_chain_processor.take() {
-            processor.terminate();
-        }
+        self.swap_chain_processor.take();
     }
 }
