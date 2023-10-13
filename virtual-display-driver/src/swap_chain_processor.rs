@@ -151,7 +151,7 @@ impl Drop for SwapChainProcessor {
             self.terminate.store(true, Ordering::Relaxed);
 
             // wait until thread is finished
-            handle.join().unwrap()
+            _ = handle.join();
         }
     }
 }
