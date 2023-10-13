@@ -57,6 +57,9 @@ The certificate needs installation for Windows to accept the driver
 ## Using the app
 Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/Virtual-Display-Driver-Control) for instructions on using the app.
 
+## Potential problems
+- If you are using integrated graphics, there may be random black screen flickers. This seems to only affect integrated graphics, and so far Intel. It's unknown right now what the cause is, and it may be an Intel specific issue. If anyone has any information about this, or even solutions to it, please report it for others benefit. Thank you!
+
 ## How to build
 1. Download and install [Visual Studio](https://visualstudio.microsoft.com/downloads/) (use the 2022 edition)
    - Select and install the `Desktop development with C++` workload as well as Windows SDK
