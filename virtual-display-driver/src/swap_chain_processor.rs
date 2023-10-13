@@ -31,7 +31,6 @@ pub struct SwapChainProcessor {
     available_buffer_event: HANDLE,
     terminate_event: AtomicBool,
     thread: Mutex<Option<JoinHandle<()>>>,
-    dropped: AtomicBool,
 }
 
 unsafe impl Send for SwapChainProcessor {}
@@ -49,7 +48,6 @@ impl SwapChainProcessor {
             available_buffer_event: new_frame_event,
             terminate_event: AtomicBool::new(false),
             thread: Mutex::new(None),
-            dropped: AtomicBool::new(false),
         })
     }
 
@@ -152,10 +150,8 @@ impl SwapChainProcessor {
 
     /// Terminate swap chain if it hasn't already been
     pub fn terminate(&self) {
-        let dropped = self.dropped.load(Ordering::Relaxed);
-        if !dropped {
-            self.dropped.store(true, Ordering::Relaxed);
-
+        let terminated = self.terminate_event.load(Ordering::Relaxed);
+        if !terminated {
             // send signal to end thread
             self.terminate_event.store(true, Ordering::Relaxed);
 
