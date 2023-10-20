@@ -2521,6 +2521,7 @@ dependencies = [
  "wdf-umdf",
  "wdf-umdf-sys",
  "widestring",
+ "win-pipes",
  "windows 0.51.1",
  "winlog",
  "winreg",
@@ -2792,6 +2793,16 @@ name = "widestring"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
+
+[[package]]
+name = "win-pipes"
+version = "0.1.0"
+source = "git+https://github.com/MolotovCherry/WinPipes-rs#1c7e37cbe9a495e8713e7103198eaf672c565165"
+dependencies = [
+ "log",
+ "windows 0.51.1",
+ "windows-sys 0.48.0",
+]
 
 [[package]]
 name = "winapi"
