@@ -3,13 +3,18 @@ use std::time::{Duration, Instant};
 use driver_ipc::Monitor;
 use log::{error, info, LevelFilter};
 use wdf_umdf::{
-    IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
-    WdfDeviceInitSetPnpPowerEventCallbacks, WdfDeviceSetFailed, WdfDriverCreate,
+    IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceAllocAndQueryPropertyEx,
+    WdfDeviceCreate, WdfDeviceInitSetPnpPowerEventCallbacks, WdfDeviceSetFailed, WdfDriverCreate,
+    WdfMemoryGetBuffer, WdfObjectDelete,
 };
 use wdf_umdf_sys::{
-    IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE_INIT, WDFDRIVER__, WDFOBJECT,
-    WDF_DEVICE_FAILED_ACTION, WDF_DRIVER_CONFIG, WDF_OBJECT_ATTRIBUTES,
-    WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
+    DEVPROPTYPE, DEVPROP_TYPE_STRING, IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
+    WDFDRIVER__, WDFOBJECT, WDF_DEVICE_FAILED_ACTION, WDF_DRIVER_CONFIG, WDF_NO_OBJECT_ATTRIBUTES,
+    WDF_OBJECT_ATTRIBUTES, WDF_PNPPOWER_EVENT_CALLBACKS, _DRIVER_OBJECT, _UNICODE_STRING,
+    _WDF_DEVICE_PROPERTY_DATA,
+};
+use windows::{
+    Wdk::Foundation::NonPagedPoolNx, Win32::Devices::Properties::DEVPKEY_Device_MatchingDeviceId,
 };
 use winreg::{
     enums::{HKEY_LOCAL_MACHINE, KEY_READ},
@@ -141,7 +146,7 @@ extern "C-unwind" fn driver_add(
 
     let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
     if let Err(e) = status {
-        error!("Failed to init iddcx config: {e}");
+        error!("Failed to init iddcx config: {e:?}");
         return e.into();
     }
 
@@ -154,22 +159,30 @@ extern "C-unwind" fn driver_add(
 
     let status = unsafe { WdfDeviceCreate(&mut init, Some(&mut attributes), &mut device) };
     if let Err(e) = status {
-        error!("Failed to create device: {e}");
+        error!("Failed to create device: {e:?}");
         return e.into();
     }
 
     let status = unsafe { IddCxDeviceInitialize(device) };
     if let Err(e) = status {
-        error!("Failed to init iddcx device: {e}");
+        error!("Failed to init iddcx device: {e:?}");
         return e.into();
     }
 
     let context = DeviceContext::new(device);
 
     if let Err(e) = unsafe { context.init(device as WDFOBJECT) } {
-        error!("Failed to init context: {e}");
+        error!("Failed to init context: {e:?}");
         return e.into();
     }
+
+    // get the hardware id for this specific driver instance
+    let hardware_id = get_hardware_id(device);
+    let Ok(hardware_id) = hardware_id else {
+        return hardware_id.unwrap_err();
+    };
+
+    info!("got hardware id {hardware_id:?}");
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -195,4 +208,56 @@ fn get_data() -> (u32, Vec<Monitor>) {
         .unwrap_or_default();
 
     (port, data)
+}
+
+fn get_hardware_id(wdfdevice: WDFDEVICE) -> Result<String, NTSTATUS> {
+    let mut property_data = _WDF_DEVICE_PROPERTY_DATA {
+        Size: std::mem::size_of::<_WDF_DEVICE_PROPERTY_DATA>() as u32,
+        PropertyKey: &DEVPKEY_Device_MatchingDeviceId as *const _ as *const _,
+        ..Default::default()
+    };
+
+    let mut property_memory = std::ptr::null_mut();
+
+    let mut _type = DEVPROPTYPE::default();
+
+    let status = unsafe {
+        WdfDeviceAllocAndQueryPropertyEx(
+            wdfdevice,
+            &mut property_data,
+            std::mem::transmute(NonPagedPoolNx),
+            WDF_NO_OBJECT_ATTRIBUTES!(),
+            &mut property_memory,
+            &mut _type,
+        )
+    };
+
+    if let Err(e) = status {
+        error!("Failed to alloc and query property: {e}");
+        return Err(e.into());
+    }
+
+    let hardware_id = if _type == DEVPROP_TYPE_STRING {
+        let mut size = 0usize;
+
+        let ret = unsafe { WdfMemoryGetBuffer(property_memory, Some(&mut size)) };
+        let Ok(data) = ret else {
+            let e = ret.unwrap_err();
+            error!("Failed to get memory buffer: {e:?}",);
+            return Err(e.into());
+        };
+
+        let slice =
+            unsafe { std::slice::from_raw_parts(data as *mut u16, (size / 2).saturating_sub(1)) };
+        String::from_utf16_lossy(slice)
+    } else {
+        error!("got wrong devpkey for hardware id");
+        return Err(NTSTATUS::STATUS_FAIL_CHECK);
+    };
+
+    unsafe {
+        _ = WdfObjectDelete(property_memory as *mut _);
+    }
+
+    Ok(hardware_id)
 }

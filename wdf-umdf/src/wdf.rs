@@ -3,10 +3,10 @@
 use std::ffi::c_void;
 
 use wdf_umdf_sys::{
-    NTSTATUS, PCUNICODE_STRING, PCWDF_OBJECT_CONTEXT_TYPE_INFO, PDRIVER_OBJECT, PWDFDEVICE_INIT,
-    PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, WDFDEVICE, WDFDRIVER, WDFOBJECT,
-    WDF_DEVICE_FAILED_ACTION, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES, WDF_OBJECT_ATTRIBUTES,
-    _WDF_PNPPOWER_EVENT_CALLBACKS,
+    DEVPROPTYPE, NTSTATUS, PCUNICODE_STRING, PCWDF_OBJECT_CONTEXT_TYPE_INFO, PDRIVER_OBJECT,
+    POOL_TYPE, PWDFDEVICE_INIT, PWDF_DRIVER_CONFIG, PWDF_OBJECT_ATTRIBUTES, WDFDEVICE, WDFDRIVER,
+    WDFMEMORY, WDFOBJECT, WDF_DEVICE_FAILED_ACTION, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES,
+    WDF_OBJECT_ATTRIBUTES, _WDF_DEVICE_PROPERTY_DATA, _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
 
 use crate::IntoHelper;
@@ -522,6 +522,52 @@ pub unsafe fn WdfDeviceSetFailed(
         WdfDeviceSetFailed(
             Device,
             FailedAction
+        )
+    }
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+pub unsafe fn WdfDeviceAllocAndQueryPropertyEx(
+    // in
+    Device: WDFDEVICE,
+    // in
+    DeviceProperty: &mut _WDF_DEVICE_PROPERTY_DATA,
+    // in
+    PoolType: POOL_TYPE,
+    // in, optional
+    PropertyMemoryAttributes: PWDF_OBJECT_ATTRIBUTES,
+    // out
+    PropertyMemory: &mut WDFMEMORY,
+    // out
+    Type: &mut DEVPROPTYPE,
+) -> Result<NTSTATUS, WdfError> {
+    WdfCall! {
+        WdfDeviceAllocAndQueryPropertyEx(
+            Device,
+            DeviceProperty,
+            PoolType,
+            PropertyMemoryAttributes,
+            PropertyMemory,
+            Type
+        )
+    }
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+pub unsafe fn WdfMemoryGetBuffer(
+    // in
+    Memory: WDFMEMORY,
+    // out, optional
+    BufferSize: Option<&mut usize>,
+) -> Result<*mut c_void, WdfError> {
+    WdfCall! {
+        WdfMemoryGetBuffer(
+            Memory,
+            BufferSize.map(|s| s as *mut _).unwrap_or(std::ptr::null_mut())
         )
     }
 }
