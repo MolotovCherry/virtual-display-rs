@@ -16,13 +16,9 @@ use winreg::{
     RegKey,
 };
 
-use crate::{
-    callbacks::{
-        adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
-        monitor_get_default_modes, monitor_query_modes, parse_monitor_description,
-        unassign_swap_chain,
-    },
-    monitor_listener::startup,
+use crate::callbacks::{
+    adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
+    monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
 };
 use crate::{device_context::DeviceContext, helpers::Sendable};
 
@@ -121,9 +117,6 @@ extern "C-unwind" fn driver_add(
     _driver: *mut WDFDRIVER__,
     mut init: *mut WDFDEVICE_INIT,
 ) -> NTSTATUS {
-    // start the socket listener to listen for messages from the client
-    startup(get_data());
-
     let mut callbacks = WDF_PNPPOWER_EVENT_CALLBACKS::init();
 
     callbacks.EvtDeviceD0Entry = Some(device_d0_entry);
@@ -147,8 +140,9 @@ extern "C-unwind" fn driver_add(
     config.EvtIddCxMonitorUnassignSwapChain = Some(unassign_swap_chain);
 
     let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
-    if let Err(status) = status {
-        return status.into();
+    if let Err(e) = status {
+        error!("Failed to init iddcx config: {e}");
+        return e.into();
     }
 
     let mut attributes =
@@ -159,18 +153,25 @@ extern "C-unwind" fn driver_add(
     let mut device = std::ptr::null_mut();
 
     let status = unsafe { WdfDeviceCreate(&mut init, Some(&mut attributes), &mut device) };
-    if let Err(status) = status {
-        return status.into();
+    if let Err(e) = status {
+        error!("Failed to create device: {e}");
+        return e.into();
     }
 
     let status = unsafe { IddCxDeviceInitialize(device) };
-    if let Err(status) = status {
-        return status.into();
+    if let Err(e) = status {
+        error!("Failed to init iddcx device: {e}");
+        return e.into();
     }
 
     let context = DeviceContext::new(device);
 
-    unsafe { context.init(device as WDFOBJECT).into_status() }
+    if let Err(e) = unsafe { context.init(device as WDFOBJECT) } {
+        error!("Failed to init context: {e}");
+        return e.into();
+    }
+
+    NTSTATUS::STATUS_SUCCESS
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
