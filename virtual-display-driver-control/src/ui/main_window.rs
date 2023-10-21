@@ -41,12 +41,6 @@ impl<'a> MainWindow<'a> {
 
                 let switch = ui
                     .with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        // alligns it up with the others
-                        ui.allocate_exact_size(
-                            vec2(0.0, ui.available_height()),
-                            Sense::focusable_noninteractive(),
-                        );
-
                         ui.add(toggle(&mut self.app.enabled))
                             .on_hover_text("Enable/disable all monitors")
                     })
