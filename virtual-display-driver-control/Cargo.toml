@@ -1,6 +1,6 @@
 [package]
 name = "virtual-display-driver-control"
-version = "0.1.3"
+version = "0.3.0"
 edition = "2021"
 
 [dependencies]
