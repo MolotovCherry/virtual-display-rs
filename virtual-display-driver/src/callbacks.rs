@@ -40,9 +40,7 @@ pub extern "C-unwind" fn adapter_init_finished(
     }
 
     // store adapter object for listener to use
-    ADAPTER
-        .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
-        .unwrap();
+    ADAPTER.with(|a| a.set(AdapterObject(NonNull::new(adapter_object).unwrap())));
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -107,11 +105,10 @@ pub extern "C-unwind" fn parse_monitor_description(
     let in_args = unsafe { &*p_in_args };
     let out_args = unsafe { &mut *p_out_args };
 
-    let monitors = MONITOR_MODES
-        .get()
-        .expect("monitor_modes to be initialized");
+    let monitors =
+        MONITOR_MODES.with(|m| m.get().expect("monitor_modes to be initialized").borrow());
 
-    let monitors = &*monitors.lock().expect("it to lock");
+    let monitors = &*monitors;
 
     let edid = unsafe {
         std::slice::from_raw_parts(
@@ -216,11 +213,8 @@ pub extern "C-unwind" fn monitor_query_modes(
     p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
 ) -> NTSTATUS {
     // find out which monitor this belongs too
-    let monitors = MONITOR_MODES
-        .get()
-        .expect("monitor_modes to be initialized");
-
-    let monitors = &*monitors.lock().expect("it to lock");
+    let monitors =
+        MONITOR_MODES.with(|m| m.get().expect("monitor_modes to be initialized").borrow());
 
     // we have stored the monitor object per id, so we should be able to compare pointers
     let monitor = monitors

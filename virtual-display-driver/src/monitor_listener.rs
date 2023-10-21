@@ -1,9 +1,10 @@
 use std::{
+    cell::{OnceCell, RefCell},
     io::Read,
     net::TcpListener,
     ops::ControlFlow,
     ptr::NonNull,
-    sync::{atomic::Ordering, Mutex, OnceLock},
+    sync::{atomic::Ordering, Mutex},
     thread,
 };
 
@@ -14,23 +15,19 @@ use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 
 use crate::device_context::{DeviceContext, FINISHED_INIT};
 
-pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
-pub static MONITOR_MODES: OnceLock<Mutex<Vec<MonitorObject>>> = OnceLock::new();
+thread_local! {
+    pub static ADAPTER: OnceCell<AdapterObject> = OnceCell::new();
+    pub static MONITOR_MODES: OnceCell<RefCell<Vec<MonitorObject>>> = OnceCell::new();
+}
 
 #[derive(Debug)]
 pub struct AdapterObject(pub NonNull<IDDCX_ADAPTER__>);
-unsafe impl Send for AdapterObject {}
-unsafe impl Sync for AdapterObject {}
 
 #[derive(Debug)]
 pub struct MonitorObject {
     pub monitor_object: Option<NonNull<IDDCX_MONITOR__>>,
     pub monitor: Monitor,
 }
-
-// Safety: Because it is 😁
-unsafe impl Send for MonitorObject {}
-unsafe impl Sync for MonitorObject {}
 
 /// Warning, this method locks MONITOR_MODES
 pub fn monitor_count() -> usize {

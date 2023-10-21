@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    cell::OnceCell,
+    time::{Duration, Instant},
+};
 
 use driver_ipc::Monitor;
 use log::{error, info, LevelFilter};
@@ -26,6 +29,10 @@ use crate::callbacks::{
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
 };
 use crate::{device_context::DeviceContext, helpers::Sendable};
+
+thread_local! {
+    static DRIVER_ID: OnceCell<u32> = const { OnceCell::new() };
+}
 
 //
 // Our driver's entry point
@@ -176,13 +183,15 @@ extern "C-unwind" fn driver_add(
         return e.into();
     }
 
-    // get the hardware id for this specific driver instance
-    let hardware_id = get_driver_id(device);
-    let Ok(hardware_id) = hardware_id else {
-        return hardware_id.unwrap_err();
+    // get the driver id for this specific driver instance
+    let driver_id = get_driver_id(device);
+    let Ok(driver_id) = driver_id else {
+        return driver_id.unwrap_err();
     };
 
-    info!("got hardware id {hardware_id:?}");
+    DRIVER_ID.with(|c| {
+        _ = c.set(driver_id);
+    });
 
     NTSTATUS::STATUS_SUCCESS
 }
