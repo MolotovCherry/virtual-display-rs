@@ -34,6 +34,8 @@ pub struct DeviceContext {
 unsafe impl Send for DeviceContext {}
 unsafe impl Sync for DeviceContext {}
 
+// for now, `device` is hardcoded into the macro, so it needs to be there even if unused
+#[allow(unused)]
 pub struct MonitorContext {
     device: IDDCX_MONITOR,
     swap_chain_processor: Option<SwapChainProcessor>,
