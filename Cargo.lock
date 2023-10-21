@@ -897,9 +897,9 @@ dependencies = [
 
 [[package]]
 name = "enum-map"
-version = "2.6.3"
+version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c188012f8542dee7b3996e44dd89461d64aa471b0a7c71a1ae2f595d259e96e5"
+checksum = "53337c2dbf26a3c31eccc73a37b10c1614e8d4ae99b6a50d553e8936423c1f16"
 dependencies = [
  "enum-map-derive",
  "serde",
@@ -2275,9 +2275,9 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.4.9"
+version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64a4a911eed85daf18834cfaa86a79b7d266ff93ff5ba14005426219480ed662"
+checksum = "9f7916fc008ca5542385b89a3d3ce689953c143e9304a9bf8beec1de48994c0d"
 dependencies = [
  "libc",
  "winapi",
@@ -2576,6 +2576,7 @@ dependencies = [
  "egui_extras",
  "serde",
  "serde_json",
+ "win-pipes",
  "windows 0.51.1",
  "winreg",
  "winres",
@@ -2832,7 +2833,7 @@ checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 [[package]]
 name = "win-pipes"
 version = "0.1.0"
-source = "git+https://github.com/MolotovCherry/WinPipes-rs#43a738e4743415306c994925b5f21698f1e50bc2"
+source = "git+https://github.com/MolotovCherry/WinPipes-rs#fb260b86a8fac41858829c3a47816a8527d72420"
 dependencies = [
  "log",
  "windows 0.51.1",

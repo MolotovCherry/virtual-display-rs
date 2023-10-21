@@ -13,6 +13,7 @@ directories = "5.0.1"
 backtrace = "0.3.69"
 egui = "0.23.0"
 egui_extras = "0.23.0"
+win-pipes = { git = "https://github.com/MolotovCherry/WinPipes-rs" }
 
 [dependencies.windows]
 version = "0.51.1"

@@ -59,30 +59,6 @@ impl<'a> MainWindow<'a> {
                 ui.end_row();
 
                 //
-                // Port selector
-                //
-
-                let mut port_s = self.app.port.to_string();
-
-                ui.label("Port")
-                    .on_hover_text("Port driver listens on. Port changes require a driver restart");
-
-                let port_widget =
-                    egui::TextEdit::singleline(&mut port_s).vertical_align(Align::Center);
-
-                let res = ui
-                    .add_sized(vec2(75.0, 20.0), port_widget)
-                    .on_hover_text("Port driver listens on. Port changes require a driver restart");
-
-                if res.changed() {
-                    if let Ok(port_p) = port_s.parse::<u32>() {
-                        self.app.port = port_p;
-                    }
-                };
-
-                ui.end_row();
-
-                //
                 // Monitor list
                 //
 
@@ -103,8 +79,7 @@ impl<'a> MainWindow<'a> {
                     let response = ui.interact(rect, Id::new("rect1"), Sense::click());
                     if response.clicked() || self.app.monitors[0].monitor_window {
                         self.app.monitors[0].monitor_window = true;
-                        MonitorWindow::new(&self.app.connection)
-                            .show(ctx, &mut self.app.monitors[0]);
+                        MonitorWindow::new(&self.app.pipe).show(ctx, &mut self.app.monitors[0]);
                     }
 
                     // Paint a color on hover / not hover
@@ -144,7 +119,7 @@ impl<'a> MainWindow<'a> {
                     let state = &mut self.app.monitors[idx];
                     if response.clicked() || state.monitor_window && idx > 0 {
                         state.monitor_window = true;
-                        MonitorWindow::new(&self.app.connection).show(ctx, state);
+                        MonitorWindow::new(&self.app.pipe).show(ctx, state);
                     }
 
                     // Paint a color on hover
@@ -205,7 +180,7 @@ impl<'a> MainWindow<'a> {
                                 && state.monitor.modes.as_ref().is_some_and(|l| !l.is_empty())
                             {
                                 ipc_call(
-                                    &mut self.app.connection.borrow_mut(),
+                                    &mut self.app.pipe.borrow_mut(),
                                     DriverCommand::Remove(vec![state.monitor.id]),
                                 )
                             }
@@ -224,12 +199,12 @@ impl<'a> MainWindow<'a> {
                                 // allow monitor to enable only if monitor AND global switch is on, but it WILL turn off a monitor if it was on
                                 if state.enabled && self.app.enabled {
                                     ipc_call(
-                                        &mut self.app.connection.borrow_mut(),
+                                        &mut self.app.pipe.borrow_mut(),
                                         DriverCommand::Add(vec![state.monitor.clone().into()]),
                                     )
                                 } else if !state.enabled {
                                     ipc_call(
-                                        &mut self.app.connection.borrow_mut(),
+                                        &mut self.app.pipe.borrow_mut(),
                                         DriverCommand::Remove(vec![state.monitor.id]),
                                     )
                                 }

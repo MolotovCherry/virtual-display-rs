@@ -4,7 +4,7 @@ use driver_ipc::DriverCommand;
 use egui::{vec2, Align, CollapsingHeader, Color32, Context, Grid, Id, Layout};
 
 use crate::{
-    app::TcpWrapper,
+    app::PipeWrapper,
     ipc::ipc_call,
     monitor::{MonitorState, RefreshRate},
 };
@@ -12,11 +12,11 @@ use crate::{
 use super::add_resolution_window::AddResolutionWindow;
 
 pub struct MonitorWindow<'a> {
-    con: &'a RefCell<TcpWrapper>,
+    con: &'a RefCell<PipeWrapper>,
 }
 
 impl<'a> MonitorWindow<'a> {
-    pub fn new(con: &'a RefCell<TcpWrapper>) -> Self {
+    pub fn new(con: &'a RefCell<PipeWrapper>) -> Self {
         Self { con }
     }
 

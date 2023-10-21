@@ -1,7 +1,6 @@
 use std::{
     cell::RefCell,
     fs,
-    net::TcpStream,
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
@@ -13,6 +12,7 @@ use eframe::CreationContext;
 use egui::vec2;
 
 use serde::{Deserialize, Serialize};
+use win_pipes::{NamedPipeClient, NamedPipeClientOptions};
 
 use crate::{
     ipc::ipc_call,
@@ -23,27 +23,27 @@ use crate::{
 };
 
 #[derive(Default, Debug)]
-pub enum TcpWrapper {
-    Connected(TcpStream),
+pub enum PipeWrapper {
+    Client(NamedPipeClient),
     #[default]
     Disconnected,
 }
 
-impl Deref for TcpWrapper {
-    type Target = TcpStream;
+impl Deref for PipeWrapper {
+    type Target = NamedPipeClient;
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Self::Connected(c) => c,
+            Self::Client(c) => c,
             _ => unreachable!(),
         }
     }
 }
 
-impl DerefMut for TcpWrapper {
+impl DerefMut for PipeWrapper {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            Self::Connected(c) => c,
+            Self::Client(c) => c,
             _ => unreachable!(),
         }
     }
@@ -52,10 +52,9 @@ impl DerefMut for TcpWrapper {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct App {
     pub enabled: bool,
-    pub port: u32,
     pub monitors: Vec<MonitorState>,
     #[serde(skip)]
-    pub connection: RefCell<TcpWrapper>,
+    pub pipe: RefCell<PipeWrapper>,
     #[serde(skip)]
     pub config: PathBuf,
 }
@@ -68,56 +67,47 @@ impl Default for App {
 
         // load config.json from project directory
         let config = dir.config_dir().join("config.json");
-        let app = 'ret: {
-            if config.exists() {
-                let Ok(app_config) = fs::read_to_string(&config) else {
-                    break 'ret None;
-                };
 
-                let Ok(mut app) = serde_json::from_str::<App>(&app_config) else {
-                    break 'ret None;
-                };
+        let client = NamedPipeClientOptions::new(r"\\.\pipe\virtualdisplaydriver")
+            .access_outbound()
+            .wait()
+            .mode_message()
+            .create()
+            .unwrap();
 
-                app.config = config.clone();
+        if config.exists() {
+            let Ok(app_config) = fs::read_to_string(&config) else {
+                display_popup(
+                    "connection failure",
+                    r"Failed to read config to string. Is the config correct?",
+                    MessageBoxIcon::Error,
+                );
+                std::process::exit(1);
+            };
 
-                let port = app.port;
-                let stream = TcpStream::connect(format!("127.0.0.1:{port}"));
+            let Ok(mut app) = serde_json::from_str::<App>(&app_config) else {
+                display_popup(
+                    "connection failure",
+                    r"Failed to deserialize config. Is the config correct?",
+                    MessageBoxIcon::Error,
+                );
+                std::process::exit(1);
+            };
 
-                let Ok(stream) = stream else {
-                    display_popup(
-                        "connection failure",
-                        &format!("Failed to connect to driver at 127.0.0.1:{port}. If you just changed the port, the driver needs to be restarted"),
-                        MessageBoxIcon::Error,
-                    );
-                    std::process::exit(1);
-                };
+            app.config = config;
 
-                app.connection = RefCell::new(TcpWrapper::Connected(stream));
+            app.pipe = RefCell::new(PipeWrapper::Client(client));
 
-                Some(app)
-            } else {
-                None
+            app
+        } else {
+            Self {
+                enabled: true,
+
+                monitors: Default::default(),
+                pipe: RefCell::new(PipeWrapper::Client(client)),
+                config,
             }
-        };
-
-        let port = app.as_ref().map(|a| a.port).unwrap_or(23112u32);
-        let stream = TcpStream::connect(format!("127.0.0.1:{port}"));
-        let Ok(stream) = stream else {
-            display_popup(
-                "connection failure",
-                &format!("failed to connect to driver at 127.0.0.1:{port}"),
-                MessageBoxIcon::Error,
-            );
-            std::process::exit(1);
-        };
-
-        app.unwrap_or(Self {
-            enabled: true,
-            port: 23112u32,
-            monitors: Default::default(),
-            connection: RefCell::new(TcpWrapper::Connected(stream)),
-            config,
-        })
+        }
     }
 }
 
@@ -133,17 +123,14 @@ impl App {
             let enabled = self.monitors.iter().any(|s| s.enabled);
 
             if enabled {
-                ipc_call(&mut self.connection.borrow_mut(), DriverCommand::RemoveAll);
+                ipc_call(&mut self.pipe.borrow_mut(), DriverCommand::RemoveAll);
             }
         } else {
             // this removes pending monitors and monitors that are not enabled
             let monitors = self.monitors.clone().into_monitors_enabled();
 
             if !monitors.is_empty() {
-                ipc_call(
-                    &mut self.connection.borrow_mut(),
-                    DriverCommand::Add(monitors),
-                );
+                ipc_call(&mut self.pipe.borrow_mut(), DriverCommand::Add(monitors));
             }
         }
 

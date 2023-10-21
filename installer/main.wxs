@@ -119,7 +119,6 @@
                     Key="Software\VirtualDisplayDriver"
                     ForceDeleteOnUninstall="yes"
                 >
-                    <RegistryValue Type="integer" Name="port" Value="23112" KeyPath="yes" />
                     <RegistryValue Type="string" Name="data" Value="[\[][\]]" />
                 </RegistryKey>
 

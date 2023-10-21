@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fs};
+use std::fs;
 
 use winreg::{
     enums::{HKEY_LOCAL_MACHINE, KEY_WRITE},
@@ -6,7 +6,7 @@ use winreg::{
 };
 
 use crate::{
-    app::{App, TcpWrapper},
+    app::{App, PipeWrapper},
     monitor::RemovePending,
 };
 
@@ -14,9 +14,8 @@ pub fn save_config(app: &App) {
     // effective clone, but with all pending removed. we don't want to persist pending
     let app = App {
         enabled: app.enabled,
-        port: app.port,
         monitors: app.monitors.clone().remove_pending(),
-        connection: RefCell::new(TcpWrapper::Disconnected),
+        pipe: PipeWrapper::Disconnected.into(),
         config: app.config.clone(),
     };
 
@@ -32,7 +31,7 @@ pub fn save_config(app: &App) {
 
     // write out final config to registry for driver
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    let key = "SOFTWARE\\VirtualDisplayDriver";
+    let key = r"SOFTWARE\VirtualDisplayDriver";
 
     let driver_settings = if let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_WRITE) {
         driver_settings
@@ -48,7 +47,6 @@ pub fn save_config(app: &App) {
 
     let data = serde_json::to_string(&monitors).unwrap();
 
-    driver_settings.set_value("port", &app.port).unwrap();
     driver_settings
         .set_value("data", &if app.enabled { &data } else { "[]" })
         .unwrap();
