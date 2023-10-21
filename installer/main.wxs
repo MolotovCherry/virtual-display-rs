@@ -235,7 +235,7 @@
 
         <InstallExecuteSequence>
             <Custom Action='UninstallDriver' After='InstallInitialize'>Installed</Custom>
-            <Custom Action="InstallDriverRollback" Before="InstallDriverNode">NOT REMOVE="ALL"</Custom>
+            <Custom Action="InstallDriverRollback" Before="InstallDriverNode"></Custom>
             <Custom Action="InstallDriverNode" After="UninstallDriver">NOT REMOVE="ALL"</Custom>
         </InstallExecuteSequence>
 

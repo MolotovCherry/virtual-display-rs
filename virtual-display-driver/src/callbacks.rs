@@ -19,7 +19,7 @@ use wdf_umdf_sys::{
 };
 
 use crate::{
-    device_context::DeviceContext,
+    context::{DeviceContext, MonitorContext},
     edid::get_edid_serial,
     monitor_listener::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
 };
@@ -40,7 +40,9 @@ pub extern "C-unwind" fn adapter_init_finished(
     }
 
     // store adapter object for listener to use
-    ADAPTER.with(|a| a.set(AdapterObject(NonNull::new(adapter_object).unwrap())));
+    ADAPTER
+        .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
+        .unwrap();
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -105,10 +107,7 @@ pub extern "C-unwind" fn parse_monitor_description(
     let in_args = unsafe { &*p_in_args };
     let out_args = unsafe { &mut *p_out_args };
 
-    let monitors =
-        MONITOR_MODES.with(|m| m.get().expect("monitor_modes to be initialized").borrow());
-
-    let monitors = &*monitors;
+    let monitors = MONITOR_MODES.get().unwrap().lock().unwrap();
 
     let edid = unsafe {
         std::slice::from_raw_parts(
@@ -213,8 +212,8 @@ pub extern "C-unwind" fn monitor_query_modes(
     p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
 ) -> NTSTATUS {
     // find out which monitor this belongs too
-    let monitors =
-        MONITOR_MODES.with(|m| m.get().expect("monitor_modes to be initialized").borrow());
+
+    let monitors = MONITOR_MODES.get().unwrap().lock().unwrap();
 
     // we have stored the monitor object per id, so we should be able to compare pointers
     let monitor = monitors
@@ -275,7 +274,7 @@ pub extern "C-unwind" fn assign_swap_chain(
     let p_in_args = unsafe { &*p_in_args };
 
     unsafe {
-        DeviceContext::get_mut(monitor_object as *mut _, |context| {
+        MonitorContext::get_mut(monitor_object as *mut _, |context| {
             context.assign_swap_chain(
                 p_in_args.hSwapChain,
                 p_in_args.RenderAdapterLuid,
@@ -288,7 +287,7 @@ pub extern "C-unwind" fn assign_swap_chain(
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
     unsafe {
-        DeviceContext::get_mut(monitor_object as *mut _, |context| {
+        MonitorContext::get_mut(monitor_object as *mut _, |context| {
             context.unassign_swap_chain();
         })
     }

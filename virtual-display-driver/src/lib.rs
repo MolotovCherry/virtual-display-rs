@@ -1,7 +1,7 @@
 mod helpers;
 
 mod callbacks;
-mod device_context;
+mod context;
 mod direct_3d_device;
 mod edid;
 mod entry;

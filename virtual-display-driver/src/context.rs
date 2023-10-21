@@ -1,8 +1,4 @@
-use std::{
-    mem,
-    ptr::NonNull,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::{mem, ptr::NonNull};
 
 use wdf_umdf::{
     IddCxAdapterInitAsync, IddCxMonitorArrival, IddCxMonitorCreate, IntoHelper, WdfObjectDelete,
@@ -12,41 +8,49 @@ use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY, HANDLE, IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE,
     IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER,
     IDDCX_ADAPTER_CAPS, IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION,
-    IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR_DESCRIPTION, IDDCX_MONITOR_DESCRIPTION_TYPE,
-    IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE, LUID, NTSTATUS, WDFDEVICE,
-    WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
+    IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR, IDDCX_MONITOR_DESCRIPTION,
+    IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE,
+    LUID, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
 use widestring::u16cstr;
 use windows::core::GUID;
 
 use crate::{
-    direct_3d_device::Direct3DDevice, edid::generate_edid_with, monitor_listener::MONITOR_MODES,
+    direct_3d_device::Direct3DDevice,
+    edid::generate_edid_with,
+    monitor_listener::{startup, MONITOR_MODES},
     swap_chain_processor::SwapChainProcessor,
 };
-
-pub static FINISHED_INIT: AtomicBool = AtomicBool::new(false);
 
 // Maximum amount of monitors that can be connected
 pub const MAX_MONITORS: u8 = 10;
 
 pub struct DeviceContext {
-    pub device: WDFDEVICE,
+    device: WDFDEVICE,
     adapter: Option<IDDCX_ADAPTER>,
-    swap_chain_processor: Option<SwapChainProcessor>,
 }
-
-WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
 
 // SAFETY: Raw ptr is managed by external library
 unsafe impl Send for DeviceContext {}
 unsafe impl Sync for DeviceContext {}
+
+pub struct MonitorContext {
+    device: IDDCX_MONITOR,
+    swap_chain_processor: Option<SwapChainProcessor>,
+}
+
+// SAFETY: Raw ptr is managed by external library
+unsafe impl Send for MonitorContext {}
+unsafe impl Sync for MonitorContext {}
+
+WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
+WDF_DECLARE_CONTEXT_TYPE!(pub MonitorContext);
 
 impl DeviceContext {
     pub fn new(device: WDFDEVICE) -> Self {
         Self {
             device,
             adapter: None,
-            swap_chain_processor: None,
         }
     }
 
@@ -107,14 +111,15 @@ impl DeviceContext {
     }
 
     pub fn finish_init(&mut self) -> NTSTATUS {
-        FINISHED_INIT.store(true, Ordering::Release);
+        // start the socket listener to listen for messages from the client
+        startup();
 
         NTSTATUS::STATUS_SUCCESS
     }
 
     pub fn create_monitor(&mut self, index: u32) -> NTSTATUS {
         let mut attr =
-            WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { DeviceContext::get_type_info() });
+            WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { MonitorContext::get_type_info() });
 
         // use the edid serial number to represent the monitor index for later identification
         let edid = generate_edid_with(index);
@@ -155,14 +160,7 @@ impl DeviceContext {
         if status.is_success() {
             // store monitor object for later
             {
-                let Some(lock) = MONITOR_MODES.get() else {
-                    // not initted yet
-                    panic!("MONITOR_MODES not initialized");
-                };
-
-                let Ok(mut lock) = lock.lock() else {
-                    panic!("Failed to lock MONITOR_MODES");
-                };
+                let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
                 for monitor in &mut *lock {
                     if monitor.monitor.id == index {
@@ -173,8 +171,9 @@ impl DeviceContext {
             }
 
             unsafe {
-                status = self
-                    .clone_into(monitor_create_out.MonitorObject as *mut _)
+                let context = MonitorContext::new(monitor_create_out.MonitorObject);
+                context
+                    .init(monitor_create_out.MonitorObject as WDFOBJECT)
                     .into_status();
             }
 
@@ -190,6 +189,15 @@ impl DeviceContext {
         }
 
         status
+    }
+}
+
+impl MonitorContext {
+    pub fn new(device: IDDCX_MONITOR) -> Self {
+        Self {
+            device,
+            swap_chain_processor: None,
+        }
     }
 
     pub fn assign_swap_chain(

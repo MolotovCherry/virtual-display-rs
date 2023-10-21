@@ -1,61 +1,49 @@
 use std::{
-    cell::{OnceCell, RefCell},
     io::Read,
     net::TcpListener,
     ops::ControlFlow,
     ptr::NonNull,
-    sync::{atomic::Ordering, Mutex},
+    sync::{Mutex, OnceLock},
     thread,
 };
 
 use driver_ipc::{DriverCommand, Monitor};
-use log::{error, info, warn};
+use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
+use winreg::{
+    enums::{HKEY_LOCAL_MACHINE, KEY_READ},
+    RegKey,
+};
 
-use crate::device_context::{DeviceContext, FINISHED_INIT};
+use crate::context::DeviceContext;
 
-thread_local! {
-    pub static ADAPTER: OnceCell<AdapterObject> = OnceCell::new();
-    pub static MONITOR_MODES: OnceCell<RefCell<Vec<MonitorObject>>> = OnceCell::new();
-}
+pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
+pub static MONITOR_MODES: OnceLock<Mutex<Vec<MonitorObject>>> = OnceLock::new();
 
 #[derive(Debug)]
 pub struct AdapterObject(pub NonNull<IDDCX_ADAPTER__>);
+unsafe impl Sync for AdapterObject {}
+unsafe impl Send for AdapterObject {}
 
 #[derive(Debug)]
 pub struct MonitorObject {
     pub monitor_object: Option<NonNull<IDDCX_MONITOR__>>,
     pub monitor: Monitor,
 }
+unsafe impl Sync for MonitorObject {}
+unsafe impl Send for MonitorObject {}
 
-/// Warning, this method locks MONITOR_MODES
+/// WARNING: Locks MONITOR_MODES, don't call if already locked or deadlock happens
 pub fn monitor_count() -> usize {
-    let Some(lock) = MONITOR_MODES.get() else {
-        // not initted yet
-        return 0;
-    };
-
-    let Ok(lock) = lock.lock() else {
-        // lock problem, there's no data to return
-        return 0;
-    };
-
-    lock.len()
+    MONITOR_MODES.get().unwrap().lock().unwrap().len()
 }
 
-pub fn startup((port, monitors): (u32, Vec<Monitor>)) {
+pub fn startup() {
     MONITOR_MODES.set(Mutex::new(Vec::new())).unwrap();
 
     thread::spawn(move || {
-        // wait until we can initialize
-        while !FINISHED_INIT.load(Ordering::Acquire) {
-            // The spin loop is a hint to the CPU that we're waiting, but probably
-            // not for very long
-            std::hint::spin_loop();
-        }
-
-        info!("listening on 127.0.0.1:{port}");
+        let (port, monitors) = get_data();
 
         // add default monitors saved in registry
         if !monitors.is_empty() {
@@ -135,19 +123,35 @@ pub fn startup((port, monitors): (u32, Vec<Monitor>)) {
     });
 }
 
+fn get_data() -> (u32, Vec<Monitor>) {
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let key = "SOFTWARE\\VirtualDisplayDriver";
+    let port = 23112u32;
+
+    let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
+        return (port, Vec::new());
+    };
+
+    let port = driver_settings.get_value("port").unwrap_or(port);
+
+    let data = driver_settings
+        .get_value::<String, _>("data")
+        .map(|data| serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default())
+        .unwrap_or_default();
+
+    (port, data)
+}
+
 fn add(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
+
     unsafe {
         DeviceContext::get_mut(adapter as *mut _, |context| {
             for monitor in monitors {
                 let id = monitor.id;
 
                 {
-                    let Some(lock) = MONITOR_MODES.get() else {
-                        return;
-                    };
-
-                    let mut lock = lock.lock().unwrap();
+                    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
                     // if this monitor index is already in, do not add it, no-op it
                     if lock.iter().any(|m| m.monitor.id == id) {
@@ -169,15 +173,7 @@ fn add(monitors: Vec<Monitor>) {
 }
 
 fn remove_all() -> Option<ControlFlow<()>> {
-    let Some(lock) = MONITOR_MODES.get() else {
-        // not initted yet
-        return Some(ControlFlow::Continue(()));
-    };
-
-    let Ok(mut lock) = lock.lock() else {
-        // lock problem, there's no data to return
-        return Some(ControlFlow::Continue(()));
-    };
+    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
     for monitor in lock.drain(..) {
         let Some(mut monitor_object) = monitor.monitor_object else {
@@ -193,15 +189,7 @@ fn remove_all() -> Option<ControlFlow<()>> {
 }
 
 fn remove(ids: Vec<u32>) -> Option<ControlFlow<()>> {
-    let Some(lock) = MONITOR_MODES.get() else {
-        // not initted yet
-        return Some(ControlFlow::Continue(()));
-    };
-
-    let Ok(mut lock) = lock.lock() else {
-        // lock problem, there's no data to return
-        return Some(ControlFlow::Continue(()));
-    };
+    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
     let mut to_remove = Vec::new();
 
