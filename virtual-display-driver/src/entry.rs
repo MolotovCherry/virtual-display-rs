@@ -177,7 +177,7 @@ extern "C-unwind" fn driver_add(
     }
 
     // get the hardware id for this specific driver instance
-    let hardware_id = get_hardware_id(device);
+    let hardware_id = get_driver_id(device);
     let Ok(hardware_id) = hardware_id else {
         return hardware_id.unwrap_err();
     };
@@ -210,6 +210,18 @@ fn get_data() -> (u32, Vec<Monitor>) {
     (port, data)
 }
 
+fn get_driver_id(wdfdevice: WDFDEVICE) -> Result<u32, NTSTATUS> {
+    let hardware_id = get_hardware_id(wdfdevice)?;
+    let Some(id) = hardware_id
+        .strip_prefix(r"root\virtualdisplaydriver_")
+        .and_then(|n| n.parse::<u32>().ok())
+    else {
+        return Err(NTSTATUS::STATUS_ASSERTION_FAILURE);
+    };
+
+    Ok(id)
+}
+
 fn get_hardware_id(wdfdevice: WDFDEVICE) -> Result<String, NTSTATUS> {
     let mut property_data = _WDF_DEVICE_PROPERTY_DATA {
         Size: std::mem::size_of::<_WDF_DEVICE_PROPERTY_DATA>() as u32,
@@ -234,6 +246,9 @@ fn get_hardware_id(wdfdevice: WDFDEVICE) -> Result<String, NTSTATUS> {
 
     if let Err(e) = status {
         error!("Failed to alloc and query property: {e}");
+        unsafe {
+            _ = WdfObjectDelete(property_memory as *mut _);
+        }
         return Err(e.into());
     }
 
@@ -243,7 +258,11 @@ fn get_hardware_id(wdfdevice: WDFDEVICE) -> Result<String, NTSTATUS> {
         let ret = unsafe { WdfMemoryGetBuffer(property_memory, Some(&mut size)) };
         let Ok(data) = ret else {
             let e = ret.unwrap_err();
+
             error!("Failed to get memory buffer: {e:?}",);
+            unsafe {
+                _ = WdfObjectDelete(property_memory as *mut _);
+            }
             return Err(e.into());
         };
 
@@ -252,6 +271,9 @@ fn get_hardware_id(wdfdevice: WDFDEVICE) -> Result<String, NTSTATUS> {
         String::from_utf16_lossy(slice)
     } else {
         error!("got wrong devpkey for hardware id");
+        unsafe {
+            _ = WdfObjectDelete(property_memory as *mut _);
+        }
         return Err(NTSTATUS::STATUS_FAIL_CHECK);
     };
 
