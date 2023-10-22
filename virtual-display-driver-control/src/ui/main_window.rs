@@ -66,7 +66,7 @@ impl<'a> MainWindow<'a> {
                     // compare to this one
                     let height = ui.min_rect().height();
                     rect.set_top(rect.top() + height + 10.0);
-                    rect.set_bottom(rect.bottom() + (height / 2.0) + 6.0);
+                    rect.set_bottom(rect.bottom() + height - 1.5);
                     rect.set_left(rect.left() - 2.0);
                     rect.set_right(rect.right() + 2.0);
 
