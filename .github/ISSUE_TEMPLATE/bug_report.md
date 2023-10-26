@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a report to help us improve
 title: '[Bug Report] My bug'
-labels: bug,awaiting feedback
+labels: bug,new
 assignees: ''
 
 ---
@@ -57,6 +57,6 @@ Please provide, as best you can, detailed steps for reproducing the issue.
 ```
 <PUT LOGS HERE>
 ```
-  
+
 </p>
 </details>
