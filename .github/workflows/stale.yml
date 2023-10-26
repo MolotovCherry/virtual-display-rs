@@ -1,0 +1,27 @@
+name: 'Close stale issues and PRs'
+on:
+  schedule:
+    - cron: '00 0 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v8
+        with:
+          days-before-issue-stale: 30
+          days-before-pr-stale: -1
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          only-labels: 'duplicate,invalid,awaiting feedback,wontfix'
+          exempt-all-milestones: true
+          exempt-all-assignees: true
+          labels-to-remove-when-unstale: stale
+          stale-issue-message: 'This issue is stale because it has been open for 30 days with no activity. It will be closed in 7 days if there is no activity within that time. You may still comment on it after it is closed if you wish for it to receive attention or be re-opened.'
+          stale-pr-message: 'This pr is stale because it has been open for 30 days with no activity. It will be closed in 7 days if there is no activity within that time. If it gets closed, but you wish to still do the pr, either send a new one, or comment on the pr stating your wishes.'
