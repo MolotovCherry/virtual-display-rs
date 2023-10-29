@@ -165,5 +165,5 @@ extern "C-unwind" fn driver_add(
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
-    _ = DeviceContext::drop(wdf_object);
+    _ = unsafe { DeviceContext::drop(wdf_object) };
 }

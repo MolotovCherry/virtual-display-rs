@@ -1,3 +1,4 @@
+#![allow(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::all)]
 
 // stand-in type replacing NTSTATUS in the bindings
