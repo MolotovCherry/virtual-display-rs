@@ -19,7 +19,7 @@ jobs:
           days-before-pr-stale: -1
           stale-issue-label: 'stale'
           stale-pr-label: 'stale'
-          only-labels: 'duplicate,invalid,awaiting feedback,wontfix'
+          any-of-labels: 'duplicate,invalid,awaiting feedback,wontfix'
           exempt-all-milestones: true
           exempt-all-assignees: true
           labels-to-remove-when-unstale: stale
