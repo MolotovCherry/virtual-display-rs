@@ -22,7 +22,8 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 
-      - uses: giraffate/clippy-action@v1
+      - name: Clippy
+        uses: giraffate/clippy-action@v1
         with:
           reporter: 'github-pr-review'
           github_token: ${{ secrets.GITHUB_TOKEN }}
