@@ -50,7 +50,7 @@ The certificate needs installation for Windows to accept the driver
 2. Open a cmd prompt as admin and run `install-cert.bat`
 3. Verify the certificate installed properly. *
 
-\* Sometimes the certificates don't install properly for people, then the driver won't install. If this happens to you, you should check that the certificate is actually installed. Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) (below) in an admin cmd prompt to make sure the certificate installed correctly (for both root and TrustedPublisher stores). The commands will tell you if they successfully added it or not.
+\* If the certificate didn't install properly, then the driver won't install. If driver installation fails, this is most likely the reason why; and you should check that the certificate is actually installed. Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) (below) in an admin cmd prompt to make sure the certificate is installed correctly (for both root and TrustedPublisher stores). The commands will tell you if they successfully added it or not.
 ```
 certutil -addstore -f root "DriverCertificate.cer"
 certutil -addstore -f TrustedPublisher "DriverCertificate.cer"
