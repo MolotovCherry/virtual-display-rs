@@ -13,7 +13,7 @@ wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.20"
 widestring = "1.0.2"
 bytemuck = { version = "1.14.0", features = ["derive"] }
-serde_json = "1.0.107"
+serde_json = "1.0.108"
 driver-ipc = { path = "../driver-ipc" }
 winreg = "0.51.0"
 winlog = { path = "../winlog" }
