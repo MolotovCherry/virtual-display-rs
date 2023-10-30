@@ -56,8 +56,11 @@ certutil -addstore -f root "DriverCertificate.cer"
 certutil -addstore -f TrustedPublisher "DriverCertificate.cer"
 ```
 You can also search for `Manage Computer Certificates`, look in `Trusted Publishers` and `Trusted Root Certification`, you will see the certificate named `DriverCertficate`.
+
 ![image](https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/f63d24dd-a61d-42f4-b491-5123fd480d38)
+
 You can manually import it by right clicking on the menu entry -> `All Tasks` -> `Import`, and following the instructions in the import wizard
+
 ![image](https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/3a2f7704-12ae-4d66-963c-68c44c66bde4)
 
 Why is it so difficult? The reason I didn't add auto certificate installation is because I believe certificates are a personal thing, and should not be added automatically without the users knowledge.
