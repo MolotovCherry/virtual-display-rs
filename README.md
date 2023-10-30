@@ -48,9 +48,19 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
 The certificate needs installation for Windows to accept the driver
 1. In your downloaded zip, there is a file `DriverCertificate.cer` and `install-cert.bat`
 2. Open a cmd window as admin and run `install-cert.bat`
-3. Verify the certificate installed properly. **If it didn't, the driver won't be able to install correctly, and you should try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) to make sure it installs correctly.**
+3. Verify the certificate installed properly. *
 
-This last point in #3 is important! If the driver didn't install, you should check that the certificate actually installed. Sometimes it doesn't install properly the first time for people.
+\* Sometimes the certificates don't install properly for people, then the driver won't install. If this happens to you, you should check that the certificate is actually installed. Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) (below) in an admin terminal to make sure the certificate installed correctly (for both root and TrustedPublisher stores). The commands will tell you if they successfully added it or not.
+```
+certutil -addstore -f root "DriverCertificate.cer"
+certutil -addstore -f TrustedPublisher "DriverCertificate.cer"
+```
+You can also search for `Manage Computer Certificates`, look in `Trusted Publishers` and `Trusted Root Certification`, you will see the certificate named `DriverCertficate`.
+![image](https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/f63d24dd-a61d-42f4-b491-5123fd480d38)
+You can manually import it by right clicking on the menu entry -> `All Tasks` -> `Import`, and following the instructions in the import wizard
+![image](https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/3a2f7704-12ae-4d66-963c-68c44c66bde4)
+
+Why is it so difficult? The reason I didn't add auto certificate installation is because I believe certificates are a personal thing, and should not be added automatically without the users knowledge.
 
 ## Updating
 1. Download the new release
