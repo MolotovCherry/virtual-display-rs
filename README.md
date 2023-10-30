@@ -47,10 +47,10 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
 ## Installing the certificate
 The certificate needs installation for Windows to accept the driver
 1. In your downloaded zip, there is a file `DriverCertificate.cer` and `install-cert.bat`
-2. Open a cmd window as admin and run `install-cert.bat`
+2. Open a cmd prompt as admin and run `install-cert.bat`
 3. Verify the certificate installed properly. *
 
-\* Sometimes the certificates don't install properly for people, then the driver won't install. If this happens to you, you should check that the certificate is actually installed. Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) (below) in an admin terminal to make sure the certificate installed correctly (for both root and TrustedPublisher stores). The commands will tell you if they successfully added it or not.
+\* Sometimes the certificates don't install properly for people, then the driver won't install. If this happens to you, you should check that the certificate is actually installed. Try manually running the commands in the [`install-cert.bat` file](https://github.com/MolotovCherry/virtual-display-rs/blob/master/installer/install-cert.bat) (below) in an admin cmd prompt to make sure the certificate installed correctly (for both root and TrustedPublisher stores). The commands will tell you if they successfully added it or not.
 ```
 certutil -addstore -f root "DriverCertificate.cer"
 certutil -addstore -f TrustedPublisher "DriverCertificate.cer"
