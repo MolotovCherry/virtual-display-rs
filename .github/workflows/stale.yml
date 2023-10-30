@@ -23,5 +23,6 @@ jobs:
           exempt-all-milestones: true
           exempt-all-assignees: true
           labels-to-remove-when-unstale: stale
-          stale-issue-message: 'This issue is stale because it has been open for 30 days with no activity. It will be closed in 7 days if there is no activity within that time. You may still comment on it after it is closed if you wish for it to receive attention or be re-opened.'
+          stale-issue-message: 'This issue is stale because it has been open for 30 days with no activity. It will be closed in 7 days if there is no activity within that time.'
           stale-pr-message: 'This pr is stale because it has been open for 30 days with no activity. It will be closed in 7 days if there is no activity within that time. If it gets closed, but you wish to still do the pr, either send a new one, or comment on the pr stating your wishes.'
+          close-issue-message: 'This issue has been closed because it was stale for 30 days, and there was no activity within the 7 day grace period. You may still comment on your issue after it is closed if you wish for it to receive attention or be re-opened.'
