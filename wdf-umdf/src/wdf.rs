@@ -128,6 +128,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
     ($sv:vis $context_type:ident) => {
         $crate::paste! {
             // keep it in a mod block to disallow access to private types
+            #[allow(non_snake_case)]
             mod [<WdfObject $context_type>] {
                 use super::$context_type;
 
