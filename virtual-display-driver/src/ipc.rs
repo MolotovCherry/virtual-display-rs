@@ -134,11 +134,6 @@ fn add_or_update(monitors: Vec<Monitor>) {
             for monitor in monitors {
                 let id = monitor.id;
 
-                // skip monitors that are not enabled
-                if !monitor.enabled {
-                    continue;
-                }
-
                 {
                     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
@@ -156,17 +151,19 @@ fn add_or_update(monitors: Vec<Monitor>) {
                         // replace existing item with new object
                         lock[i] = MonitorObject {
                             monitor_object: None,
-                            monitor,
+                            monitor: monitor.clone(),
                         };
                     } else {
                         lock.push(MonitorObject {
                             monitor_object: None,
-                            monitor,
+                            monitor: monitor.clone(),
                         });
                     }
                 }
 
-                context.create_monitor(id);
+                if monitor.enabled {
+                    context.create_monitor(id);
+                }
             }
         })
         .unwrap();
