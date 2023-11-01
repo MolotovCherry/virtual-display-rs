@@ -6,12 +6,11 @@ use std::{
 };
 
 use driver_ipc::{Command, Monitor};
-use log::warn;
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
 use winreg::{
-    enums::{HKEY_LOCAL_MACHINE, KEY_READ},
+    enums::{HKEY_CURRENT_USER, KEY_READ},
     RegKey,
 };
 
@@ -46,7 +45,7 @@ pub fn startup() {
 
         // add default monitors saved in registry
         if !monitors.is_empty() {
-            add(monitors);
+            add_or_update(monitors);
         }
 
         let server = NamedPipeServerOptions::new(r"\\.\pipe\virtualdisplaydriver")
@@ -79,12 +78,10 @@ pub fn startup() {
                 };
 
                 match msg {
-                    Command::DriverAdd(monitors) => add(monitors),
+                    Command::DriverAddOrUpdate(monitors) => add_or_update(monitors),
 
                     Command::DriverRemove(ids) => {
-                        if let Some(ControlFlow::Continue(_)) = remove(ids) {
-                            continue;
-                        }
+                        remove(ids);
                     }
 
                     Command::DriverRemoveAll => {
@@ -114,7 +111,7 @@ pub fn startup() {
 }
 
 fn get_data() -> Vec<Monitor> {
-    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let hklm = RegKey::predef(HKEY_CURRENT_USER);
     let key = r"SOFTWARE\VirtualDisplayDriver";
 
     let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
@@ -127,7 +124,9 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
-fn add(monitors: Vec<Monitor>) {
+/// Adds if it doesn't exist,
+/// Or, if it does exist, updates it by detaching, update, and re-attaching
+fn add_or_update(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
@@ -135,19 +134,36 @@ fn add(monitors: Vec<Monitor>) {
             for monitor in monitors {
                 let id = monitor.id;
 
+                // skip monitors that are not enabled
+                if !monitor.enabled {
+                    continue;
+                }
+
                 {
                     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-                    // if this monitor index is already in, do not add it, no-op it
-                    if lock.iter().any(|m| m.monitor.id == id) {
-                        warn!("Cannot add monitor {id}, because it is already added");
-                        continue;
-                    }
+                    let cur_mon = lock
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, mon)| mon.monitor.id == id);
 
-                    lock.push(MonitorObject {
-                        monitor_object: None,
-                        monitor,
-                    });
+                    if let Some((i, mon)) = cur_mon {
+                        // if monitor is already enabled, we should detach it and replace it
+                        if let Some(mut obj) = mon.monitor_object.take() {
+                            IddCxMonitorDeparture(obj.as_mut()).unwrap();
+                        }
+
+                        // replace existing item with new object
+                        lock[i] = MonitorObject {
+                            monitor_object: None,
+                            monitor,
+                        };
+                    } else {
+                        lock.push(MonitorObject {
+                            monitor_object: None,
+                            monitor,
+                        });
+                    }
                 }
 
                 context.create_monitor(id);
@@ -173,30 +189,22 @@ fn remove_all() -> Option<ControlFlow<()>> {
     None
 }
 
-fn remove(ids: Vec<u32>) -> Option<ControlFlow<()>> {
+fn remove(ids: Vec<u32>) {
     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-    let mut to_remove = Vec::new();
-
     for &id in ids.iter() {
-        for (i, monitor) in lock.iter().enumerate() {
+        lock.retain_mut(|monitor| {
             if id == monitor.monitor.id {
-                to_remove.push(i);
-
-                let Some(mut monitor_object) = monitor.monitor_object else {
-                    return Some(ControlFlow::Continue(()));
-                };
-
-                unsafe {
-                    IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+                if let Some(mut monitor_object) = monitor.monitor_object.take() {
+                    unsafe {
+                        IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+                    }
                 }
+
+                false
+            } else {
+                true
             }
-        }
+        });
     }
-
-    for r_id in to_remove {
-        lock.remove(r_id);
-    }
-
-    None
 }

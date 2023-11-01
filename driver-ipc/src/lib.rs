@@ -23,7 +23,7 @@ pub struct Mode {
 pub enum Command {
     // Single line of communication client->server
     // Driver commands
-    DriverAdd(Vec<Monitor>),
+    DriverAddOrUpdate(Vec<Monitor>),
     DriverRemove(Vec<Id>),
     DriverRemoveAll,
     // Requests
