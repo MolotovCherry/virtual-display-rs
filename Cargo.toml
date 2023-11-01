@@ -6,15 +6,9 @@ members = [
     "wdf-umdf",
     "winlog",
     "driver-ipc",
-    "virtual-display-driver-control",
 ]
 
 [profile.release]
 strip = true
 codegen-units = 1
 lto = true
-
-# patch bug which causes egui crash when changing monitors
-# https://github.com/rust-windowing/winit/issues/3102
-[patch.crates-io]
-winit = { path = "virtual-display-driver-control/vendored/winit" }
