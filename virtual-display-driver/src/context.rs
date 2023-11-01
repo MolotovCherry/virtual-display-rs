@@ -18,7 +18,7 @@ use windows::core::GUID;
 use crate::{
     direct_3d_device::Direct3DDevice,
     edid::generate_edid_with,
-    monitor_listener::{startup, MONITOR_MODES},
+    ipc::{startup, MONITOR_MODES},
     swap_chain_processor::SwapChainProcessor,
 };
 

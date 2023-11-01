@@ -3,7 +3,7 @@ use std::{
     ptr::NonNull,
 };
 
-use driver_ipc::MonitorMode;
+use driver_ipc::Mode;
 
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
@@ -21,7 +21,7 @@ use wdf_umdf_sys::{
 use crate::{
     context::{DeviceContext, MonitorContext},
     edid::get_edid_serial,
-    monitor_listener::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
+    ipc::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
 };
 
 pub extern "C-unwind" fn adapter_init_finished(
@@ -144,11 +144,13 @@ pub extern "C-unwind" fn parse_monitor_description(
         };
 
         for (out_mode, mode) in monitor_modes.iter_mut().zip(&monitor.monitor.modes) {
-            out_mode.write(IDDCX_MONITOR_MODE {
-                Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
-                Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
-                MonitorVideoSignalInfo: display_info(mode.width, mode.height, mode.refresh_rate),
-            });
+            for refresh_rate in mode.refresh_rates.iter().copied() {
+                out_mode.write(IDDCX_MONITOR_MODE {
+                    Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
+                    Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
+                    MonitorVideoSignalInfo: display_info(mode.width, mode.height, refresh_rate),
+                });
+            }
         }
 
         // Set the preferred mode as represented in the EDID
@@ -243,17 +245,18 @@ pub extern "C-unwind" fn monitor_query_modes(
         };
 
         for (
-            &MonitorMode {
+            &Mode {
                 width,
                 height,
-                refresh_rate,
+                ref refresh_rates,
             },
             out_target,
         ) in monitor.monitor.modes.iter().zip(out_target_modes)
         {
-            let target_mode = target_mode(width, height, refresh_rate);
-
-            out_target.write(target_mode);
+            for refresh_rate in refresh_rates.iter().copied() {
+                let target_mode = target_mode(width, height, refresh_rate);
+                out_target.write(target_mode);
+            }
         }
     }
 

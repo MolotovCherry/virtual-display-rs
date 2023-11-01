@@ -5,7 +5,7 @@ use std::{
     thread,
 };
 
-use driver_ipc::{DriverCommand, Monitor};
+use driver_ipc::{Command, Monitor};
 use log::warn;
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
@@ -53,7 +53,7 @@ pub fn startup() {
             .reject_remote()
             .read_message()
             .write_message()
-            .access_inbound()
+            .access_duplex()
             .first_pipe_instance()
             .max_instances(1)
             .in_buffer_size(4096)
@@ -73,25 +73,40 @@ pub fn startup() {
                     continue;
                 };
 
-                let Ok(msg) = serde_json::from_str::<DriverCommand>(msg) else {
+                let Ok(msg) = serde_json::from_str::<Command>(msg) else {
                     _ = server.disconnect();
                     continue;
                 };
 
                 match msg {
-                    DriverCommand::Add(monitors) => add(monitors),
+                    Command::DriverAdd(monitors) => add(monitors),
 
-                    DriverCommand::Remove(ids) => {
+                    Command::DriverRemove(ids) => {
                         if let Some(ControlFlow::Continue(_)) = remove(ids) {
                             continue;
                         }
                     }
 
-                    DriverCommand::RemoveAll => {
+                    Command::DriverRemoveAll => {
                         if let Some(ControlFlow::Continue(_)) = remove_all() {
                             continue;
                         }
                     }
+
+                    Command::RequestState => {
+                        let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+                        let monitors = lock.iter().map(|m| m.monitor.clone()).collect::<Vec<_>>();
+                        let command = Command::ReplyState(monitors);
+
+                        let Ok(serialized) = serde_json::to_string(&command) else {
+                            continue;
+                        };
+
+                        _ = client.write(serialized.as_bytes());
+                    }
+
+                    // Everything else is an invalid command
+                    _ => continue,
                 }
             }
         }
