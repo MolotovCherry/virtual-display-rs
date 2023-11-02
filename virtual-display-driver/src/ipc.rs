@@ -1,5 +1,4 @@
 use std::{
-    ops::ControlFlow,
     ptr::NonNull,
     sync::{Mutex, OnceLock},
     thread,
@@ -45,7 +44,7 @@ pub fn startup() {
 
         // add default monitors saved in registry
         if !monitors.is_empty() {
-            add_or_update(monitors);
+            add_or_update_monitors(monitors);
         }
 
         let server = NamedPipeServerOptions::new(r"\\.\pipe\virtualdisplaydriver")
@@ -78,17 +77,11 @@ pub fn startup() {
                 };
 
                 match msg {
-                    Command::DriverAddOrUpdate(monitors) => add_or_update(monitors),
+                    Command::DriverAddOrUpdateMonitor(monitors) => add_or_update_monitors(monitors),
 
-                    Command::DriverRemove(ids) => {
-                        remove(ids);
-                    }
+                    Command::DriverRemoveMonitor(ids) => remove(ids),
 
-                    Command::DriverRemoveAll => {
-                        if let Some(ControlFlow::Continue(_)) = remove_all() {
-                            continue;
-                        }
-                    }
+                    Command::DriverRemoveAllMonitors => remove_all(),
 
                     Command::RequestState => {
                         let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
@@ -101,6 +94,8 @@ pub fn startup() {
 
                         _ = client.write(serialized.as_bytes());
                     }
+
+                    Command::DriverUpdateName(monitor) => update_name(monitor),
 
                     // Everything else is an invalid command
                     _ => continue,
@@ -124,9 +119,18 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
+/// This exists solely to update the label without changing the monitor itself
+fn update_name(monitor: Monitor) {
+    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+
+    if let Some(found_monitor) = lock.iter_mut().find(|m| m.monitor.id == monitor.id) {
+        found_monitor.monitor.name = monitor.name;
+    }
+}
+
 /// Adds if it doesn't exist,
 /// Or, if it does exist, updates it by detaching, update, and re-attaching
-fn add_or_update(monitors: Vec<Monitor>) {
+fn add_or_update_monitors(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
@@ -170,20 +174,16 @@ fn add_or_update(monitors: Vec<Monitor>) {
     }
 }
 
-fn remove_all() -> Option<ControlFlow<()>> {
+fn remove_all() {
     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
     for monitor in lock.drain(..) {
-        let Some(mut monitor_object) = monitor.monitor_object else {
-            return Some(ControlFlow::Continue(()));
-        };
-
-        unsafe {
-            IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+        if let Some(mut monitor_object) = monitor.monitor_object {
+            unsafe {
+                IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+            }
         }
     }
-
-    None
 }
 
 fn remove(ids: Vec<u32>) {

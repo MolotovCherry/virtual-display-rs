@@ -8,6 +8,7 @@ pub type RefreshRate = u32;
 pub struct Monitor {
     // identifier
     pub id: Id,
+    pub name: Option<String>,
     pub enabled: bool,
     pub modes: Vec<Mode>,
 }
@@ -23,9 +24,10 @@ pub struct Mode {
 pub enum Command {
     // Single line of communication client->server
     // Driver commands
-    DriverAddOrUpdate(Vec<Monitor>),
-    DriverRemove(Vec<Id>),
-    DriverRemoveAll,
+    DriverAddOrUpdateMonitor(Vec<Monitor>),
+    DriverRemoveMonitor(Vec<Id>),
+    DriverRemoveAllMonitors,
+    DriverUpdateName(Monitor),
     // Requests
     // client->server
     RequestState,
