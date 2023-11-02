@@ -44,7 +44,7 @@ pub fn startup() {
 
         // add default monitors saved in registry
         if !monitors.is_empty() {
-            add_or_update_monitors(monitors);
+            notify(monitors);
         }
 
         let server = NamedPipeServerOptions::new(r"\\.\pipe\virtualdisplaydriver")
@@ -77,9 +77,9 @@ pub fn startup() {
                 };
 
                 match msg {
-                    Command::DriverAddOrUpdateMonitor(monitors) => add_or_update_monitors(monitors),
+                    Command::DriverNotify(monitors) => notify(monitors),
 
-                    Command::DriverRemoveMonitor(ids) => remove(ids),
+                    Command::DriverRemove(ids) => remove(ids),
 
                     Command::DriverRemoveAllMonitors => remove_all(),
 
@@ -94,8 +94,6 @@ pub fn startup() {
 
                         _ = client.write(serialized.as_bytes());
                     }
-
-                    Command::DriverUpdateName(monitor) => update_name(monitor),
 
                     // Everything else is an invalid command
                     _ => continue,
@@ -119,24 +117,20 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
-/// This exists solely to update the label without changing the monitor itself
-fn update_name(monitor: Monitor) {
-    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
-
-    if let Some(found_monitor) = lock.iter_mut().find(|m| m.monitor.id == monitor.id) {
-        found_monitor.monitor.name = monitor.name;
-    }
-}
-
 /// Adds if it doesn't exist,
 /// Or, if it does exist, updates it by detaching, update, and re-attaching
-fn add_or_update_monitors(monitors: Vec<Monitor>) {
+///
+/// Only adds/detaches, if required in order to update monitor state in the OS.
+/// e.g. only a name update would not detach/arrive a monitor
+fn notify(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
         DeviceContext::get_mut(adapter as *mut _, |context| {
             for monitor in monitors {
                 let id = monitor.id;
+
+                let should_arrive;
 
                 {
                     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
@@ -147,9 +141,22 @@ fn add_or_update_monitors(monitors: Vec<Monitor>) {
                         .find(|(_, mon)| mon.monitor.id == id);
 
                     if let Some((i, mon)) = cur_mon {
-                        // if monitor is already enabled, we should detach it and replace it
-                        if let Some(mut obj) = mon.monitor_object.take() {
-                            IddCxMonitorDeparture(obj.as_mut()).unwrap();
+                        let modes_changed = mon.monitor.modes != monitor.modes;
+
+                        #[allow(clippy::nonminimal_bool)]
+                        {
+                            should_arrive =
+                                // previously was disabled, and it was just enabled
+                                (!mon.monitor.enabled && monitor.enabled) ||
+                                // OR monitor is enabled and the display modes changed
+                                (monitor.enabled && modes_changed);
+                        }
+
+                        // should only detach if modes changed, or if state is false
+                        if modes_changed || !monitor.enabled {
+                            if let Some(mut obj) = mon.monitor_object.take() {
+                                IddCxMonitorDeparture(obj.as_mut()).unwrap();
+                            }
                         }
 
                         // replace existing item with new object
@@ -158,6 +165,8 @@ fn add_or_update_monitors(monitors: Vec<Monitor>) {
                             monitor: monitor.clone(),
                         };
                     } else {
+                        should_arrive = monitor.enabled;
+
                         lock.push(MonitorObject {
                             monitor_object: None,
                             monitor: monitor.clone(),
@@ -165,7 +174,7 @@ fn add_or_update_monitors(monitors: Vec<Monitor>) {
                     }
                 }
 
-                if monitor.enabled {
+                if should_arrive {
                     context.create_monitor(id);
                 }
             }
