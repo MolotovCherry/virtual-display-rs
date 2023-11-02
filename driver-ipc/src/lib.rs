@@ -30,7 +30,7 @@ pub enum Command {
     // Remove a monitor from system
     DriverRemove(Vec<Id>),
     // Remove all monitors from system
-    DriverRemoveAllMonitors,
+    DriverRemoveAll,
     // Requests
     // client->server
     //

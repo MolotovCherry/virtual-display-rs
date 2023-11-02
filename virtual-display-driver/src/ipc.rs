@@ -81,7 +81,7 @@ pub fn startup() {
 
                     Command::DriverRemove(ids) => remove(ids),
 
-                    Command::DriverRemoveAllMonitors => remove_all(),
+                    Command::DriverRemoveAll => remove_all(),
 
                     Command::RequestState => {
                         let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
