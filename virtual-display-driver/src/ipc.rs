@@ -8,6 +8,13 @@ use driver_ipc::{Command, Monitor};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
+use windows::Win32::{
+    Security::{
+        InitializeSecurityDescriptor, SetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
+        SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
+    },
+    System::SystemServices::SECURITY_DESCRIPTOR_REVISION,
+};
 use winreg::{
     enums::{HKEY_CURRENT_USER, KEY_READ},
     RegKey,
@@ -47,6 +54,34 @@ pub fn startup() {
             notify(monitors);
         }
 
+        // These security attributes will allow anyone access, so local account does not need admin privileges to use it
+
+        let mut sd = SECURITY_DESCRIPTOR::default();
+
+        unsafe {
+            InitializeSecurityDescriptor(
+                PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _),
+                SECURITY_DESCRIPTOR_REVISION,
+            )
+            .unwrap();
+        }
+
+        unsafe {
+            SetSecurityDescriptorDacl(
+                PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _),
+                true,
+                None,
+                false,
+            )
+            .unwrap();
+        }
+
+        let sa = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: &mut sd as *mut _ as *mut _,
+            bInheritHandle: false.into(),
+        };
+
         let server = NamedPipeServerOptions::new(r"\\.\pipe\virtualdisplaydriver")
             .reject_remote()
             .read_message()
@@ -55,6 +90,8 @@ pub fn startup() {
             .first_pipe_instance()
             .max_instances(1)
             .in_buffer_size(4096)
+            .out_buffer_size(4096)
+            .security_attributes(&sa)
             .wait()
             .create()
             .unwrap();
