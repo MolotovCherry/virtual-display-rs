@@ -1,4 +1,5 @@
 use std::{
+    io::Write,
     ptr::NonNull,
     sync::{Mutex, OnceLock},
     thread,
@@ -82,7 +83,7 @@ pub fn startup() {
             bInheritHandle: false.into(),
         };
 
-        let server = NamedPipeServerOptions::new(r"\\.\pipe\virtualdisplaydriver")
+        let server = NamedPipeServerOptions::new("virtualdisplaydriver")
             .reject_remote()
             .read_message()
             .write_message()
@@ -97,12 +98,12 @@ pub fn startup() {
             .unwrap();
 
         for client in server.incoming() {
-            let Ok(client) = client else {
+            let Ok((reader, mut writer)) = client else {
                 // errors are safe to continue on
                 continue;
             };
 
-            for data in client.iter_full() {
+            for data in reader.iter_read_full() {
                 let Ok(msg) = std::str::from_utf8(&data) else {
                     _ = server.disconnect();
                     continue;
@@ -129,7 +130,7 @@ pub fn startup() {
                             continue;
                         };
 
-                        _ = client.write(serialized.as_bytes());
+                        _ = writer.write_all(serialized.as_bytes());
                     }
 
                     // Everything else is an invalid command
