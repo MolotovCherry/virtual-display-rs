@@ -1,15 +1,10 @@
-﻿using Microsoft.UI.Xaml.Media.Animation;
-using System;
-using System.IO;
+﻿using System;
 using System.IO.Pipes;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Security.Principal;
 using System.Threading;
-using Windows.Media.Protection.PlayReady;
 using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
@@ -227,7 +222,7 @@ public class PipeClient : IDisposable {
     private void Reader() {
         while (IsConnected) {
             try {
-                if (ReadyToRead(pipeClient.SafePipeHandle)) {
+                if (ReadyToRead()) {
                     var msg = ReadMessageInternal();
                     Messages.Add(msg);
                 } else {
@@ -266,14 +261,14 @@ public class PipeClient : IDisposable {
     #nullable restore
 
     // Check if pipe has anything available
-    static bool ReadyToRead(SafeHandle streamHandle) {
+    bool ReadyToRead() {
         byte[] buffer = new byte[1];
         uint aPeekedBytes = 0;
         uint aAvailBytes = 0;
         uint aLeftBytes = 0;
 
         bool aPeekedSuccess = PeekNamedPipe(
-            streamHandle,
+            pipeClient.SafePipeHandle,
             buffer,
             (uint)buffer.Length,
             ref aPeekedBytes,
