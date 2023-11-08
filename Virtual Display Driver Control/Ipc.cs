@@ -9,8 +9,6 @@ using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 
-
-
 namespace Virtual_Display_Driver_Control {
     public class Ipc : IDisposable {
         public static List<Action> OnConnect = new List<Action>();
@@ -25,7 +23,13 @@ namespace Virtual_Display_Driver_Control {
             if (IsConnected) {
                 return IpcTask;
             } else {
-                IpcTask?.Result?.Dispose();
+                if (!IpcTask.IsFaulted) {
+                    IpcTask?.Result?.Dispose();
+                } else {
+                    pipeClient?.Dispose();
+                    pipeClient = null;
+                    IpcTask = null;
+                }
 
                 var tcs = new TaskCompletionSource<Ipc>();
 
@@ -71,6 +75,13 @@ namespace Virtual_Display_Driver_Control {
         // Gets Ipc, returns null if it is not created
         public static Ipc GetIpc() {
             if (IsConnected) {
+                if (IpcTask.IsFaulted) {
+                    pipeClient.Dispose();
+                    pipeClient = null;
+                    IpcTask = null;
+                    return null;
+                }
+
                 return IpcTask.Result;
             } else {
                 IpcTask?.Result?.Dispose();
@@ -162,12 +173,18 @@ public class Monitor {
     public string name { get; set; }
     public bool enabled { get; set; }
     public List<Mode> modes { get; set; }
+    // used to keep track of ui state
+    [JsonIgnore]
+    public bool pending { get; set; }
 }
 
 public class Mode {
     public uint width { get; set; }
     public uint height { get; set; }
     public List<uint> refresh_rates { get; set; }
+    // used to keep track of ui state
+    [JsonIgnore]
+    public bool pending { get; set; }
 }
 
 //
@@ -227,6 +244,7 @@ public class PipeClient : IDisposable {
                     // any error other than 0 means it failed
                     // for example, pipe broken
                     var err = Marshal.GetLastWin32Error();
+
                     if (err != 0) {
                         Dispose();
                         break;
