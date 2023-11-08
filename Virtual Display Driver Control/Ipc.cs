@@ -139,19 +139,17 @@ public class ReplyCommand {
 public class SendCommand {
     public List<uint> DriverRemove { get;  set; }
     public List<Monitor> DriverNotify { get; set; }
-    [JsonIgnore]
-    public bool RequestState { get; set; }
-    [JsonIgnore]
-    public bool DriverRemoveAll { get; set; }
+    public bool? RequestState { get; set; }
+    public bool? DriverRemoveAll { get; set; }
 
     public string ToJson() {
         var options = new JsonSerializerOptions {
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
-        if (RequestState) {
+        if (RequestState.GetValueOrDefault()) {
             return "\"RequestState\"";
-        } else if (DriverRemoveAll) {
+        } else if (DriverRemoveAll.GetValueOrDefault()) {
             return "\"DriverRemoveAll\"";
         }
 
@@ -283,4 +281,3 @@ public class PipeClient : IDisposable {
         }
     }
 }
-
