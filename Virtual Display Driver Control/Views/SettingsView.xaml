@@ -74,7 +74,7 @@
 
                 <!--  About  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
-                <controls:SettingsExpander Description="© 2023 Cherry. All rights reserved." Header="{StaticResource AppTitleName}">
+                <controls:SettingsExpander Description="© 2023 Cherry. All rights reserved." Header="{x:Bind AppInfo}">
                     <controls:SettingsExpander.HeaderIcon>
                         <BitmapIcon ShowAsMonochrome="False" UriSource="/Assets/Tiles/SmallTile-sdk.png" />
                     </controls:SettingsExpander.HeaderIcon>

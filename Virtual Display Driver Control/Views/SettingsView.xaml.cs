@@ -3,12 +3,22 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using Virtual_Display_Driver_Control.Helpers;
+using Windows.ApplicationModel;
 using Windows.Storage;
 using Windows.System;
 
 namespace Virtual_Display_Driver_Control.Views;
 
 public sealed partial class SettingsView : Page {
+    public string AppInfo {
+        get {
+            var version = Package.Current.Id.Version;
+            var appTitle = Application.Current.Resources["AppTitleName"] as string;
+            var versionString = $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+            return $"{appTitle} - v{versionString}";
+        }
+    }
+
     public SettingsView() {
         InitializeComponent();
 

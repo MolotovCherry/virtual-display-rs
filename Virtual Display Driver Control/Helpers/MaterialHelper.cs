@@ -10,7 +10,6 @@ class MaterialHelper
         ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
         SetMaterial((string)localSettings.Values["material"] ?? "Mica");
-
     }
 
     public static void SetMaterial(string material) {

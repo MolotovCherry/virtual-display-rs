@@ -67,15 +67,15 @@ public static class ThemeHelper {
                 titleBar.ButtonForegroundColor = Colors.Black;
                 titleBar.ButtonInactiveForegroundColor = Colors.Black;
                 titleBar.ButtonHoverForegroundColor = Colors.Black;
-                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(255, 233, 233, 233);
-                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(255, 237, 237, 237);
+                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(127, 233, 233, 233);
+                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(127, 237, 237, 237);
                 titleBar.ButtonPressedForegroundColor = Colors.Black;
             } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
                 titleBar.ButtonForegroundColor = Colors.White;
                 titleBar.ButtonInactiveForegroundColor = Colors.White;
                 titleBar.ButtonHoverForegroundColor = Colors.White;
-                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(255, 25, 25, 25);
-                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(255, 29, 29, 29);
+                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(127, 25, 25, 25);
+                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(127, 29, 29, 29);
                 titleBar.ButtonPressedForegroundColor = Colors.White;
             }
         }
