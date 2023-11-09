@@ -2,13 +2,19 @@
 <Application
     x:Class="Virtual_Display_Driver_Control.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Virtual_Display_Driver_Control">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--
+            <controls:XamlControlsResources>
+                <controls:XamlControlsResources.MergedDictionaries>
+                </controls:XamlControlsResources.MergedDictionaries>
+            </controls:XamlControlsResources>
+            -->
 
             <x:String x:Key="AppTitleName">Virtual Display Driver Control</x:String>
             <!-- Required to make the titlebar transparent -->

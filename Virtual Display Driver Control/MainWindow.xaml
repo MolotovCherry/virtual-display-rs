@@ -9,10 +9,6 @@
     mc:Ignorable="d"
     Title="Virtual Display Driver Control">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop/>
-    </Window.SystemBackdrop>
-
     <Grid x:Name="RootGrid" Canvas.ZIndex="1">
         <Grid.Resources>
             <Thickness x:Key="NavigationViewContentMargin">0,48,0,0</Thickness>
@@ -23,7 +19,7 @@
               Height="{Binding ElementName=NavView, Path=CompactPaneLength}"
               IsHitTestVisible="True"
               VerticalAlignment="Top">
-            <Image Source="/Assets/icon.png"
+            <Image Source="ms-appx:///Assets/icon.png"
                    HorizontalAlignment="Left" 
                    Width="16" Height="16" 
                    Margin="0,0"/>
