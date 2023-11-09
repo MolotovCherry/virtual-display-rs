@@ -9,7 +9,48 @@
     mc:Ignorable="d"
     Title="Virtual Display Driver Control">
 
-    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <Button x:Name="myButton" Click="myButton_Click">Click Me</Button>
-    </StackPanel>
+    <Window.SystemBackdrop>
+        <MicaBackdrop/>
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid" Canvas.ZIndex="1">
+        <Grid.Resources>
+            <Thickness x:Key="NavigationViewContentMargin">0,48,0,0</Thickness>
+        </Grid.Resources>
+
+        <Grid x:Name="AppTitleBar"
+              Canvas.ZIndex="1"
+              Height="{Binding ElementName=NavView, Path=CompactPaneLength}"
+              IsHitTestVisible="True"
+              VerticalAlignment="Top">
+            <Image Source="/Assets/icon.png"
+                   HorizontalAlignment="Left" 
+                   Width="16" Height="16" 
+                   Margin="0,0"/>
+            <TextBlock x:Name="AppTitleTextBlock" Text="{StaticResource AppTitleName}"
+                       TextWrapping="NoWrap"
+                       Style="{StaticResource CaptionTextBlockStyle}" 
+                       VerticalAlignment="Center"
+                       Margin="25,0,0,0"/>
+        </Grid>
+
+        <NavigationView
+            x:Name="NavView"
+            PaneDisplayMode="LeftCompact"
+            IsPaneToggleButtonVisible="False"
+            DisplayModeChanged="NavigationViewControl_DisplayModeChanged"
+            Loaded="NavView_Loaded"
+            SelectionChanged="NavView_SelectionChanged">
+        
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Monitors" Tag="MonitorsView">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F4;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <Frame x:Name="ContentFrame"/>
+        </NavigationView>
+    </Grid>
+
 </Window>

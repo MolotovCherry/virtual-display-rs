@@ -4,14 +4,12 @@
     <TargetFramework>net6.0-windows10.0.22621.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>Virtual_Display_Driver_Control</RootNamespace>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <RuntimeIdentifiers>win10-x86;win10-x64;win10-arm64</RuntimeIdentifiers>
     <PublishProfile>win10-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
-    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <IsPublishable>False</IsPublishable>
     <Title>Virtual Display Driver Control</Title>
     <Description>Virtual Display Driver Control manages your virutal monitors for the Virtual Display driver</Description>
@@ -19,7 +17,15 @@
     <PackageIcon>icon.png</PackageIcon>
     <RepositoryUrl>https://github.com/MolotovCherry/virtual-display-rs</RepositoryUrl>
     <PackageTags>windows,rust,privacy,monitor,display,vr,oculus,driver,remote,desktop,screen,windows-10,virtual-reality,private,virtual,dummy,virtual-desktop,obs,windows-11,virtual-monitor</PackageTags>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Views\MonitorsView.xaml" />
+    <None Remove="Views\SettingsView.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -46,10 +52,21 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+    <Content Update="Assets\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Assets\icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
+    <Page Update="Views\SettingsView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="Views\MonitorsView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <!-- 

@@ -1,29 +1,70 @@
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.IO.Pipes;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+using WinRT.Interop;
+using Virtual_Display_Driver_Control.Views;
 
 namespace Virtual_Display_Driver_Control {
     public sealed partial class MainWindow : Window {
         public MainWindow() {
-            this.InitializeComponent();
+            InitializeComponent();
+
+            // set window icon
+            if (AppWindowTitleBar.IsCustomizationSupported() is true) {
+                IntPtr hWnd = WindowNative.GetWindowHandle(this);
+                WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
+                AppWindow appWindow = AppWindow.GetFromWindowId(wndId);
+                var icon_id = Win32Interop.GetIconIdFromIcon(WindowTools.GetIcon().Handle);
+                appWindow.SetIcon(icon_id);
+            } else {
+                // fallback api to set icon for unsupported customization
+                WindowTools.SetWindowIcon(this);
+            }
+
+            // only supported on windows 11
+            if (AppWindowTitleBar.IsCustomizationSupported()) {
+                ExtendsContentIntoTitleBar = true;
+                SetTitleBar(AppTitleBar);
+            }
         }
 
-        private void myButton_Click(object sender, RoutedEventArgs e) {
-            myButton.Content = "Clicked";
+        private void NavigationViewControl_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args) {
+            AppTitleBar.Margin = new Thickness() {
+                Left = sender.CompactPaneLength * (sender.DisplayMode == NavigationViewDisplayMode.Minimal ? 2 : 1),
+                Top = AppTitleBar.Margin.Top,
+                Right = AppTitleBar.Margin.Right,
+                Bottom = AppTitleBar.Margin.Bottom
+            };
+        }
+
+        private void NavView_Loaded(object sender, RoutedEventArgs e) {
+            foreach (NavigationViewItemBase item in NavView.MenuItems) {
+                if (item is NavigationViewItem && item.Tag.ToString() == "MonitorsView") {
+                    NavView.SelectedItem = item;
+                    break;
+                }
+            }
+
+            ContentFrame.Navigate(typeof(MonitorsView));
+        }
+
+        private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args) {
+            if (args.IsSettingsSelected) {
+                ContentFrame.Navigate(typeof(SettingsView));
+            } else {
+                NavigationViewItem item = args.SelectedItem as NavigationViewItem;
+                switch (item.Tag) {
+                    case "MonitorsView":
+                        ContentFrame.Navigate(typeof(MonitorsView));
+                        break;
+
+                    default:
+                        break;
+                }
+            }
         }
     }
 }
+    
