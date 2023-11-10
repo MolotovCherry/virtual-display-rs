@@ -27,6 +27,8 @@ class MaterialHelper
                 window.SystemBackdrop = null;
                 localSettings.Values["material"] = "None";
             }
+
+            ThemeHelper.ApplyBackground((string)localSettings.Values["theme"]);
         }
     }
 }

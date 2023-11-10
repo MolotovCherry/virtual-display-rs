@@ -20,6 +20,33 @@
             <!-- Required to make the titlebar transparent -->
             <SolidColorBrush x:Key="WindowCaptionBackground">Transparent</SolidColorBrush>
             <SolidColorBrush x:Key="WindowCaptionBackgroundDisabled">Transparent</SolidColorBrush>
+
+            <!-- Themes -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush
+                        x:Key="Background"
+                        Color="White" />
+                    <Color x:Key="ButtonForegroundColor">Black</Color>
+                    <Color x:Key="ButtonInactiveForegroundColor">Black</Color>
+                    <Color x:Key="ButtonHoverForegroundColor">Black</Color>
+                    <Color x:Key="ButtonHoverBackgroundColor">#E9E9E9</Color>
+                    <Color x:Key="ButtonPressedBackgroundColor">#EDEDED</Color>
+                    <Color x:Key="ButtonPressedForegroundColor">Black</Color>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush
+                        x:Key="Background"
+                        Color="Black" />
+                    <Color x:Key="ButtonForegroundColor">White</Color>
+                    <Color x:Key="ButtonInactiveForegroundColor">White</Color>
+                    <Color x:Key="ButtonHoverForegroundColor">White</Color>
+                    <Color x:Key="ButtonHoverBackgroundColor">#191919</Color>
+                    <Color x:Key="ButtonPressedBackgroundColor">#1D1D1D</Color>
+                    <Color x:Key="ButtonPressedForegroundColor">White</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

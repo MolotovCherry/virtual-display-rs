@@ -1,8 +1,9 @@
 ﻿using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using System.Runtime.InteropServices;
 using Windows.Storage;
 using Windows.UI;
@@ -42,6 +43,8 @@ public static class ThemeHelper {
             if (theme == ElementTheme.Default) {
                 uiSettings.ColorValuesChanged += ColorChangedCb;
             }
+
+            ApplyBackground(theme);
         }
     }
 
@@ -58,26 +61,79 @@ public static class ThemeHelper {
             }
 
             SetThemeTitlebar(theme);
+            ApplyBackground(theme);
         });
     }
 
     private static void SetThemeTitlebar(ElementTheme theme) {
+
         if (App.Window?.AppWindow.TitleBar is AppWindowTitleBar titleBar && AppWindowTitleBar.IsCustomizationSupported()) {
+            var resources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
+
+            ResourceDictionary resourceTheme;
             if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
-                titleBar.ButtonForegroundColor = Colors.Black;
-                titleBar.ButtonInactiveForegroundColor = Colors.Black;
-                titleBar.ButtonHoverForegroundColor = Colors.Black;
-                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(127, 233, 233, 233);
-                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(127, 237, 237, 237);
-                titleBar.ButtonPressedForegroundColor = Colors.Black;
+                resourceTheme = (ResourceDictionary)resources["Light"];
             } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
-                titleBar.ButtonForegroundColor = Colors.White;
-                titleBar.ButtonInactiveForegroundColor = Colors.White;
-                titleBar.ButtonHoverForegroundColor = Colors.White;
-                titleBar.ButtonHoverBackgroundColor = Color.FromArgb(127, 25, 25, 25);
-                titleBar.ButtonPressedBackgroundColor = Color.FromArgb(127, 29, 29, 29);
-                titleBar.ButtonPressedForegroundColor = Colors.White;
+                resourceTheme = (ResourceDictionary)resources["Dark"];
+            } else {
+                if (ShouldSystemUseDarkMode()) {
+                    resourceTheme = (ResourceDictionary)resources["Dark"];
+                } else {
+                    resourceTheme = (ResourceDictionary)resources["Light"];
+                }
             }
+
+            titleBar.ButtonForegroundColor = (Color)resourceTheme["ButtonForegroundColor"];
+            titleBar.ButtonInactiveForegroundColor = (Color)resourceTheme["ButtonInactiveForegroundColor"];
+            titleBar.ButtonHoverForegroundColor = (Color)resourceTheme["ButtonHoverForegroundColor"];
+            titleBar.ButtonHoverBackgroundColor = (Color)resourceTheme["ButtonHoverBackgroundColor"];
+            titleBar.ButtonPressedBackgroundColor = (Color)resourceTheme["ButtonPressedBackgroundColor"];
+            titleBar.ButtonPressedForegroundColor = (Color)resourceTheme["ButtonPressedForegroundColor"];
+        }
+    }
+
+    public static void ApplyBackground(string theme) {
+        ElementTheme selectedTheme;
+        if (theme == "Light") {
+            selectedTheme = ElementTheme.Light;
+        } else if (theme == "Dark") {
+            selectedTheme = ElementTheme.Dark;
+        } else {
+            if (ShouldSystemUseDarkMode()) {
+                selectedTheme = ElementTheme.Dark;
+            } else {
+                selectedTheme = ElementTheme.Light;
+            }
+        }
+
+        ApplyBackground(selectedTheme);
+    }
+
+    public static void ApplyBackground(ElementTheme theme) {
+        var appResources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
+
+        ResourceDictionary resourceTheme;
+        if (theme == ElementTheme.Dark) {
+            resourceTheme = (ResourceDictionary)appResources["Dark"];
+        } else if (theme == ElementTheme.Light) {
+            resourceTheme = (ResourceDictionary)appResources["Light"];
+        } else {
+            if (ShouldSystemUseDarkMode()) {
+                resourceTheme = (ResourceDictionary)appResources["Dark"];
+            } else {
+                resourceTheme = (ResourceDictionary)appResources["Light"];
+            }
+        }
+
+        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+        var material = (string)localSettings.Values["material"] ?? (MicaController.IsSupported() ? "Mica" : "None");
+
+        var rootGrid = (Grid)App.Window.Content;
+
+        if (material != "None") {
+            rootGrid.Background = new SolidColorBrush(Colors.Transparent);
+        } else {
+            rootGrid.Background = (SolidColorBrush)resourceTheme["Background"];
         }
     }
 
@@ -86,6 +142,9 @@ public static class ThemeHelper {
         ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
         var themeString = (string)localSettings.Values["theme"];
+        if (themeString == null) {
+            localSettings.Values["theme"] = "Default";
+        }
 
         if (themeString == "Light") {
             theme = ElementTheme.Light;
