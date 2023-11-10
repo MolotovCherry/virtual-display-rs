@@ -160,7 +160,7 @@ fn generate() {
         // umdf includes
         .clang_arg(format!("-I{}", wdf_include_dir.display()))
         .clang_arg(format!("-I{}", shared.display()))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .blocklist_type("_?P?IMAGE_TLS_DIRECTORY.*")
         // we will use our own custom type
         .blocklist_item("NTSTATUS")
