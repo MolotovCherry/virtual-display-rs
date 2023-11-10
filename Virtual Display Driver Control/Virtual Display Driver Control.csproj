@@ -20,6 +20,7 @@
     <WindowsPackageType>MSIX</WindowsPackageType>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Views\MonitorsView.xaml" />

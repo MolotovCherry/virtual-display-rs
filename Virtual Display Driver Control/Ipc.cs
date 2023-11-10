@@ -8,43 +8,44 @@ using System.Threading;
 using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace Virtual_Display_Driver_Control {
     public class Ipc : IDisposable {
-        public static List<Action> OnConnect = new List<Action>();
+        public static List<Action<Ipc>> OnConnect = new List<Action<Ipc>>();
         public static List<Action> OnDisconnect = new List<Action>();
 
-        private static PipeClient pipeClient = null;
-        private static Task<Ipc> IpcTask = null;
+        private static PipeClient? pipeClient = null;
 
         public static bool IsConnected => pipeClient != null && pipeClient.IsConnected;
+
+        private Ipc() { }
+
         // Gets Ipc, and creates it if it is not created, or if it's disconnected, tries to make new one
-        public static Task<Ipc> GetOrCreateIpc() {
+        // Calls success() if it succeeded getting/creating, if it failed calls failed()
+        //
+        // Each param may be null to ignore the callback
+        public static void GetOrCreateIpc(Action<Ipc>? success, Action? failed) {
             if (IsConnected) {
-                return IpcTask;
-            } else {
-                if (!IpcTask.IsFaulted) {
-                    IpcTask?.Result?.Dispose();
-                } else {
-                    pipeClient?.Dispose();
-                    pipeClient = null;
-                    IpcTask = null;
+                if (success != null) {
+                    success(new Ipc());
                 }
+            } else {
+                DisposeInternal();
 
                 var tcs = new TaskCompletionSource<Ipc>();
 
                 var result = Task.Run(() => {
                     try {
-                        // Would be a bug if it happened
-                        if (pipeClient != null) {
-                            throw new Exception("Already connected");
-                        }
-
                         pipeClient = new PipeClient();
+
+                        if (success != null) {
+                            success(new Ipc());
+                        }
 
                         // OnConnect callbacks
                         foreach (var callback in OnConnect) {
-                            callback();
+                            callback(new Ipc());
                         }
 
                         // Callbacks to be fired once connection is gone
@@ -55,86 +56,97 @@ namespace Virtual_Display_Driver_Control {
                             }
 
                             // Since it's no longer connected, get rid of it
-                            IpcTask?.Result?.Dispose();
+                            DisposeInternal();
 
                             foreach (var callback in OnDisconnect) {
                                 callback();
                             }
                         });
-
-                        tcs.SetResult(new Ipc());
-                    } catch (Exception e) {
-                        tcs.SetException(e);
+                    } catch {
+                        if (failed != null) {
+                            failed();
+                        }
                     }
                 });
-
-                return tcs.Task;
             }
         }
 
         // Gets Ipc, returns null if it is not created
-        public static Ipc GetIpc() {
+        public static Ipc? GetIpc() {
             if (IsConnected) {
-                if (IpcTask.IsFaulted) {
-                    pipeClient.Dispose();
-                    pipeClient = null;
-                    IpcTask = null;
-                    return null;
-                }
-
-                return IpcTask.Result;
+                return new Ipc();
             } else {
-                IpcTask?.Result?.Dispose();
+                DisposeInternal();
                 return null;
             }
         }
 
-        private Ipc() { }
+        private bool IsConnectedOrDispose() {
+            if (IsConnected) {
+                return true;
+            } else {
+                DisposeInternal();
+                return false;
+            }
+        }
 
         public void DriverNotify(List<Monitor> monitors)
         {
-            var command = new SendCommand {
-                DriverNotify = monitors
-            };
+            if (IsConnectedOrDispose()) {
+                var command = new SendCommand {
+                    DriverNotify = monitors
+                };
 
-            pipeClient.WriteMessage(command.ToJson());
+                pipeClient?.WriteMessage(command.ToJson());
+            }
         }
 
         public void DriverRemoveAll()
         {
-            var command = new SendCommand {
-                DriverRemoveAll = true
-            };
+            if (IsConnectedOrDispose()) {
+                var command = new SendCommand {
+                    DriverRemoveAll = true
+                };
 
-            pipeClient.WriteMessage(command.ToJson());
+                pipeClient?.WriteMessage(command.ToJson());
+            }
         }
 
         public void DriverRemove(List<uint> monitors)
         {
-            var command = new SendCommand {
-                DriverRemove = monitors
-            };
+            if (IsConnectedOrDispose()) {
+                var command = new SendCommand {
+                    DriverRemove = monitors
+                };
 
-            pipeClient.WriteMessage(command.ToJson());
+                pipeClient?.WriteMessage(command.ToJson());
+            }
         }
 
         public List<Monitor> RequestState()
         {
-            var command = new SendCommand {
-                RequestState = true
-            };
+            if (IsConnectedOrDispose() && pipeClient != null) {
+                var command = new SendCommand {
+                    RequestState = true
+                };
 
-            pipeClient.WriteMessage(command.ToJson());
+                pipeClient.WriteMessage(command.ToJson());
 
-            var data = pipeClient.ReadMessage();
-            return JsonSerializer.Deserialize<ReplyCommand>(data).ReplyState;
+                var data = pipeClient.ReadMessage();
+                var deserialize = JsonSerializer.Deserialize<ReplyCommand>(data);
+                return deserialize?.ReplyState ?? new List<Monitor>();
+            }
+
+            return new List<Monitor>();
         }
 
-        public void Dispose()
-        {
-            pipeClient.Dispose();
+        public void Dispose() {
+            DisposeInternal();
+        }
+
+        private static void DisposeInternal() {
+            pipeClient?.Dispose();
             pipeClient = null;
-            IpcTask = null;
         }
     }
 }
@@ -144,12 +156,12 @@ namespace Virtual_Display_Driver_Control {
 //
 
 public class ReplyCommand {
-    public List<Monitor> ReplyState { get; set; }
+    public List<Monitor>? ReplyState { get; set; }
 }
 
 public class SendCommand {
-    public List<uint> DriverRemove { get;  set; }
-    public List<Monitor> DriverNotify { get; set; }
+    public List<uint>? DriverRemove { get;  set; }
+    public List<Monitor>? DriverNotify { get; set; }
     public bool? RequestState { get; set; }
     public bool? DriverRemoveAll { get; set; }
 
@@ -168,23 +180,42 @@ public class SendCommand {
     }
 }
 
-public class Monitor {
+public class Monitor : ICloneable {
     public uint id { get; set; }
-    public string name { get; set; }
+    public string? name { get; set; }
     public bool enabled { get; set; }
-    public List<Mode> modes { get; set; }
+    public List<Mode>? modes { get; set; }
     // used to keep track of ui state
     [JsonIgnore]
     public bool pending { get; set; }
+
+    public object Clone() {
+        return new Monitor {
+            id = id,
+            name = name,
+            enabled = enabled,
+            modes = modes?.Select(mode => (Mode)mode.Clone()).ToList(),
+            pending = pending
+        };
+    }
 }
 
-public class Mode {
+public class Mode : ICloneable {
     public uint width { get; set; }
     public uint height { get; set; }
-    public List<uint> refresh_rates { get; set; }
+    public List<uint>? refresh_rates { get; set; }
     // used to keep track of ui state
     [JsonIgnore]
     public bool pending { get; set; }
+
+    public object Clone() {
+        return new Mode {
+            width = width,
+            height = height,
+            refresh_rates = refresh_rates?.ToList(),
+            pending = pending
+        };
+    }
 }
 
 //
@@ -192,7 +223,7 @@ public class Mode {
 //
 
 public class PipeClient : IDisposable {
-    private NamedPipeClientStream pipeClient = null;
+    private NamedPipeClientStream? pipeClient = null;
     private BlockingCollection<string> Messages = new BlockingCollection<string>();
 
     public bool IsConnected => pipeClient != null && pipeClient.IsConnected;
@@ -213,11 +244,15 @@ public class PipeClient : IDisposable {
     public void WriteMessage(string message) {
         var bytes = Encoding.UTF8.GetBytes(message);
 
-        pipeClient.Write(bytes);
-        pipeClient.Flush();
+        pipeClient?.Write(bytes);
+        pipeClient?.Flush();
     }
 
     private string ReadMessageInternal() {
+        if (pipeClient == null) {
+            throw new InvalidOperationException("pipe client must not be null");
+        }
+
         var buffer = new byte[1024];
         var sb = new StringBuilder();
 
@@ -266,18 +301,20 @@ public class PipeClient : IDisposable {
     }
 
     public void Dispose() {
-        pipeClient.Close();
+        pipeClient?.Close();
     }
 
-    #nullable enable
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool PeekNamedPipe(SafeHandle handle,
         byte[] buffer, uint nBufferSize, ref uint bytesRead,
         ref uint bytesAvail, ref uint BytesLeftThisMessage);
-    #nullable restore
 
     // Check if pipe has anything available
     bool ReadyToRead() {
+        if (pipeClient == null) {
+            return false;
+        }
+
         byte[] buffer = new byte[1];
         uint aPeekedBytes = 0;
         uint aAvailBytes = 0;
