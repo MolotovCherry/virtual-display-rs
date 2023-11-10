@@ -102,7 +102,17 @@
                                 <FontIcon Glyph="&#xE8A7;" />
                             </controls:SettingsCard.ActionIcon>
                         </controls:SettingsCard>
-                        
+
+                        <controls:SettingsCard
+                            x:Name="donateCard"
+                            Header="Donate a 🧁 - If you found this software useful and want to give back ❤️"
+                            IsClickEnabled="True"
+                            Click="donate_Click">
+                            <controls:SettingsCard.ActionIcon>
+                                <FontIcon Glyph="&#xE8A7;" />
+                            </controls:SettingsCard.ActionIcon>
+                        </controls:SettingsCard>
+
                         <controls:SettingsCard
                             HorizontalContentAlignment="Left"
                             ContentAlignment="Vertical"

@@ -100,6 +100,10 @@ public sealed partial class SettingsView : Page {
         }
     }
 
+    private async void donate_Click(object sender, RoutedEventArgs e) {
+        await Launcher.LaunchUriAsync(new Uri("https://github.com/sponsors/MolotovCherry"));
+    }
+
     private async void homepage_Click(object sender, RoutedEventArgs e) {
         await Launcher.LaunchUriAsync(new Uri("https://github.com/MolotovCherry/virtual-display-rs/"));
     }
