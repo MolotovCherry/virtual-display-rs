@@ -17,10 +17,6 @@ script = [
     "cargo make %PROFILE% --cwd virtual-display-driver build",
     # copy all files to single output directory
     "cargo make %PROFILE% --cwd virtual-display-driver copy",
-    # build the control app
-    "cargo build -p virtual-display-driver-control %BUILD_FLAGS%",
-    # copy all files to single output directory
-    "cargo make %PROFILE% --cwd virtual-display-driver-control copy",
 ]
 
 [tasks.build-installer]
