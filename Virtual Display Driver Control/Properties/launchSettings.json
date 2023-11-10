@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Virtual Display Driver Control (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Virtual Display Driver Control (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
