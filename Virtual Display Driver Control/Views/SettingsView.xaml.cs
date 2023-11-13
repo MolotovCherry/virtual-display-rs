@@ -54,7 +54,7 @@ public sealed partial class SettingsView : Page {
         // do not fire callback when we change the index here
         themeMode.SelectionChanged -= themeMode_SelectionChanged;
 
-        var theme = (string)localSettings.Values["theme"];
+        var theme = App.Settings.Theme;
         if (theme == "Light") {
             themeMode.SelectedIndex = 0;
         } else if (theme == "Dark") {
@@ -80,10 +80,10 @@ public sealed partial class SettingsView : Page {
         // do not fire callback when we change the index here
         themeMaterial.SelectionChanged -= themeMaterial_SelectionChanged;
 
-        var theme = (string)localSettings.Values["material"];
-        if ((theme == "Mica" || theme == null) && MicaController.IsSupported()) {
+        var material = App.Settings.Material;
+        if ((material == "Mica" || material == null) && MicaController.IsSupported()) {
             themeMaterial.SelectedIndex = 0;
-        } else if (theme == "Acrylic" && DesktopAcrylicController.IsSupported()) {
+        } else if (material == "Acrylic" && DesktopAcrylicController.IsSupported()) {
             themeMaterial.SelectedIndex = 1;
         } else {
             themeMaterial.SelectedIndex = 2;

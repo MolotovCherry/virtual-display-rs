@@ -1,35 +1,30 @@
 ﻿using CSharpFunctionalExtensions;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml.Media;
+using Virtual_Display_Driver_Control.Common;
 using Windows.Storage;
 
 namespace Virtual_Display_Driver_Control.Helpers;
 
 class MaterialHelper {
     public static void Initialize() {
-        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
-        SetMaterial((string)localSettings.Values["material"] ?? "Mica");
+        SetMaterial(App.Settings.Material);
     }
 
     public static void SetMaterial(string material) {
-        App.Window.Execute(window => {
-            if (window != null) {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
-                if (material == "Mica" && MicaController.IsSupported()) {
-                    window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.Base };
-                    localSettings.Values["material"] = "Mica";
-                } else if (material == "Acrylic" && DesktopAcrylicController.IsSupported()) {
-                    window.SystemBackdrop = new DesktopAcrylicBackdrop();
-                    localSettings.Values["material"] = "Acrylic";
-                } else {
-                    window.SystemBackdrop = null;
-                    localSettings.Values["material"] = "None";
-                }
+        IAppSettings Settings = App.Settings;
+        if (material == "Mica" && MicaController.IsSupported()) {
+            App.Window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.Base };
+            Settings.Material = "Mica";
+        } else if (material == "Acrylic" && DesktopAcrylicController.IsSupported()) {
+            App.Window.SystemBackdrop = new DesktopAcrylicBackdrop();
+            Settings.Material = "Acrylic";
+        } else {
+            App.Window.SystemBackdrop = null;
+            Settings.Material = "None";
+        }
 
-                ThemeHelper.ApplyBackground((string)localSettings.Values["theme"]);
-            }
-        });
+        ThemeHelper.ApplyBackground(Settings.Theme);
     }
 }
