@@ -9,34 +9,38 @@
     Title="Virtual Display Driver Control">
 
     <Grid x:Name="RootGrid" Canvas.ZIndex="1" Background="{ThemeResource Background}">
-        <Grid.Resources>
-            <Thickness x:Key="NavigationViewContentMargin">0,48,0,0</Thickness>
-        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
         <Grid x:Name="AppTitleBar"
-              Canvas.ZIndex="1"
-              Height="{Binding ElementName=NavView, Path=CompactPaneLength}"
-              IsHitTestVisible="True"
-              VerticalAlignment="Top">
+            Height="{Binding ElementName=NavView, Path=CompactPaneLength}"
+            IsHitTestVisible="True"
+            VerticalAlignment="Top"
+            Grid.Row="0">
+
             <Image Source="ms-appx:///Assets/icon.png"
-                   HorizontalAlignment="Left" 
-                   Width="16" Height="16" 
-                   Margin="0,0"/>
+                HorizontalAlignment="Left" 
+                Width="16" Height="16" 
+                Margin="15,0,0,0"/>
+            
             <TextBlock x:Name="AppTitleTextBlock" Text="{StaticResource AppTitleName}"
-                       TextWrapping="NoWrap"
-                       Style="{StaticResource CaptionTextBlockStyle}" 
-                       VerticalAlignment="Center"
-                       Margin="25,0,0,0"/>
+                TextWrapping="NoWrap"
+                Style="{StaticResource CaptionTextBlockStyle}" 
+                VerticalAlignment="Center"
+                Margin="40,0,0,0"/>
         </Grid>
 
         <NavigationView
             x:Name="NavView"
             PaneDisplayMode="LeftCompact"
             IsPaneToggleButtonVisible="False"
-            DisplayModeChanged="NavigationViewControl_DisplayModeChanged"
             Loaded="NavView_Loaded"
-            SelectionChanged="NavView_SelectionChanged">
-        
+            SelectionChanged="NavView_SelectionChanged"
+            IsBackButtonVisible="Collapsed"
+            Grid.Row="1">
+
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Monitors" Tag="MonitorsView">
                     <NavigationViewItem.Icon>
@@ -44,9 +48,9 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
-            
+
             <Frame x:Name="ContentFrame"/>
-            
+
         </NavigationView>
     </Grid>
 

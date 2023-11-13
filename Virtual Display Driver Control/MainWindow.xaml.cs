@@ -30,15 +30,6 @@ namespace Virtual_Display_Driver_Control {
             }
         }
 
-        private void NavigationViewControl_DisplayModeChanged(NavigationView sender, NavigationViewDisplayModeChangedEventArgs args) {
-            AppTitleBar.Margin = new Thickness() {
-                Left = sender.CompactPaneLength * (sender.DisplayMode == NavigationViewDisplayMode.Minimal ? 2 : 1),
-                Top = AppTitleBar.Margin.Top,
-                Right = AppTitleBar.Margin.Right,
-                Bottom = AppTitleBar.Margin.Bottom
-            };
-        }
-
         private void NavView_Loaded(object sender, RoutedEventArgs e) {
             foreach (NavigationViewItemBase item in NavView.MenuItems) {
                 if (item is NavigationViewItem && item.Tag.ToString() == "MonitorsView") {

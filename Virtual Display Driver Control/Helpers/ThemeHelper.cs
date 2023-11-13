@@ -52,7 +52,7 @@ public static class ThemeHelper {
          var dispatcher = App.Window?.DispatcherQueue;
 
         // run it on the main window thread
-        dispatcher.TryEnqueue(() => {
+        dispatcher?.TryEnqueue(() => {
             ElementTheme theme;
             if (ShouldSystemUseDarkMode()) {
                 theme = ElementTheme.Dark;
