@@ -22,14 +22,14 @@
 
             <Image Source="ms-appx:///Assets/icon.png"
                 HorizontalAlignment="Left" 
-                Width="16" Height="16" 
+                Width="22" Height="22" 
                 Margin="15,0,0,0"/>
             
             <TextBlock x:Name="AppTitleTextBlock" Text="{StaticResource AppTitleName}"
                 TextWrapping="NoWrap"
                 Style="{StaticResource CaptionTextBlockStyle}" 
                 VerticalAlignment="Center"
-                Margin="40,0,0,0"/>
+                Margin="45,0,0,0"/>
         </Grid>
 
         <NavigationView
