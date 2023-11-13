@@ -1,4 +1,5 @@
-﻿using Microsoft.UI;
+﻿using CSharpFunctionalExtensions;
+using Microsoft.UI;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -17,79 +18,88 @@ public static class ThemeHelper {
 
     private static UISettings uiSettings = new UISettings();
 
-    public static ElementTheme GetTheme() {
-        if (App.Window?.Content is FrameworkElement frameworkElement) {
-            return frameworkElement.ActualTheme;
-        }
+    public static Result<ElementTheme> GetTheme() {
+        if (App.Window.HasValue) {
+            if (App.Window.GetValueOrThrow().Content is FrameworkElement frameworkElement) {
+                return frameworkElement.ActualTheme;
+            }
 
-        return ElementTheme.Default;
+            return Result.Success(ElementTheme.Default);
+        } else {
+            return Result.Failure<ElementTheme>("Failed to get theme");
+        }
     }
 
     public static void SetTheme(ElementTheme theme) {
-        if (App.Window?.Content is FrameworkElement frameworkElement) {
-            ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+        App.Window.Execute(window => {
+            if (window.Content is FrameworkElement frameworkElement) {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
-            if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
-                localSettings.Values["theme"] = theme == ElementTheme.Light ? "Light" : "Default";
-            } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
-                localSettings.Values["theme"] = theme == ElementTheme.Dark ? "Dark" : "Default";
+                if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
+                    localSettings.Values["theme"] = theme == ElementTheme.Light ? "Light" : "Default";
+                } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
+                    localSettings.Values["theme"] = theme == ElementTheme.Dark ? "Dark" : "Default";
+                }
+
+                SetThemeTitlebar(theme);
+
+                uiSettings.ColorValuesChanged -= ColorChangedCb;
+                frameworkElement.RequestedTheme = theme;
+
+                if (theme == ElementTheme.Default) {
+                    uiSettings.ColorValuesChanged += ColorChangedCb;
+                }
+
+                ApplyBackground(theme);
             }
-
-            SetThemeTitlebar(theme);
-
-            uiSettings.ColorValuesChanged -= ColorChangedCb;
-            frameworkElement.RequestedTheme = theme;
-
-            if (theme == ElementTheme.Default) {
-                uiSettings.ColorValuesChanged += ColorChangedCb;
-            }
-
-            ApplyBackground(theme);
-        }
+        });
     }
 
     private static void ColorChangedCb(UISettings sender, object args) {
-         var dispatcher = App.Window?.DispatcherQueue;
+        App.Window.Execute(window => {
+            var dispatcher = window.DispatcherQueue;
 
-        // run it on the main window thread
-        dispatcher?.TryEnqueue(() => {
-            ElementTheme theme;
-            if (ShouldSystemUseDarkMode()) {
-                theme = ElementTheme.Dark;
-            } else {
-                theme = ElementTheme.Light;
-            }
+            // run it on the main window thread
+            dispatcher?.TryEnqueue(() => {
+                ElementTheme theme;
+                if (ShouldSystemUseDarkMode()) {
+                    theme = ElementTheme.Dark;
+                } else {
+                    theme = ElementTheme.Light;
+                }
 
-            SetThemeTitlebar(theme);
-            ApplyBackground(theme);
+                SetThemeTitlebar(theme);
+                ApplyBackground(theme);
+            });
         });
     }
 
     private static void SetThemeTitlebar(ElementTheme theme) {
+        App.Window.Execute(window => {
+            if (window.AppWindow.TitleBar is AppWindowTitleBar titleBar && AppWindowTitleBar.IsCustomizationSupported()) {
+                var resources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
 
-        if (App.Window?.AppWindow.TitleBar is AppWindowTitleBar titleBar && AppWindowTitleBar.IsCustomizationSupported()) {
-            var resources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
-
-            ResourceDictionary resourceTheme;
-            if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
-                resourceTheme = (ResourceDictionary)resources["Light"];
-            } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
-                resourceTheme = (ResourceDictionary)resources["Dark"];
-            } else {
-                if (ShouldSystemUseDarkMode()) {
+                ResourceDictionary resourceTheme;
+                if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
+                    resourceTheme = (ResourceDictionary)resources["Light"];
+                } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
                     resourceTheme = (ResourceDictionary)resources["Dark"];
                 } else {
-                    resourceTheme = (ResourceDictionary)resources["Light"];
+                    if (ShouldSystemUseDarkMode()) {
+                        resourceTheme = (ResourceDictionary)resources["Dark"];
+                    } else {
+                        resourceTheme = (ResourceDictionary)resources["Light"];
+                    }
                 }
-            }
 
-            titleBar.ButtonForegroundColor = (Color)resourceTheme["ButtonForegroundColor"];
-            titleBar.ButtonInactiveForegroundColor = (Color)resourceTheme["ButtonInactiveForegroundColor"];
-            titleBar.ButtonHoverForegroundColor = (Color)resourceTheme["ButtonHoverForegroundColor"];
-            titleBar.ButtonHoverBackgroundColor = (Color)resourceTheme["ButtonHoverBackgroundColor"];
-            titleBar.ButtonPressedBackgroundColor = (Color)resourceTheme["ButtonPressedBackgroundColor"];
-            titleBar.ButtonPressedForegroundColor = (Color)resourceTheme["ButtonPressedForegroundColor"];
-        }
+                titleBar.ButtonForegroundColor = (Color)resourceTheme["ButtonForegroundColor"];
+                titleBar.ButtonInactiveForegroundColor = (Color)resourceTheme["ButtonInactiveForegroundColor"];
+                titleBar.ButtonHoverForegroundColor = (Color)resourceTheme["ButtonHoverForegroundColor"];
+                titleBar.ButtonHoverBackgroundColor = (Color)resourceTheme["ButtonHoverBackgroundColor"];
+                titleBar.ButtonPressedBackgroundColor = (Color)resourceTheme["ButtonPressedBackgroundColor"];
+                titleBar.ButtonPressedForegroundColor = (Color)resourceTheme["ButtonPressedForegroundColor"];
+            }
+        });
     }
 
     public static void ApplyBackground(string theme) {
@@ -128,13 +138,15 @@ public static class ThemeHelper {
         ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
         var material = (string)localSettings.Values["material"] ?? (MicaController.IsSupported() ? "Mica" : "None");
 
-        var rootGrid = (Grid)App.Window.Content;
+        App.Window.Execute(window => {
+            Grid rootGrid = (Grid)window.Content;
 
-        if (material != "None") {
-            rootGrid.Background = new SolidColorBrush(Colors.Transparent);
-        } else {
-            rootGrid.Background = (SolidColorBrush)resourceTheme["Background"];
-        }
+            if (material != "None") {
+                rootGrid.Background = new SolidColorBrush(Colors.Transparent);
+            } else {
+                rootGrid.Background = (SolidColorBrush)resourceTheme["Background"];
+            }
+        });
     }
 
     public static void Initialize() {

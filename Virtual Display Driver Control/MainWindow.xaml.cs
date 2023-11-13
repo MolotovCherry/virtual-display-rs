@@ -16,7 +16,7 @@ namespace Virtual_Display_Driver_Control {
                 IntPtr hWnd = WindowNative.GetWindowHandle(this);
                 WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
                 AppWindow appWindow = AppWindow.GetFromWindowId(wndId);
-                var icon_id = Win32Interop.GetIconIdFromIcon(WindowTools.GetIcon().Handle);
+                var icon_id = Win32Interop.GetIconIdFromIcon(WindowTools.GetIcon().GetValueOrThrow().Handle);
                 appWindow.SetIcon(icon_id);
             } else {
                 // fallback api to set icon for unsupported customization
@@ -44,8 +44,7 @@ namespace Virtual_Display_Driver_Control {
         private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args) {
             if (args.IsSettingsSelected) {
                 ContentFrame.Navigate(typeof(SettingsView));
-            } else {
-                NavigationViewItem item = args.SelectedItem as NavigationViewItem;
+            } else if (args.SelectedItem is NavigationViewItem item) {
                 switch (item.Tag) {
                     case "MonitorsView":
                         ContentFrame.Navigate(typeof(MonitorsView));
@@ -58,4 +57,3 @@ namespace Virtual_Display_Driver_Control {
         }
     }
 }
-    

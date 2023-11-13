@@ -9,15 +9,17 @@ using System.Text.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Linq;
+using CSharpFunctionalExtensions;
+using Virtual_Display_Driver_Control.Common;
 
 namespace Virtual_Display_Driver_Control {
     public class Ipc : IDisposable {
         public static List<Action<Ipc>> OnConnect = new List<Action<Ipc>>();
         public static List<Action> OnDisconnect = new List<Action>();
 
-        private static PipeClient? pipeClient = null;
+        private static Maybe<PipeClient> pipeClient = Maybe<PipeClient>.None;
 
-        public static bool IsConnected => pipeClient != null && pipeClient.IsConnected;
+        public static bool IsConnected => pipeClient.HasValue && pipeClient.GetValueOrThrow().IsConnected;
 
         private Ipc() { }
 
@@ -72,69 +74,68 @@ namespace Virtual_Display_Driver_Control {
         }
 
         // Gets Ipc, returns null if it is not created
-        public static Ipc? GetIpc() {
+        public static Maybe<Ipc> GetIpc() {
             if (IsConnected) {
                 return new Ipc();
             } else {
                 DisposeInternal();
-                return null;
+                return Maybe<Ipc>.None;
             }
         }
 
-        private bool IsConnectedOrDispose() {
+        private void ExecuteConnectedOrDispose(Action<PipeClient> cb) {
             if (IsConnected) {
-                return true;
+                cb(pipeClient.GetValueOrThrow());
             } else {
                 DisposeInternal();
-                return false;
             }
         }
 
-        public void DriverNotify(List<Monitor> monitors)
-        {
-            if (IsConnectedOrDispose()) {
+        public void DriverNotify(List<Monitor> monitors) {
+            ExecuteConnectedOrDispose(client => {
                 var command = new SendCommand {
                     DriverNotify = monitors
                 };
 
-                pipeClient?.WriteMessage(command.ToJson());
-            }
+                client.WriteMessage(command.ToJson());
+            });
         }
 
-        public void DriverRemoveAll()
-        {
-            if (IsConnectedOrDispose()) {
+        public void DriverRemoveAll() {
+            ExecuteConnectedOrDispose(client => {
                 var command = new SendCommand {
                     DriverRemoveAll = true
                 };
 
-                pipeClient?.WriteMessage(command.ToJson());
-            }
+                client.WriteMessage(command.ToJson());
+            });
         }
 
-        public void DriverRemove(List<uint> monitors)
-        {
-            if (IsConnectedOrDispose()) {
+        public void DriverRemove(List<uint> monitors) {
+            ExecuteConnectedOrDispose(client => {
                 var command = new SendCommand {
                     DriverRemove = monitors
                 };
 
-                pipeClient?.WriteMessage(command.ToJson());
-            }
+                client.WriteMessage(command.ToJson());
+            });
         }
 
-        public List<Monitor> RequestState()
-        {
-            if (IsConnectedOrDispose() && pipeClient != null) {
-                var command = new SendCommand {
-                    RequestState = true
-                };
+        public List<Monitor> RequestState() {
+            if (IsConnected) {
+                PipeClient? out_client;
+                if (pipeClient.TryGetValue(out out_client) && out_client is PipeClient client) {
+                    var command = new SendCommand {
+                        RequestState = true
+                    };
 
-                pipeClient.WriteMessage(command.ToJson());
+                    client.WriteMessage(command.ToJson());
 
-                var data = pipeClient.ReadMessage();
-                var deserialize = JsonSerializer.Deserialize<ReplyCommand>(data);
-                return deserialize?.ReplyState ?? new List<Monitor>();
+                    var data = client.ReadMessage();
+                    var deserialize = JsonSerializer.Deserialize<ReplyCommand>(data);
+                    
+                    return deserialize?.ReplyState ?? new List<Monitor>();
+                }
             }
 
             return new List<Monitor>();
@@ -145,8 +146,10 @@ namespace Virtual_Display_Driver_Control {
         }
 
         private static void DisposeInternal() {
-            pipeClient?.Dispose();
-            pipeClient = null;
+            pipeClient.Execute(client => {
+                client.Dispose();
+                pipeClient = Maybe<PipeClient>.None;
+            });
         }
     }
 }
