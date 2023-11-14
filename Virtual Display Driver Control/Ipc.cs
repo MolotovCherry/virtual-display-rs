@@ -28,11 +28,11 @@ public class Ipc : IDisposable {
     // Calls success() if it succeeded getting/creating, if it failed calls failed()
     //
     // Each param may be null to ignore the callback
-    public static void GetOrCreateIpc(Action<Ipc>? success, Action? failed) {
+    public static void GetOrCreateIpc(Maybe<Action<Ipc>> success, Maybe<Action> failed) {
         if (IsConnected) {
-            if (success != null) {
-                success(new Ipc());
-            }
+            success.Execute(action => {
+                action(new Ipc());
+            });
         } else {
             DisposeInternal();
 
@@ -42,9 +42,9 @@ public class Ipc : IDisposable {
                 try {
                     pipeClient = new PipeClient();
 
-                    if (success != null) {
-                        success(new Ipc());
-                    }
+                    success.Execute(action => {
+                        action(new Ipc());
+                    });
 
                     // OnConnect callbacks
                     foreach (var callback in OnConnect) {
@@ -66,9 +66,9 @@ public class Ipc : IDisposable {
                         }
                     });
                 } catch {
-                    if (failed != null) {
-                        failed();
-                    }
+                    failed.Execute(action => {
+                        action();
+                    });
                 }
             });
         }
@@ -226,17 +226,19 @@ public class Mode : ICloneable {
 //
 
 public class PipeClient : IDisposable {
-    private NamedPipeClientStream? pipeClient = null;
+    private Maybe<NamedPipeClientStream> pipeClient = Maybe<NamedPipeClientStream>.None;
     private BlockingCollection<string> Messages = new BlockingCollection<string>();
 
-    public bool IsConnected => pipeClient != null && pipeClient.IsConnected;
+    public bool IsConnected => pipeClient.HasValue && pipeClient.GetValueOrThrow().IsConnected;
 
     public PipeClient() {
-        pipeClient = new NamedPipeClientStream(".", "virtualdisplaydriver", PipeDirection.InOut);
+        var client = new NamedPipeClientStream(".", "virtualdisplaydriver", PipeDirection.InOut);
 
-        pipeClient.Connect(50);
+        client.Connect(50);
 
-        pipeClient.ReadMode = PipeTransmissionMode.Message;
+        client.ReadMode = PipeTransmissionMode.Message;
+
+        pipeClient = client;
 
         Task.Run(() => {
             // Read all messages into buffer
@@ -247,14 +249,15 @@ public class PipeClient : IDisposable {
     public void WriteMessage(string message) {
         var bytes = Encoding.UTF8.GetBytes(message);
 
-        pipeClient?.Write(bytes);
-        pipeClient?.Flush();
+        pipeClient.Execute(client => {
+            client.Write(bytes);
+            client.Flush();
+        });
     }
 
     private string ReadMessageInternal() {
-        if (pipeClient == null) {
-            throw new InvalidOperationException("pipe client must not be null");
-        }
+        // this should never throw, if it does, it's a bug
+        var client = pipeClient.GetValueOrThrow();
 
         var buffer = new byte[1024];
         var sb = new StringBuilder();
@@ -262,12 +265,12 @@ public class PipeClient : IDisposable {
         int read;
 
         do {
-            read = pipeClient.Read(buffer, 0, buffer.Length);
+            read = client.Read(buffer, 0, buffer.Length);
 
             if (read > 0) {
                 sb.Append(Encoding.UTF8.GetString(buffer, 0, read));
             }
-        } while (read > 0 && !pipeClient.IsMessageComplete);
+        } while (read > 0 && !client.IsMessageComplete);
 
         return sb.ToString();
     }
@@ -304,7 +307,9 @@ public class PipeClient : IDisposable {
     }
 
     public void Dispose() {
-        pipeClient?.Close();
+        pipeClient.Execute(client => {
+            client.Close();
+        });
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -314,9 +319,11 @@ public class PipeClient : IDisposable {
 
     // Check if pipe has anything available
     bool ReadyToRead() {
-        if (pipeClient == null) {
+        if (pipeClient.HasNoValue) {
             return false;
         }
+
+        var client = pipeClient.GetValueOrThrow();
 
         byte[] buffer = new byte[1];
         uint aPeekedBytes = 0;
@@ -324,7 +331,7 @@ public class PipeClient : IDisposable {
         uint aLeftBytes = 0;
 
         bool aPeekedSuccess = PeekNamedPipe(
-            pipeClient.SafePipeHandle,
+            client.SafePipeHandle,
             buffer,
             (uint)buffer.Length,
             ref aPeekedBytes,
