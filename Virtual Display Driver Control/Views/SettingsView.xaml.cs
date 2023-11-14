@@ -3,8 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using Virtual_Display_Driver_Control.Helpers;
-using Windows.ApplicationModel;
-using Windows.Storage;
 using Windows.System;
 
 namespace Virtual_Display_Driver_Control.Views;
@@ -12,9 +10,8 @@ namespace Virtual_Display_Driver_Control.Views;
 public sealed partial class SettingsView : Page {
     public string AppInfo {
         get {
-            var version = Package.Current.Id.Version;
             var appTitle = Application.Current.Resources["AppTitleName"] as string;
-            var versionString = $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+            var versionString = $"{App.Version.Major}.{App.Version.Minor}.{App.Version.Patch}";
             return $"{appTitle} - v{versionString}";
         }
     }
@@ -49,8 +46,6 @@ public sealed partial class SettingsView : Page {
     }
 
     private void themeMode_load() {
-        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
         // do not fire callback when we change the index here
         themeMode.SelectionChanged -= themeMode_SelectionChanged;
 
@@ -74,8 +69,6 @@ public sealed partial class SettingsView : Page {
         if (!DesktopAcrylicController.IsSupported()) {
             ((ComboBoxItem)themeMaterial.Items[1]).IsEnabled = false;
         }
-
-        ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
         // do not fire callback when we change the index here
         themeMaterial.SelectionChanged -= themeMaterial_SelectionChanged;
