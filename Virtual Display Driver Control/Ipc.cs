@@ -10,7 +10,6 @@ using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Linq;
 using CSharpFunctionalExtensions;
-using Virtual_Display_Driver_Control.Common;
 
 namespace Virtual_Display_Driver_Control;
 
@@ -24,15 +23,23 @@ public class Ipc : IDisposable {
 
     private Ipc() { }
 
+    public static void GetOrCreateIpc() {
+        GetOrCreateIpc(null, null);
+    }
+
+    public static void GetOrCreateIpc(Action<Ipc> success) {
+        GetOrCreateIpc(success, null);
+    }
+
     // Gets Ipc, and creates it if it is not created, or if it's disconnected, tries to make new one
     // Calls success() if it succeeded getting/creating, if it failed calls failed()
     //
     // Each param may be null to ignore the callback
-    public static void GetOrCreateIpc(Maybe<Action<Ipc>> success, Maybe<Action> failed) {
+    public static void GetOrCreateIpc(Action<Ipc>? success, Action? failed) {
         if (IsConnected) {
-            success.Execute(action => {
-                action(new Ipc());
-            });
+            if (success != null) {
+                success(new Ipc());
+            }
         } else {
             DisposeInternal();
 
@@ -42,9 +49,9 @@ public class Ipc : IDisposable {
                 try {
                     pipeClient = new PipeClient();
 
-                    success.Execute(action => {
-                        action(new Ipc());
-                    });
+                    if (success != null) {
+                        success(new Ipc());
+                    }
 
                     // OnConnect callbacks
                     foreach (var callback in OnConnect) {
@@ -66,9 +73,9 @@ public class Ipc : IDisposable {
                         }
                     });
                 } catch {
-                    failed.Execute(action => {
-                        action();
-                    });
+                    if (failed != null) {
+                        failed();
+                    }
                 }
             });
         }
