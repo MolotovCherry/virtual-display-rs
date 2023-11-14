@@ -11,18 +11,18 @@ class MaterialHelper {
         SetMaterial(App.Settings.Material);
     }
 
-    public static void SetMaterial(string material) {
-
+    public static void SetMaterial(Material material) {
         IAppSettings Settings = App.Settings;
-        if (material == "Mica" && MicaController.IsSupported()) {
+
+        if (material == Material.Mica && MicaController.IsSupported()) {
             App.Window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.Base };
-            Settings.Material = "Mica";
-        } else if (material == "Acrylic" && DesktopAcrylicController.IsSupported()) {
+            Settings.Material = material;
+        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
             App.Window.SystemBackdrop = new DesktopAcrylicBackdrop();
-            Settings.Material = "Acrylic";
+            Settings.Material = material;
         } else {
             App.Window.SystemBackdrop = null;
-            Settings.Material = "None";
+            Settings.Material = Material.None;
         }
 
         ThemeHelper.ApplyBackground(Settings.Theme);

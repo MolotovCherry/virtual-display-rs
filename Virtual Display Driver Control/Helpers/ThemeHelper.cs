@@ -28,13 +28,7 @@ public static class ThemeHelper {
 
     public static void SetTheme(ElementTheme theme) {
         if (App.Window.Content is FrameworkElement frameworkElement) {
-            IAppSettings Settings = App.Settings;
-
-            if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
-                Settings.Theme = theme == ElementTheme.Light ? "Light" : "Default";
-            } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
-                Settings.Theme = theme == ElementTheme.Dark ? "Dark" : "Default";
-            }
+            App.Settings.Theme = theme;
 
             SetThemeTitlebar(theme);
 
@@ -71,18 +65,17 @@ public static class ThemeHelper {
             var resources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
 
             ResourceDictionary resourceTheme;
-            if (theme == ElementTheme.Light || (!ShouldSystemUseDarkMode() && theme != ElementTheme.Dark)) {
+            if (theme == ElementTheme.Light) {
                 resourceTheme = (ResourceDictionary)resources["Light"];
-            } else if (theme == ElementTheme.Dark || (ShouldSystemUseDarkMode() && theme != ElementTheme.Light)) {
+            } else if (theme == ElementTheme.Dark) {
+                resourceTheme = (ResourceDictionary)resources["Dark"];
+            // The rest are ElementTheme.Default
+            } else if (ShouldSystemUseDarkMode()) {
                 resourceTheme = (ResourceDictionary)resources["Dark"];
             } else {
-                if (ShouldSystemUseDarkMode()) {
-                    resourceTheme = (ResourceDictionary)resources["Dark"];
-                } else {
-                    resourceTheme = (ResourceDictionary)resources["Light"];
-                }
+                resourceTheme = (ResourceDictionary)resources["Light"];
             }
-
+            
             titleBar.ButtonForegroundColor = (Color)resourceTheme["ButtonForegroundColor"];
             titleBar.ButtonInactiveForegroundColor = (Color)resourceTheme["ButtonInactiveForegroundColor"];
             titleBar.ButtonHoverForegroundColor = (Color)resourceTheme["ButtonHoverForegroundColor"];
@@ -98,12 +91,11 @@ public static class ThemeHelper {
             selectedTheme = ElementTheme.Light;
         } else if (theme == "Dark") {
             selectedTheme = ElementTheme.Dark;
+        // The rest are ElementTheme.Default
+        } else if (ShouldSystemUseDarkMode()) {
+            selectedTheme = ElementTheme.Dark;
         } else {
-            if (ShouldSystemUseDarkMode()) {
-                selectedTheme = ElementTheme.Dark;
-            } else {
-                selectedTheme = ElementTheme.Light;
-            }
+            selectedTheme = ElementTheme.Light;
         }
 
         ApplyBackground(selectedTheme);
@@ -117,22 +109,21 @@ public static class ThemeHelper {
             resourceTheme = (ResourceDictionary)appResources["Dark"];
         } else if (theme == ElementTheme.Light) {
             resourceTheme = (ResourceDictionary)appResources["Light"];
+        // The rest are ElementTheme.Default
+        } else if (ShouldSystemUseDarkMode()) {
+            resourceTheme = (ResourceDictionary)appResources["Dark"];
         } else {
-            if (ShouldSystemUseDarkMode()) {
-                resourceTheme = (ResourceDictionary)appResources["Dark"];
-            } else {
-                resourceTheme = (ResourceDictionary)appResources["Light"];
-            }
+            resourceTheme = (ResourceDictionary)appResources["Light"];
         }
 
-        string material = App.Settings.Material;
-        if (material == "Mica" && !MicaController.IsSupported()) {
-            material = "None";
+        var material = App.Settings.Material;
+        if (material == Material.Mica && !MicaController.IsSupported()) {
+            material = Material.None;
         }
 
         Grid rootGrid = (Grid)App.Window.Content;
 
-        if (material != "None") {
+        if (material != Material.None) {
             rootGrid.Background = new SolidColorBrush(Colors.Transparent);
         } else {
             rootGrid.Background = (SolidColorBrush)resourceTheme["Background"];
@@ -140,19 +131,7 @@ public static class ThemeHelper {
     }
 
     public static void Initialize() {
-        ElementTheme theme;
-
-        var themeString = App.Settings.Theme;
-
-        if (themeString == "Light") {
-            theme = ElementTheme.Light;
-        } else if (themeString == "Dark") {
-            theme = ElementTheme.Dark;
-        } else {
-            theme = ElementTheme.Default;
-        }
-
-        SetTheme(theme);
+        SetTheme(App.Settings.Theme);
     }
 
     public static bool IsEnabled() {

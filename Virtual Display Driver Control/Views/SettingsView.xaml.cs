@@ -2,6 +2,7 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using Virtual_Display_Driver_Control.Common;
 using Virtual_Display_Driver_Control.Helpers;
 using Windows.System;
 
@@ -50,9 +51,9 @@ public sealed partial class SettingsView : Page {
         themeMode.SelectionChanged -= themeMode_SelectionChanged;
 
         var theme = App.Settings.Theme;
-        if (theme == "Light") {
+        if (theme == ElementTheme.Light) {
             themeMode.SelectedIndex = 0;
-        } else if (theme == "Dark") {
+        } else if (theme == ElementTheme.Dark) {
             themeMode.SelectedIndex = 1;
         } else {
             themeMode.SelectedIndex = 2;
@@ -74,9 +75,9 @@ public sealed partial class SettingsView : Page {
         themeMaterial.SelectionChanged -= themeMaterial_SelectionChanged;
 
         var material = App.Settings.Material;
-        if ((material == "Mica" || material == null) && MicaController.IsSupported()) {
+        if (material == Material.Mica && MicaController.IsSupported()) {
             themeMaterial.SelectedIndex = 0;
-        } else if (material == "Acrylic" && DesktopAcrylicController.IsSupported()) {
+        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
             themeMaterial.SelectedIndex = 1;
         } else {
             themeMaterial.SelectedIndex = 2;
@@ -89,7 +90,20 @@ public sealed partial class SettingsView : Page {
         var selectedMaterial = ((ComboBoxItem)themeMaterial.SelectedItem)?.Tag?.ToString();
 
         if (selectedMaterial != null) {
-            MaterialHelper.SetMaterial(selectedMaterial);
+            Material material;
+            switch (selectedMaterial) {
+                case "Mica":
+                    material = Material.Mica;
+                    break;
+                case "Acrylic":
+                    material = Material.Acrylic;
+                    break;
+                default:
+                    material = Material.None;
+                    break;
+            }
+
+            MaterialHelper.SetMaterial(material);
         }
     }
 
