@@ -85,22 +85,6 @@ public static class ThemeHelper {
         }
     }
 
-    public static void ApplyBackground(string theme) {
-        ElementTheme selectedTheme;
-        if (theme == "Light") {
-            selectedTheme = ElementTheme.Light;
-        } else if (theme == "Dark") {
-            selectedTheme = ElementTheme.Dark;
-        // The rest are ElementTheme.Default
-        } else if (ShouldSystemUseDarkMode()) {
-            selectedTheme = ElementTheme.Dark;
-        } else {
-            selectedTheme = ElementTheme.Light;
-        }
-
-        ApplyBackground(selectedTheme);
-    }
-
     public static void ApplyBackground(ElementTheme theme) {
         var appResources = (ResourceDictionary)Application.Current.Resources.ThemeDictionaries;
 
