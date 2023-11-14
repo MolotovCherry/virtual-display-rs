@@ -12,145 +12,145 @@ using System.Linq;
 using CSharpFunctionalExtensions;
 using Virtual_Display_Driver_Control.Common;
 
-namespace Virtual_Display_Driver_Control {
-    public class Ipc : IDisposable {
-        public static List<Action<Ipc>> OnConnect = new List<Action<Ipc>>();
-        public static List<Action> OnDisconnect = new List<Action>();
+namespace Virtual_Display_Driver_Control;
 
-        private static Maybe<PipeClient> pipeClient = Maybe<PipeClient>.None;
+public class Ipc : IDisposable {
+    public static List<Action<Ipc>> OnConnect = new List<Action<Ipc>>();
+    public static List<Action> OnDisconnect = new List<Action>();
 
-        public static bool IsConnected => pipeClient.HasValue && pipeClient.GetValueOrThrow().IsConnected;
+    private static Maybe<PipeClient> pipeClient = Maybe<PipeClient>.None;
 
-        private Ipc() { }
+    public static bool IsConnected => pipeClient.HasValue && pipeClient.GetValueOrThrow().IsConnected;
 
-        // Gets Ipc, and creates it if it is not created, or if it's disconnected, tries to make new one
-        // Calls success() if it succeeded getting/creating, if it failed calls failed()
-        //
-        // Each param may be null to ignore the callback
-        public static void GetOrCreateIpc(Action<Ipc>? success, Action? failed) {
-            if (IsConnected) {
-                if (success != null) {
-                    success(new Ipc());
-                }
-            } else {
-                DisposeInternal();
+    private Ipc() { }
 
-                var tcs = new TaskCompletionSource<Ipc>();
+    // Gets Ipc, and creates it if it is not created, or if it's disconnected, tries to make new one
+    // Calls success() if it succeeded getting/creating, if it failed calls failed()
+    //
+    // Each param may be null to ignore the callback
+    public static void GetOrCreateIpc(Action<Ipc>? success, Action? failed) {
+        if (IsConnected) {
+            if (success != null) {
+                success(new Ipc());
+            }
+        } else {
+            DisposeInternal();
 
-                var result = Task.Run(() => {
-                    try {
-                        pipeClient = new PipeClient();
+            var tcs = new TaskCompletionSource<Ipc>();
 
-                        if (success != null) {
-                            success(new Ipc());
-                        }
+            var result = Task.Run(() => {
+                try {
+                    pipeClient = new PipeClient();
 
-                        // OnConnect callbacks
-                        foreach (var callback in OnConnect) {
-                            callback(new Ipc());
-                        }
-
-                        // Callbacks to be fired once connection is gone
-                        Task.Run(() => {
-                            // poll at 50ms intervals for connectivity
-                            while (IsConnected) {
-                                Thread.Sleep(50);
-                            }
-
-                            // Since it's no longer connected, get rid of it
-                            DisposeInternal();
-
-                            foreach (var callback in OnDisconnect) {
-                                callback();
-                            }
-                        });
-                    } catch {
-                        if (failed != null) {
-                            failed();
-                        }
+                    if (success != null) {
+                        success(new Ipc());
                     }
-                });
-            }
-        }
 
-        // Gets Ipc, returns null if it is not created
-        public static Maybe<Ipc> GetIpc() {
-            if (IsConnected) {
-                return new Ipc();
-            } else {
-                DisposeInternal();
-                return Maybe<Ipc>.None;
-            }
-        }
+                    // OnConnect callbacks
+                    foreach (var callback in OnConnect) {
+                        callback(new Ipc());
+                    }
 
-        private void ExecuteConnectedOrDispose(Action<PipeClient> cb) {
-            if (IsConnected) {
-                cb(pipeClient.GetValueOrThrow());
-            } else {
-                DisposeInternal();
-            }
-        }
+                    // Callbacks to be fired once connection is gone
+                    Task.Run(() => {
+                        // poll at 50ms intervals for connectivity
+                        while (IsConnected) {
+                            Thread.Sleep(50);
+                        }
 
-        public void DriverNotify(List<Monitor> monitors) {
-            ExecuteConnectedOrDispose(client => {
-                var command = new SendCommand {
-                    DriverNotify = monitors
-                };
+                        // Since it's no longer connected, get rid of it
+                        DisposeInternal();
 
-                client.WriteMessage(command.ToJson());
-            });
-        }
-
-        public void DriverRemoveAll() {
-            ExecuteConnectedOrDispose(client => {
-                var command = new SendCommand {
-                    DriverRemoveAll = true
-                };
-
-                client.WriteMessage(command.ToJson());
-            });
-        }
-
-        public void DriverRemove(List<uint> monitors) {
-            ExecuteConnectedOrDispose(client => {
-                var command = new SendCommand {
-                    DriverRemove = monitors
-                };
-
-                client.WriteMessage(command.ToJson());
-            });
-        }
-
-        public List<Monitor> RequestState() {
-            if (IsConnected) {
-                PipeClient? out_client;
-                if (pipeClient.TryGetValue(out out_client) && out_client is PipeClient client) {
-                    var command = new SendCommand {
-                        RequestState = true
-                    };
-
-                    client.WriteMessage(command.ToJson());
-
-                    var data = client.ReadMessage();
-                    var deserialize = JsonSerializer.Deserialize<ReplyCommand>(data);
-                    
-                    return deserialize?.ReplyState ?? new List<Monitor>();
+                        foreach (var callback in OnDisconnect) {
+                            callback();
+                        }
+                    });
+                } catch {
+                    if (failed != null) {
+                        failed();
+                    }
                 }
-            }
-
-            return new List<Monitor>();
+            });
         }
+    }
 
-        public void Dispose() {
+    // Gets Ipc, returns null if it is not created
+    public static Maybe<Ipc> GetIpc() {
+        if (IsConnected) {
+            return new Ipc();
+        } else {
+            DisposeInternal();
+            return Maybe<Ipc>.None;
+        }
+    }
+
+    private void ExecuteConnectedOrDispose(Action<PipeClient> cb) {
+        if (IsConnected) {
+            cb(pipeClient.GetValueOrThrow());
+        } else {
             DisposeInternal();
         }
+    }
 
-        private static void DisposeInternal() {
-            pipeClient.Execute(client => {
-                client.Dispose();
-                pipeClient = Maybe<PipeClient>.None;
-            });
+    public void DriverNotify(List<Monitor> monitors) {
+        ExecuteConnectedOrDispose(client => {
+            var command = new SendCommand {
+                DriverNotify = monitors
+            };
+
+            client.WriteMessage(command.ToJson());
+        });
+    }
+
+    public void DriverRemoveAll() {
+        ExecuteConnectedOrDispose(client => {
+            var command = new SendCommand {
+                DriverRemoveAll = true
+            };
+
+            client.WriteMessage(command.ToJson());
+        });
+    }
+
+    public void DriverRemove(List<uint> monitors) {
+        ExecuteConnectedOrDispose(client => {
+            var command = new SendCommand {
+                DriverRemove = monitors
+            };
+
+            client.WriteMessage(command.ToJson());
+        });
+    }
+
+    public List<Monitor> RequestState() {
+        if (IsConnected) {
+            PipeClient? out_client;
+            if (pipeClient.TryGetValue(out out_client) && out_client is PipeClient client) {
+                var command = new SendCommand {
+                    RequestState = true
+                };
+
+                client.WriteMessage(command.ToJson());
+
+                var data = client.ReadMessage();
+                var deserialize = JsonSerializer.Deserialize<ReplyCommand>(data);
+                
+                return deserialize?.ReplyState ?? new List<Monitor>();
+            }
         }
+
+        return new List<Monitor>();
+    }
+
+    public void Dispose() {
+        DisposeInternal();
+    }
+
+    private static void DisposeInternal() {
+        pipeClient.Execute(client => {
+            client.Dispose();
+            pipeClient = Maybe<PipeClient>.None;
+        });
     }
 }
 
