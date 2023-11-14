@@ -14,7 +14,7 @@ public interface IAppSettings : INotifyPropertyChanged {
 
 public static class SettingsProvider {
     public static IAppSettings Initialize() {
-        var jsonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VirtualDisplayDriver", "appsettings.json");
+        var jsonPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VirtualDisplayDriver", "appsettings.json");
 
         return new ConfigurationBuilder<IAppSettings>()
            .UseJsonFile(jsonPath)
