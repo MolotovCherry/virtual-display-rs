@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.ComponentModel;
-using System.Net.Http;
 using Virtual_Display_Driver_Control.Common;
 using Virtual_Display_Driver_Control.Helpers;
 using Windows.System;
@@ -154,11 +153,12 @@ public sealed partial class SettingsView : Page, INotifyPropertyChanged {
 
     bool needsUpdate = false;
     bool checkedUpdate = false;
-    private static readonly HttpClient client = new HttpClient();
+    string releaseUrl = "";
+    private static readonly Octokit.GitHubClient client = new Octokit.GitHubClient(new Octokit.ProductHeaderValue("VirtualDisplayDriverControl"));
     private async void updates_Click(object sender, RoutedEventArgs e) {
         // update check was already done and succeeded, so launch uri
         if (needsUpdate) {
-            await Launcher.LaunchUriAsync(new Uri("https://github.com/MolotovCherry/virtual-display-rs/releases/latest"));
+            await Launcher.LaunchUriAsync(new Uri(releaseUrl));
             return;
         }
 
@@ -169,20 +169,23 @@ public sealed partial class SettingsView : Page, INotifyPropertyChanged {
         // otherwise, do the update check instead
 
         try {
-            string reply = await client.GetStringAsync("https://raw.githubusercontent.com/MolotovCherry/virtual-display-rs/master/version");
+            var release = await client.Repository.Release.GetLatest("MolotovCherry", "virtual-display-rs");
 
-            Version data = Version.Parse(reply);
+            var tag = release.TagName[1..6];
+            releaseUrl = release.HtmlUrl;
+
+            Version data = Version.Parse(tag);
 
             var major = uint.Parse(GitVersionInformation.Major);
             var minor = uint.Parse(GitVersionInformation.Minor);
             var patch = uint.Parse(GitVersionInformation.Patch);
 
             if (data.Major > major || data.Minor > minor || data.Build > patch) {
-                UpdateCheck = $"Update is available: v{reply}";
+                UpdateCheck = $"Update is available: v{tag}";
                 needsUpdate = true;
                 checkedUpdate = true;
             } else {
-                UpdateCheck = $"No update is available; latest version is: v{reply}";
+                UpdateCheck = $"No update is available";
                 needsUpdate = false;
                 checkedUpdate = true;
             }
