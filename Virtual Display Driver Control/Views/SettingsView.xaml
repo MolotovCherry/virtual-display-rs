@@ -85,6 +85,16 @@
                          />
                     <controls:SettingsExpander.Items>
                         <controls:SettingsCard
+                            x:Name="updateCard"
+                            Header="{x:Bind UpdateCheck, Mode=OneWay}"
+                            IsClickEnabled="True"
+                            Click="updates_Click">
+                            <controls:SettingsCard.ActionIcon>
+                                <FontIcon Glyph="&#xE8A7;" />
+                            </controls:SettingsCard.ActionIcon>
+                        </controls:SettingsCard>
+                        
+                        <controls:SettingsCard
                             x:Name="homepageCard"
                             Header="Homepage"
                             IsClickEnabled="True"
