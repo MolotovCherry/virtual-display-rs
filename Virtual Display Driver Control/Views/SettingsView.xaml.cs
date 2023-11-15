@@ -12,7 +12,13 @@ public sealed partial class SettingsView : Page {
     public string AppInfo {
         get {
             var appTitle = Application.Current.Resources["AppTitleName"] as string;
-            var versionString = $"{App.Version.Major}.{App.Version.Minor}.{App.Version.Patch}";
+
+            #if DEBUG
+                var versionString = $"{GitVersionInformation.Major}.{GitVersionInformation.Minor}.{GitVersionInformation.Patch}.dev-{GitVersionInformation.ShortSha}";
+            #else
+                var versionString = $"{GitVersionInformation.Major}.{GitVersionInformation.Minor}.{GitVersionInformation.Patch}-{GitVersionInformation.ShortSha}";
+            #endif
+
             return $"{appTitle} - v{versionString}";
         }
     }

@@ -5,8 +5,6 @@ using Virtual_Display_Driver_Control.Helpers;
 namespace Virtual_Display_Driver_Control;
 
 public partial class App : Application {
-    public static Version Version = new Version(1, 0, 0);
-
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public static Window Window { get; private set; }
     public static IAppSettings Settings { get; private set; }
