@@ -36,5 +36,3 @@ macro_rules! debug {
 }
 
 use std::ops::{Deref, DerefMut};
-
-pub use debug;

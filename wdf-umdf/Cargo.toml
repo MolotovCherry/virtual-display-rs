@@ -3,6 +3,9 @@ name = "wdf-umdf"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 paste = "1.0.14"

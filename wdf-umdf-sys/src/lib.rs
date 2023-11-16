@@ -1,4 +1,3 @@
-#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals, unused)]
 
 mod bindings;
@@ -111,7 +110,7 @@ macro_rules! WDF_OBJECT_ATTRIBUTES_SET_CONTEXT_TYPE {
 
 impl WDF_OBJECT_ATTRIBUTES {
     /// Initializes the [`WDF_OBJECT_ATTRIBUTES`] structure
-    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfobject.h#L136
+    /// <https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfobject.h#L136/>
     ///
     /// Sets
     /// - `ExecutionLevel` to [`WDF_SYNCHRONIZATION_SCOPE::WdfSynchronizationScopeInheritFromParent`]
@@ -141,7 +140,7 @@ impl WDF_OBJECT_ATTRIBUTES {
 
 impl WDF_DRIVER_CONFIG {
     /// Initializes the [`WDF_DRIVER_CONFIG`] structure
-    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdriver.h#L134
+    /// <https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdriver.h#L134/>
     #[must_use]
     pub fn init(EvtDriverDeviceAdd: PFN_WDF_DRIVER_DEVICE_ADD) -> Self {
         // SAFETY: All fields are zero-able
@@ -157,7 +156,7 @@ impl WDF_DRIVER_CONFIG {
 
 impl WDF_PNPPOWER_EVENT_CALLBACKS {
     /// Initializes the [`WDF_PNPPOWER_EVENT_CALLBACKS`] structure
-    /// https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdevice.h#L1278
+    /// <https://github.com/microsoft/Windows-Driver-Frameworks/blob/a94b8c30dad524352fab90872aefc83920b98e56/src/publicinc/wdf/umdf/2.33/wdfdevice.h#L1278/>
     #[must_use]
     pub fn init() -> Self {
         // SAFETY: All fields are zero-able

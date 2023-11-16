@@ -12,3 +12,9 @@ members = [
 strip = true
 codegen-units = 1
 lto = true
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+pedantic = "warn"
