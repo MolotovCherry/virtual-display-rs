@@ -6,7 +6,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls">
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    xmlns:ui="using:CommunityToolkit.WinUI">
 
     <Page.Resources>
         <!--  Spacing between cards  -->
@@ -50,11 +51,11 @@
                 </StackPanel.ChildrenTransitions>
                 
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Appearance &amp; behavior" />
-                
-                <controls:SettingsCard Description="Select which app theme to display" Header="App theme">
-                    <controls:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE790;" />
-                    </controls:SettingsCard.HeaderIcon>
+
+                <controls:SettingsCard
+                    Description="Select which app theme to display"
+                    Header="App theme"
+                    HeaderIcon="{ui:FontIcon Glyph=&#xE790;}">
                     <ComboBox x:Name="themeMode" SelectionChanged="themeMode_SelectionChanged">
                         <ComboBoxItem Content="Light" Tag="Light" />
                         <ComboBoxItem Content="Dark" Tag="Dark" />
@@ -62,10 +63,10 @@
                     </ComboBox>
                 </controls:SettingsCard>
 
-                <controls:SettingsCard Description="Select which app material to use" Header="App material">
-                    <controls:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xEF1F;" />
-                    </controls:SettingsCard.HeaderIcon>
+                <controls:SettingsCard
+                    Description="Select which app material to use"
+                    Header="App material"
+                    HeaderIcon="{ui:FontIcon Glyph=&#xEF1F;}">
                     <ComboBox x:Name="themeMaterial" SelectionChanged="themeMaterial_SelectionChanged">
                         <ComboBoxItem Content="Mica" Tag="Mica" />
                         <ComboBoxItem Content="Acrylic" Tag="Acrylic" />
@@ -75,73 +76,64 @@
 
                 <!--  About  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
-                <controls:SettingsExpander Description="© 2023 Cherry. All rights reserved." Header="{x:Bind AppInfo}">
-                    <controls:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEA1F;" />
-                    </controls:SettingsExpander.HeaderIcon>
+                <controls:SettingsExpander
+                    Description="© 2023 Cherry. All rights reserved."
+                    Header="{x:Bind AppInfo}"
+                    HeaderIcon="{ui:FontIcon Glyph=&#xEA1F;}">
 
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        IsTextSelectionEnabled="True"
-                         />
+                        IsTextSelectionEnabled="True" />
+                    
                     <controls:SettingsExpander.Items>
                         <controls:SettingsCard
                             x:Name="updateCard"
-                            Header="{x:Bind UpdateCheck, Mode=OneWay}"
+                            Header="Check for updates"
+                            IsActionIconVisible="False"
                             IsClickEnabled="True"
-                            Click="updates_Click">
-                            <controls:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE943;" />
-                            </controls:SettingsCard.HeaderIcon>
-                            <controls:SettingsCard.ActionIcon>
-                                <FontIcon Glyph="&#xE8A7;" />
-                            </controls:SettingsCard.ActionIcon>
+                            Click="updates_Click"
+                            ActionIconToolTip="Open in new window"
+                            HeaderIcon="{ui:FontIcon Glyph=&#xE895;}"
+                            ActionIcon="{ui:FontIcon Glyph=&#xE8A7;}" >
+
+                            <DropDownButton
+                                x:Name="UpdateDownloadBtn"
+                                Content="Download"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Visibility="Collapsed" />
                         </controls:SettingsCard>
-                        
+
                         <controls:SettingsCard
                             x:Name="homepageCard"
                             Header="Homepage"
                             IsClickEnabled="True"
-                            Click="homepage_Click">
-                            <controls:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE80F;" />
-                            </controls:SettingsCard.HeaderIcon>
-                            <controls:SettingsCard.ActionIcon>
-                                <FontIcon Glyph="&#xE8A7;" />
-                            </controls:SettingsCard.ActionIcon>
-                        </controls:SettingsCard>
+                            Click="homepage_Click"
+                            ActionIconToolTip="Open in new window"
+                            HeaderIcon="{ui:FontIcon Glyph=&#xE80F;}"
+                            ActionIcon="{ui:FontIcon Glyph=&#xE8A7;}" />
 
                         <controls:SettingsCard
                             x:Name="bugFeatureCard"
                             Header="File a bug or request new feature"
                             IsClickEnabled="True"
-                            Click="bugFeatureCard_Click">
-                            <controls:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEBE8;" />
-                            </controls:SettingsCard.HeaderIcon>
-                            <controls:SettingsCard.ActionIcon>
-                                <FontIcon Glyph="&#xE8A7;" />
-                            </controls:SettingsCard.ActionIcon>
-                        </controls:SettingsCard>
+                            Click="bugFeatureCard_Click"
+                            ActionIconToolTip="Open in new window"
+                            HeaderIcon="{ui:FontIcon Glyph=&#xEBE8;}"
+                            ActionIcon="{ui:FontIcon Glyph=&#xE8A7;}" />
 
                         <controls:SettingsCard
                             x:Name="donateCard"
                             Header="Donate a 🧁 - If you found this software useful and want to give back ❤️"
                             IsClickEnabled="True"
-                            Click="donate_Click">
-                            <controls:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xF133;" />
-                            </controls:SettingsCard.HeaderIcon>
-                            <controls:SettingsCard.ActionIcon>
-                                <FontIcon Glyph="&#xE8A7;" />
-                            </controls:SettingsCard.ActionIcon>
-                        </controls:SettingsCard>
+                            Click="donate_Click"
+                            ActionIconToolTip="Open in new window"
+                            HeaderIcon="{ui:FontIcon Glyph=&#xF133;}"
+                            ActionIcon="{ui:FontIcon Glyph=&#xE8A7;}" />
 
                         <controls:SettingsCard
                             HorizontalContentAlignment="Left"
                             ContentAlignment="Vertical"
-                            Header="THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.">
-                        </controls:SettingsCard>
+                            Header="THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE." />
                     </controls:SettingsExpander.Items>
                 </controls:SettingsExpander>
             </StackPanel>

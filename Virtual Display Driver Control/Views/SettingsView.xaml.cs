@@ -1,15 +1,15 @@
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using System;
-using System.ComponentModel;
 using Virtual_Display_Driver_Control.Common;
 using Virtual_Display_Driver_Control.Helpers;
 using Windows.System;
 
 namespace Virtual_Display_Driver_Control.Views;
 
-public sealed partial class SettingsView : Page, INotifyPropertyChanged {
+public sealed partial class SettingsView : Page {
     public string AppInfo {
         get {
             var appTitle = Application.Current.Resources["AppTitleName"] as string;
@@ -140,23 +140,11 @@ public sealed partial class SettingsView : Page, INotifyPropertyChanged {
     // Update check code
     //
 
-    string _updateCheck = "Click to Check for Updates";
-    string UpdateCheck {
-        get { return _updateCheck;  }
-        set {
-            if (_updateCheck != value) {
-                _updateCheck = value;
-                RaisePropertyChanged("UpdateCheck");
-            }
-        }
-    }
-
-    bool needsUpdate = false;
     bool checkedUpdate = false;
+    bool needsUpdate = false;
     string releaseUrl = "";
     private static readonly Octokit.GitHubClient client = new Octokit.GitHubClient(new Octokit.ProductHeaderValue("VirtualDisplayDriverControl"));
     private async void updates_Click(object sender, RoutedEventArgs e) {
-        // update check was already done and succeeded, so launch uri
         if (needsUpdate) {
             await Launcher.LaunchUriAsync(new Uri(releaseUrl));
             return;
@@ -181,24 +169,33 @@ public sealed partial class SettingsView : Page, INotifyPropertyChanged {
             var patch = uint.Parse(GitVersionInformation.Patch);
 
             if (data.Major > major || data.Minor > minor || data.Build > patch) {
-                UpdateCheck = $"Update is available: v{tag}";
-                needsUpdate = true;
+                updateCard.Header = $"Update is available: v{tag}";
                 checkedUpdate = true;
+                needsUpdate = true;
+                releaseUrl = release.HtmlUrl;
+
+                var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
+
+                foreach (Octokit.ReleaseAsset asset in release.Assets) {
+                    var item = new MenuFlyoutItem();
+                    item.Text = asset.Name;
+                    item.Click += async (object sender, RoutedEventArgs e) => {
+                        await Launcher.LaunchUriAsync(new Uri(asset.BrowserDownloadUrl));
+                    };
+
+                    flyout.Items.Add(item);
+                }
+
+                UpdateDownloadBtn.Flyout = flyout;
+
+                UpdateDownloadBtn.Visibility = Visibility.Visible;
+                updateCard.IsActionIconVisible = true;
             } else {
-                UpdateCheck = $"No update is available";
-                needsUpdate = false;
+                updateCard.Header = $"No update is available";
                 checkedUpdate = true;
             }
         } catch {
-            UpdateCheck = "Failed to retrieve latest version information";
-            needsUpdate = false;
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void RaisePropertyChanged(string name) {
-        if (PropertyChanged != null) {
-            PropertyChanged(this, new PropertyChangedEventArgs(name));
+            updateCard.Header = "Failed to retrieve latest version information";
         }
     }
 }
