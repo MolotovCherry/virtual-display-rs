@@ -19,7 +19,7 @@ use wdf_umdf_sys::{
 };
 
 use crate::{
-    context::{DeviceContext, MonitorContext},
+    context::{Device, Monitor},
     edid::get_edid_serial,
     ipc::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
 };
@@ -28,21 +28,12 @@ pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
     _p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
 ) -> NTSTATUS {
-    let status = unsafe {
-        DeviceContext::get_mut(adapter_object as *mut _, |context| {
-            context.finish_init();
-        })
-        .into_status()
-    };
-
-    if !status.is_success() {
-        return status;
-    }
-
     // store adapter object for listener to use
     ADAPTER
         .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
         .unwrap();
+
+    Device::finish_init();
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -52,7 +43,7 @@ pub extern "C-unwind" fn device_d0_entry(
     _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
     let status = unsafe {
-        DeviceContext::get_mut(device as *mut _, |context| {
+        Device::get_mut(device.cast(), |context| {
             context.init_adapter();
         })
         .into_status()
@@ -69,7 +60,7 @@ fn display_info(width: u32, height: u32, refresh_rate: u32) -> DISPLAYCONFIG_VID
     let clock_rate = refresh_rate * (height + 4) * (height + 4) + 1000;
 
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
-        pixelRate: clock_rate as u64,
+        pixelRate: u64::from(clock_rate),
         hSyncFreq: DISPLAYCONFIG_RATIONAL {
             Numerator: clock_rate,
             Denominator: height + 4,
@@ -123,7 +114,7 @@ pub extern "C-unwind" fn parse_monitor_description(
         .find(|&m| m.monitor.id == monitor_index)
         .expect("to be found");
 
-    let number_of_modes = monitor.monitor.modes.len() as u32;
+    let number_of_modes = u32::try_from(monitor.monitor.modes.len()).unwrap();
 
     out_args.MonitorModeBufferOutputCount = number_of_modes;
     if in_args.MonitorModeBufferInputCount < number_of_modes {
@@ -133,29 +124,29 @@ pub extern "C-unwind" fn parse_monitor_description(
         } else {
             NTSTATUS::STATUS_SUCCESS
         };
-    } else {
-        let monitor_modes = unsafe {
-            std::slice::from_raw_parts_mut(
-                in_args
-                    .pMonitorModes
-                    .cast::<MaybeUninit<IDDCX_MONITOR_MODE>>(),
-                monitor_count as usize,
-            )
-        };
-
-        for (out_mode, mode) in monitor_modes.iter_mut().zip(&monitor.monitor.modes) {
-            for refresh_rate in mode.refresh_rates.iter().copied() {
-                out_mode.write(IDDCX_MONITOR_MODE {
-                    Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
-                    Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
-                    MonitorVideoSignalInfo: display_info(mode.width, mode.height, refresh_rate),
-                });
-            }
-        }
-
-        // Set the preferred mode as represented in the EDID
-        out_args.PreferredMonitorModeIdx = 0;
     }
+
+    let monitor_modes = unsafe {
+        std::slice::from_raw_parts_mut(
+            in_args
+                .pMonitorModes
+                .cast::<MaybeUninit<IDDCX_MONITOR_MODE>>(),
+            monitor_count as usize,
+        )
+    };
+
+    for (out_mode, mode) in monitor_modes.iter_mut().zip(&monitor.monitor.modes) {
+        for refresh_rate in mode.refresh_rates.iter().copied() {
+            out_mode.write(IDDCX_MONITOR_MODE {
+                Size: u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()).unwrap(),
+                Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
+                MonitorVideoSignalInfo: display_info(mode.width, mode.height, refresh_rate),
+            });
+        }
+    }
+
+    // Set the preferred mode as represented in the EDID
+    out_args.PreferredMonitorModeIdx = 0;
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -175,11 +166,11 @@ pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_M
     };
 
     IDDCX_TARGET_MODE {
-        Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
+        Size: u32::try_from(mem::size_of::<IDDCX_TARGET_MODE>()).unwrap(),
 
         TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
             targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
-                pixelRate: refresh_rate as u64 * width as u64 * height as u64,
+                pixelRate: u64::from(refresh_rate) * u64::from(width) * u64::from(height),
                 hSyncFreq: DISPLAYCONFIG_RATIONAL {
                     Numerator: refresh_rate * height,
                     Denominator: 1,
@@ -209,7 +200,7 @@ pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_M
 }
 
 pub extern "C-unwind" fn monitor_query_modes(
-    _monitor_object: *mut IDDCX_MONITOR__,
+    monitor_object: *mut IDDCX_MONITOR__,
     p_in_args: *const IDARG_IN_QUERYTARGETMODES,
     p_out_args: *mut IDARG_OUT_QUERYTARGETMODES,
 ) -> NTSTATUS {
@@ -220,10 +211,10 @@ pub extern "C-unwind" fn monitor_query_modes(
     // we have stored the monitor object per id, so we should be able to compare pointers
     let monitor = monitors
         .iter()
-        .find(|&m| m.monitor_object.unwrap().as_ptr() == _monitor_object)
+        .find(|&m| m.monitor_object.unwrap().as_ptr() == monitor_object)
         .unwrap();
 
-    let number_of_modes = monitor.monitor.modes.len() as u32;
+    let number_of_modes = u32::try_from(monitor.monitor.modes.len()).unwrap();
 
     // Create a set of modes supported for frame processing and scan-out. These are typically not based on the
     // monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -277,7 +268,7 @@ pub extern "C-unwind" fn assign_swap_chain(
     let p_in_args = unsafe { &*p_in_args };
 
     unsafe {
-        MonitorContext::get_mut(monitor_object as *mut _, |context| {
+        Monitor::get_mut(monitor_object.cast(), |context| {
             context.assign_swap_chain(
                 p_in_args.hSwapChain,
                 p_in_args.RenderAdapterLuid,
@@ -290,7 +281,7 @@ pub extern "C-unwind" fn assign_swap_chain(
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
     unsafe {
-        MonitorContext::get_mut(monitor_object as *mut _, |context| {
+        Monitor::get_mut(monitor_object.cast(), |context| {
             context.unassign_swap_chain();
         })
     }

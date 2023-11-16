@@ -15,7 +15,7 @@ use crate::callbacks::{
     adapter_commit_modes, adapter_init_finished, assign_swap_chain, device_d0_entry,
     monitor_get_default_modes, monitor_query_modes, parse_monitor_description, unassign_swap_chain,
 };
-use crate::{context::DeviceContext, helpers::Sendable};
+use crate::{context::Device, helpers::Sendable};
 
 //
 // Our driver's entry point
@@ -72,7 +72,7 @@ extern "C-unwind" fn DriverEntry(
                         // Service took too long to start. Unfortunately, there is no way to log this failure
                         unsafe {
                             _ = WdfDeviceSetFailed(
-                                *device as *mut _,
+                                device.cast(),
                                 WDF_DEVICE_FAILED_ACTION::WdfDeviceFailedNoRestart,
                             );
                         }
@@ -141,7 +141,7 @@ extern "C-unwind" fn driver_add(
     }
 
     let mut attributes =
-        WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { DeviceContext::get_type_info() });
+        WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { Device::get_type_info() });
 
     attributes.EvtCleanupCallback = Some(event_cleanup);
 
@@ -159,11 +159,11 @@ extern "C-unwind" fn driver_add(
         return e.into();
     }
 
-    let context = DeviceContext::new(device);
+    let context = Device::new(device);
 
     unsafe { context.init(device as WDFOBJECT).into_status() }
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {
-    _ = unsafe { DeviceContext::drop(wdf_object) };
+    _ = unsafe { Device::drop(wdf_object) };
 }

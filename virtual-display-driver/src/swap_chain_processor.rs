@@ -63,7 +63,7 @@ impl SwapChainProcessor {
             //     return;
             // }
 
-            Self::run_core(*swap_chain, device, *available_buffer_event, terminate);
+            Self::run_core(*swap_chain, &device, *available_buffer_event, &terminate);
 
             unsafe {
                 WdfObjectDelete(*swap_chain as WDFOBJECT).unwrap();
@@ -81,9 +81,9 @@ impl SwapChainProcessor {
 
     fn run_core(
         swap_chain: IDDCX_SWAPCHAIN,
-        device: Direct3DDevice,
+        device: &Direct3DDevice,
         available_buffer_event: HANDLE,
-        terminate: Arc<AtomicBool>,
+        terminate: &Arc<AtomicBool>,
     ) {
         let dxgi_device = device.device.cast::<IDXGIDevice>();
         let Ok(dxgi_device) = dxgi_device else {
@@ -96,7 +96,7 @@ impl SwapChainProcessor {
         };
 
         let set_device = IDARG_IN_SWAPCHAINSETDEVICE {
-            pDevice: dxgi_device.into_raw() as *mut _,
+            pDevice: dxgi_device.into_raw().cast(),
         };
 
         if unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) }.is_err() {
@@ -108,7 +108,8 @@ impl SwapChainProcessor {
             let hr = unsafe { IddCxSwapChainReleaseAndAcquireBuffer(swap_chain, &mut buffer) }
                 .into_status();
 
-            const E_PENDING: u32 = 0x8000000A;
+            #[allow(clippy::items_after_statements)]
+            const E_PENDING: u32 = 0x8000_000A;
             if u32::from(hr) == E_PENDING {
                 let wait_result =
                     unsafe { WaitForSingleObject(WHANDLE(available_buffer_event as _), 16).0 };
@@ -123,10 +124,10 @@ impl SwapChainProcessor {
                 if matches!(wait_result, 0 | WAIT_TIMEOUT) {
                     // We have a new buffer, so try the AcquireBuffer again
                     continue;
-                } else {
-                    // The wait was cancelled or something unexpected happened
-                    break;
                 }
+
+                // The wait was cancelled or something unexpected happened
+                break;
             } else if hr.is_success() {
                 // This is the most performance-critical section of code in an IddCx driver. It's important that whatever
                 // is done with the acquired surface be finished as quickly as possible.

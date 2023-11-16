@@ -13,7 +13,7 @@ static MONITOR_EDID: &[u8] = &[
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
-pub struct EdidHeader {
+pub struct Data {
     header: [u8; 8],
     manufacturer_id: [u8; 2],
     product_code: u16,
@@ -26,16 +26,16 @@ pub struct EdidHeader {
 
 pub fn generate_edid_with(serial: u32) -> Vec<u8> {
     // change serial number in the header
-    let header_bytes = &MONITOR_EDID[..std::mem::size_of::<EdidHeader>()];
-    let mut header = bytemuck::pod_read_unaligned::<EdidHeader>(header_bytes);
+    let header_bytes = &MONITOR_EDID[..std::mem::size_of::<Data>()];
+    let mut header = bytemuck::pod_read_unaligned::<Data>(header_bytes);
     header.serial_number = serial;
     let header = bytemuck::bytes_of(&header);
 
     // slice of monitor edid minus header
-    let data = &MONITOR_EDID[std::mem::size_of::<EdidHeader>()..];
+    let data = &MONITOR_EDID[std::mem::size_of::<Data>()..];
 
     // splice together header and the rest of the EDID
-    let mut edid: Vec<u8> = header.iter().cloned().chain(data.iter().cloned()).collect();
+    let mut edid: Vec<u8> = header.iter().copied().chain(data.iter().copied()).collect();
     // regenerate checksum
     gen_checksum(&mut edid);
 
@@ -43,8 +43,8 @@ pub fn generate_edid_with(serial: u32) -> Vec<u8> {
 }
 
 pub fn get_edid_serial(edid: &[u8]) -> u32 {
-    let header_bytes = &edid[0..std::mem::size_of::<EdidHeader>()];
-    let header = bytemuck::pod_read_unaligned::<EdidHeader>(header_bytes);
+    let header_bytes = &edid[0..std::mem::size_of::<Data>()];
+    let header = bytemuck::pod_read_unaligned::<Data>(header_bytes);
     header.serial_number
 }
 
@@ -56,8 +56,8 @@ fn gen_checksum(data: &mut [u8]) {
     let edid_data = &data[..=126];
 
     // do checksum calculation
-    let sum: u32 = edid_data.iter().copied().map(|b| b as u32).sum();
-    let checksum = (256 - (sum % 256)) as u8;
+    let sum: u32 = edid_data.iter().copied().map(u32::from).sum();
+    let checksum = u8::try_from(256 - (sum % 256)).unwrap();
 
     // update last byte with new checksum
     data[127] = checksum;

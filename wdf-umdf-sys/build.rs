@@ -13,6 +13,9 @@ pub enum Error {
 
 /// Retrieves the path to the Windows Kits directory. The default should be
 /// `C:\Program Files (x86)\Windows Kits\10`.
+///
+/// # Errors
+/// Returns IO error if failed
 pub fn get_windows_kits_dir() -> Result<PathBuf, Error> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let key = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots";
@@ -29,6 +32,9 @@ pub enum DirectoryType {
 
 /// Retrieves the path to the user mode libraries. The path may look something like:
 /// `C:\Program Files (x86)\Windows Kits\10\lib\10.0.18362.0\um`.
+///
+/// # Errors
+/// Returns IO error if failed
 pub fn get_um_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
     // We first append lib to the path and read the directory..
     let dir = get_windows_kits_dir()?
@@ -62,6 +68,8 @@ pub fn get_um_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
     Ok(dir)
 }
 
+/// # Errors
+/// Returns IO error if failed
 pub fn get_umdf_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
     Ok(get_windows_kits_dir()?.join(match dir_type {
         DirectoryType::Include => PathBuf::from_iter(["Include", "wdf", "umdf", "2.31"]),
@@ -71,6 +79,9 @@ pub fn get_umdf_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
 
 /// Retrieves the path to the shared headers. The path may look something like:
 /// `C:\Program Files (x86)\Windows Kits\10\lib\10.0.18362.0\shared`.
+///
+/// # Errors
+/// Returns IO error if failed
 pub fn get_shared_dir() -> Result<PathBuf, Error> {
     // We first append lib to the path and read the directory..
     let dir = get_windows_kits_dir()?.join("Include").read_dir()?;

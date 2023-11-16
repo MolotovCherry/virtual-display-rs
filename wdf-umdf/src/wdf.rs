@@ -1,4 +1,6 @@
 #![allow(non_snake_case)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::module_name_repetitions)]
 
 use std::ffi::c_void;
 
@@ -34,6 +36,7 @@ impl From<()> for WdfError {
 
 impl From<WdfError> for NTSTATUS {
     fn from(value: WdfError) -> Self {
+        #[allow(clippy::enum_glob_use)]
         use WdfError::*;
         match value {
             WdfFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
@@ -98,10 +101,10 @@ macro_rules! WdfCall {
     }};
 }
 
-/// Unlike the official WDF_DECLARE_CONTEXT_TYPE macro, you only need to declare this on the actual data struct want to use
-/// Safety is maintained through a RwLock of the underlying data
+/// Unlike the official `WDF_DECLARE_CONTEXT_TYPE` macro, you only need to declare this on the actual data struct want to use
+/// Safety is maintained through a `RwLock` of the underlying data
 ///
-/// This generates associated fns init/get/drop/get_type_info on your $context_type with the same visibility
+/// This generates associated fns `init`/`get`/`drop`/`get_type_info` on your `$context_type` with the same visibility
 ///
 /// Example:
 /// ```rust
@@ -455,7 +458,7 @@ pub unsafe fn WdfDeviceCreate(
     WdfCall! {
         WdfDeviceCreate(
             DeviceInit,
-            DeviceAttributes.map(|d| d as *mut _).unwrap_or(WDF_NO_OBJECT_ATTRIBUTES!() as *mut _),
+            DeviceAttributes.map_or(WDF_NO_OBJECT_ATTRIBUTES!(), |d| d as *mut _),
             Device
         )
     }
@@ -568,7 +571,7 @@ pub unsafe fn WdfMemoryGetBuffer(
     WdfCall! {
         WdfMemoryGetBuffer(
             Memory,
-            BufferSize.map(|s| s as *mut _).unwrap_or(std::ptr::null_mut())
+            BufferSize.map_or(std::ptr::null_mut(), |s| s as *mut _)
         )
     }
 }

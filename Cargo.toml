@@ -18,3 +18,4 @@ unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
 pedantic = "warn"
+ignored_unit_patterns = "allow"

@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![allow(clippy::missing_errors_doc)]
 
 use wdf_umdf_sys::{
     IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_SWAPCHAINSETDEVICE,
@@ -24,6 +25,7 @@ pub enum IddCxError {
 
 impl From<IddCxError> for NTSTATUS {
     fn from(value: IddCxError) -> Self {
+        #[allow(clippy::enum_glob_use)]
         use IddCxError::*;
         match value {
             IddCxFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,

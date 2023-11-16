@@ -14,6 +14,7 @@ pub trait IntoHelper<E> {
     /// Allow to convert Result into one NTSTATUS
     fn into_status(self) -> NTSTATUS;
     /// Separate NTSTATUS result into success/error variants
+    #[allow(clippy::missing_errors_doc)]
     fn into_result(self) -> Result<NTSTATUS, E>;
 }
 

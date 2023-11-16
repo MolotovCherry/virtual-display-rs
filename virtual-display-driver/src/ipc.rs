@@ -1,6 +1,7 @@
 use std::{
     io::Write,
-    ptr::NonNull,
+    mem::size_of,
+    ptr::{addr_of_mut, NonNull},
     sync::{Mutex, OnceLock},
     thread,
 };
@@ -21,7 +22,7 @@ use winreg::{
     RegKey,
 };
 
-use crate::context::DeviceContext;
+use crate::context::Device;
 
 pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
 pub static MONITOR_MODES: OnceLock<Mutex<Vec<MonitorObject>>> = OnceLock::new();
@@ -39,7 +40,7 @@ pub struct MonitorObject {
 unsafe impl Sync for MonitorObject {}
 unsafe impl Send for MonitorObject {}
 
-/// WARNING: Locks MONITOR_MODES, don't call if already locked or deadlock happens
+/// WARNING: Locks `MONITOR_MODES`, don't call if already locked or deadlock happens
 pub fn monitor_count() -> usize {
     MONITOR_MODES.get().unwrap().lock().unwrap().len()
 }
@@ -61,7 +62,7 @@ pub fn startup() {
 
         unsafe {
             InitializeSecurityDescriptor(
-                PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _),
+                PSECURITY_DESCRIPTOR(addr_of_mut!(sd).cast()),
                 SECURITY_DESCRIPTOR_REVISION,
             )
             .unwrap();
@@ -69,7 +70,7 @@ pub fn startup() {
 
         unsafe {
             SetSecurityDescriptorDacl(
-                PSECURITY_DESCRIPTOR(&mut sd as *mut _ as *mut _),
+                PSECURITY_DESCRIPTOR(addr_of_mut!(sd).cast()),
                 true,
                 None,
                 false,
@@ -78,8 +79,8 @@ pub fn startup() {
         }
 
         let sa = SECURITY_ATTRIBUTES {
-            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: &mut sd as *mut _ as *mut _,
+            nLength: u32::try_from(size_of::<SECURITY_ATTRIBUTES>()).unwrap(),
+            lpSecurityDescriptor: addr_of_mut!(sd).cast(),
             bInheritHandle: false.into(),
         };
 
@@ -114,10 +115,11 @@ pub fn startup() {
                     continue;
                 };
 
+                #[allow(clippy::match_wildcard_for_single_variants)]
                 match msg {
                     Command::DriverNotify(monitors) => notify(monitors),
 
-                    Command::DriverRemove(ids) => remove(ids),
+                    Command::DriverRemove(ids) => remove(&ids),
 
                     Command::DriverRemoveAll => remove_all(),
 
@@ -164,7 +166,7 @@ fn notify(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
-        DeviceContext::get_mut(adapter as *mut _, |context| {
+        Device::get_mut(adapter.cast(), |context| {
             for monitor in monitors {
                 let id = monitor.id;
 
@@ -233,10 +235,10 @@ fn remove_all() {
     }
 }
 
-fn remove(ids: Vec<u32>) {
+fn remove(ids: &[u32]) {
     let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-    for &id in ids.iter() {
+    for &id in ids {
         lock.retain_mut(|monitor| {
             if id == monitor.monitor.id {
                 if let Some(mut monitor_object) = monitor.monitor_object.take() {
