@@ -77,8 +77,9 @@
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
                 <controls:SettingsExpander Description="© 2023 Cherry. All rights reserved." Header="{x:Bind AppInfo}">
                     <controls:SettingsExpander.HeaderIcon>
-                        <BitmapIcon ShowAsMonochrome="False" UriSource="/Assets/Tiles/SmallTile-sdk.png" />
+                        <FontIcon Glyph="&#xEA1F;" />
                     </controls:SettingsExpander.HeaderIcon>
+
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         IsTextSelectionEnabled="True"
@@ -89,6 +90,9 @@
                             Header="{x:Bind UpdateCheck, Mode=OneWay}"
                             IsClickEnabled="True"
                             Click="updates_Click">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE943;" />
+                            </controls:SettingsCard.HeaderIcon>
                             <controls:SettingsCard.ActionIcon>
                                 <FontIcon Glyph="&#xE8A7;" />
                             </controls:SettingsCard.ActionIcon>
@@ -99,6 +103,9 @@
                             Header="Homepage"
                             IsClickEnabled="True"
                             Click="homepage_Click">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE80F;" />
+                            </controls:SettingsCard.HeaderIcon>
                             <controls:SettingsCard.ActionIcon>
                                 <FontIcon Glyph="&#xE8A7;" />
                             </controls:SettingsCard.ActionIcon>
@@ -109,6 +116,9 @@
                             Header="File a bug or request new feature"
                             IsClickEnabled="True"
                             Click="bugFeatureCard_Click">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xEBE8;" />
+                            </controls:SettingsCard.HeaderIcon>
                             <controls:SettingsCard.ActionIcon>
                                 <FontIcon Glyph="&#xE8A7;" />
                             </controls:SettingsCard.ActionIcon>
@@ -119,6 +129,9 @@
                             Header="Donate a 🧁 - If you found this software useful and want to give back ❤️"
                             IsClickEnabled="True"
                             Click="donate_Click">
+                            <controls:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xF133;" />
+                            </controls:SettingsCard.HeaderIcon>
                             <controls:SettingsCard.ActionIcon>
                                 <FontIcon Glyph="&#xE8A7;" />
                             </controls:SettingsCard.ActionIcon>
