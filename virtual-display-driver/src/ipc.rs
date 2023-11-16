@@ -22,7 +22,7 @@ use winreg::{
     RegKey,
 };
 
-use crate::context::Device;
+use crate::context::DeviceContext;
 
 pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
 pub static MONITOR_MODES: OnceLock<Mutex<Vec<MonitorObject>>> = OnceLock::new();
@@ -166,7 +166,7 @@ fn notify(monitors: Vec<Monitor>) {
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
-        Device::get_mut(adapter.cast(), |context| {
+        DeviceContext::get_mut(adapter.cast(), |context| {
             for monitor in monitors {
                 let id = monitor.id;
 

@@ -19,7 +19,7 @@ use wdf_umdf_sys::{
 };
 
 use crate::{
-    context::{Device, Monitor},
+    context::{DeviceContext, MonitorContext},
     edid::get_edid_serial,
     ipc::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
 };
@@ -33,7 +33,7 @@ pub extern "C-unwind" fn adapter_init_finished(
         .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
         .unwrap();
 
-    Device::finish_init();
+    DeviceContext::finish_init();
 
     NTSTATUS::STATUS_SUCCESS
 }
@@ -43,7 +43,7 @@ pub extern "C-unwind" fn device_d0_entry(
     _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
     let status = unsafe {
-        Device::get_mut(device.cast(), |context| {
+        DeviceContext::get_mut(device.cast(), |context| {
             context.init_adapter();
         })
         .into_status()
@@ -268,7 +268,7 @@ pub extern "C-unwind" fn assign_swap_chain(
     let p_in_args = unsafe { &*p_in_args };
 
     unsafe {
-        Monitor::get_mut(monitor_object.cast(), |context| {
+        MonitorContext::get_mut(monitor_object.cast(), |context| {
             context.assign_swap_chain(
                 p_in_args.hSwapChain,
                 p_in_args.RenderAdapterLuid,
@@ -281,7 +281,7 @@ pub extern "C-unwind" fn assign_swap_chain(
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
     unsafe {
-        Monitor::get_mut(monitor_object.cast(), |context| {
+        MonitorContext::get_mut(monitor_object.cast(), |context| {
             context.unassign_swap_chain();
         })
     }

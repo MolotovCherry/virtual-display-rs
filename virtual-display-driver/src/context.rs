@@ -28,30 +28,32 @@ use crate::{
 // Maximum amount of monitors that can be connected
 pub const MAX_MONITORS: u8 = 10;
 
-pub struct Device {
+#[allow(clippy::module_name_repetitions)]
+pub struct DeviceContext {
     device: WDFDEVICE,
     adapter: Option<IDDCX_ADAPTER>,
 }
 
 // SAFETY: Raw ptr is managed by external library
-unsafe impl Send for Device {}
-unsafe impl Sync for Device {}
+unsafe impl Send for DeviceContext {}
+unsafe impl Sync for DeviceContext {}
 
 // for now, `device` is hardcoded into the macro, so it needs to be there even if unused
 #[allow(unused)]
-pub struct Monitor {
+#[allow(clippy::module_name_repetitions)]
+pub struct MonitorContext {
     device: IDDCX_MONITOR,
     swap_chain_processor: Option<SwapChainProcessor>,
 }
 
 // SAFETY: Raw ptr is managed by external library
-unsafe impl Send for Monitor {}
-unsafe impl Sync for Monitor {}
+unsafe impl Send for MonitorContext {}
+unsafe impl Sync for MonitorContext {}
 
-WDF_DECLARE_CONTEXT_TYPE!(pub Device);
-WDF_DECLARE_CONTEXT_TYPE!(pub Monitor);
+WDF_DECLARE_CONTEXT_TYPE!(pub DeviceContext);
+WDF_DECLARE_CONTEXT_TYPE!(pub MonitorContext);
 
-impl Device {
+impl DeviceContext {
     pub fn new(device: WDFDEVICE) -> Self {
         Self {
             device,
@@ -124,7 +126,7 @@ impl Device {
 
     pub fn create_monitor(&mut self, index: u32) -> NTSTATUS {
         let mut attr =
-            WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { Monitor::get_type_info() });
+            WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { MonitorContext::get_type_info() });
 
         // use the edid serial number to represent the monitor index for later identification
         let mut edid = generate_edid_with(index);
@@ -176,7 +178,7 @@ impl Device {
             }
 
             unsafe {
-                let context = Monitor::new(monitor_create_out.MonitorObject);
+                let context = MonitorContext::new(monitor_create_out.MonitorObject);
                 context
                     .init(monitor_create_out.MonitorObject as WDFOBJECT)
                     .into_status();
@@ -197,7 +199,7 @@ impl Device {
     }
 }
 
-impl Monitor {
+impl MonitorContext {
     pub fn new(device: IDDCX_MONITOR) -> Self {
         Self {
             device,
