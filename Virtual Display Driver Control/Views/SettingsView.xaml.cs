@@ -140,7 +140,7 @@ public sealed partial class SettingsView : Page, INotifyPropertyChanged {
     // Update check code
     //
 
-    string _updateCheck = "Check for Updates";
+    string _updateCheck = "Click to Check for Updates";
     string UpdateCheck {
         get { return _updateCheck;  }
         set {
