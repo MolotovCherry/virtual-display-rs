@@ -140,17 +140,12 @@ public sealed partial class SettingsView : Page {
     // Update check code
     //
 
-    bool checkedUpdate = false;
     bool clickToRelease = false;
     string releaseUrl = "";
     private static readonly Octokit.GitHubClient client = new Octokit.GitHubClient(new Octokit.ProductHeaderValue("VirtualDisplayDriverControl"));
     private async void updates_Click(object sender, RoutedEventArgs e) {
         if (clickToRelease) {
             await Launcher.LaunchUriAsync(new Uri(releaseUrl));
-            return;
-        }
-
-        if (checkedUpdate) {
             return;
         }
 
@@ -167,8 +162,6 @@ public sealed partial class SettingsView : Page {
             var major = uint.Parse(GitVersionInformation.Major);
             var minor = uint.Parse(GitVersionInformation.Minor);
             var patch = uint.Parse(GitVersionInformation.Patch);
-
-            checkedUpdate = true;
 
             if (data.Major > major || data.Minor > minor || data.Build > patch) {
                 updateCard.Header = $"Update is available: v{tag}";
@@ -192,6 +185,8 @@ public sealed partial class SettingsView : Page {
                 updateCard.IsActionIconVisible = true;
             } else {
                 updateCard.Header = "No update is available";
+                // nothing to check anymore
+                updateCard.IsClickEnabled = false;
             }
         } catch {
             updateCard.Header = "Failed to retrieve latest version information";
