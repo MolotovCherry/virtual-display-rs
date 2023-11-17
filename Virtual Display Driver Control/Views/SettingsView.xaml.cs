@@ -17,19 +17,19 @@ public sealed partial class SettingsView : Page {
 
             var version = $"{GitVersionInformation.Major}.{GitVersionInformation.Minor}.{GitVersionInformation.Patch}";
 
-#if DEBUG
-            string dirty = "";
-            uint commitsSince;
-            if (uint.TryParse(GitVersionInformation.UncommittedChanges, out commitsSince)) {
-                if (commitsSince > 0) {
-                    dirty = "-dirty";
+            #if DEBUG
+                string dirty = "";
+                uint commitsSince;
+                if (uint.TryParse(GitVersionInformation.UncommittedChanges, out commitsSince)) {
+                    if (commitsSince > 0) {
+                        dirty = "-dirty";
+                    }
                 }
-            }
 
-            var versionString = $"{version}.dev-{GitVersionInformation.ShortSha}{dirty}";
-#else
+                var versionString = $"{version}.dev-{GitVersionInformation.ShortSha}{dirty}";
+            #else
                 var versionString = $"{version}-{GitVersionInformation.ShortSha}";
-#endif
+            #endif
 
             return $"{appTitle} - v{versionString}";
         }
