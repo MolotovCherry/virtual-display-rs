@@ -199,7 +199,7 @@ public sealed partial class SettingsView : Page {
 
                 var major = uint.Parse(GitVersionInformation.Major);
                 var minor = uint.Parse(GitVersionInformation.Minor);
-                var patch = uint.Parse(GitVersionInformation.Patch) - 2;
+                var patch = uint.Parse(GitVersionInformation.Patch);
 
                 if (data.Major > major || data.Minor > minor || data.Patch > patch) {
                     updateCard.Header = $"Update is available: v{data.Major}.{data.Minor}.{data.Patch}";
