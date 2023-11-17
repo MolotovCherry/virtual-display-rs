@@ -81,15 +81,10 @@
                     Header="{x:Bind AppInfo}"
                     HeaderIcon="{ui:FontIcon Glyph=&#xEA1F;}">
 
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        IsTextSelectionEnabled="True" />
-                    
                     <controls:SettingsExpander.Items>
                         <controls:SettingsCard
                             x:Name="updateCard"
-                            Header="Check for updates"
-                            IsActionIconVisible="False"
+                            Header="You're up to date"
                             IsClickEnabled="True"
                             Click="updates_Click"
                             ActionIconToolTip="Open in new window"
@@ -98,9 +93,9 @@
 
                             <DropDownButton
                                 x:Name="UpdateDownloadBtn"
-                                Content="Download"
-                                Style="{StaticResource AccentButtonStyle}"
-                                Visibility="Collapsed" />
+                                Content="Check for updates"
+                                Click="updateBtn_Click"
+                                Style="{StaticResource AccentButtonStyle}" />
                         </controls:SettingsCard>
 
                         <controls:SettingsCard

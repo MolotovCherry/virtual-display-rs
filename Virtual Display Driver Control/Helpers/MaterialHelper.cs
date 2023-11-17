@@ -12,7 +12,7 @@ class MaterialHelper {
     }
 
     public static void SetMaterial(Material material) {
-        IAppSettings Settings = App.Settings;
+        AppSettings Settings = App.Settings;
 
         if (material == Material.Mica && MicaController.IsSupported()) {
             App.Window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.Base };

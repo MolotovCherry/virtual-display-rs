@@ -4,7 +4,7 @@
     <DebuggerFlavor>ProjectDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup>
-    <ActiveDebugProfile>Virtual Display Driver Control (Package)</ActiveDebugProfile>
+    <ActiveDebugProfile>Virtual Display Driver Control (Unpackaged)</ActiveDebugProfile>
     <Source>Assets\icon.png</Source>
     <SmallTileSource>Assets\icon.png</SmallTileSource>
     <MediumTileSource>Assets\icon.png</MediumTileSource>

@@ -7,7 +7,7 @@ namespace Virtual_Display_Driver_Control;
 public partial class App : Application {
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public static Window Window { get; private set; }
-    public static IAppSettings Settings { get; private set; }
+    public static AppSettings Settings { get; private set; }
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
     public App() {
