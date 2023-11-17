@@ -12,16 +12,7 @@ namespace Virtual_Display_Driver_Control {
             InitializeComponent();
 
             // set window icon
-            if (AppWindowTitleBar.IsCustomizationSupported() is true) {
-                IntPtr hWnd = WindowNative.GetWindowHandle(this);
-                WindowId wndId = Win32Interop.GetWindowIdFromWindow(hWnd);
-                AppWindow appWindow = AppWindow.GetFromWindowId(wndId);
-                var icon_id = Win32Interop.GetIconIdFromIcon(WindowTools.GetIcon().GetValueOrThrow().Handle);
-                appWindow.SetIcon(icon_id);
-            } else {
-                // fallback api to set icon for unsupported customization
-                WindowTools.SetWindowIcon(this);
-            }
+            WindowTools.SetWindowIcon(this);
 
             // only supported on windows 11
             if (AppWindowTitleBar.IsCustomizationSupported()) {
