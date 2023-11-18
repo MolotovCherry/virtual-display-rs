@@ -3,13 +3,86 @@
     x:Class="Virtual_Display_Driver_Control.Views.MonitorsView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Virtual_Display_Driver_Control.Views"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:BackdropMaterial.ApplyToRootOrPageBackground="True">
+    mc:Ignorable="d">
 
-    <Grid>
-        <TextBlock>Foobar</TextBlock>
-    </Grid>
+    <Page.Resources>
+        <!--  Spacing between cards  -->
+        <x:Double x:Key="CardSpacing">3</x:Double>
+
+        <!--  Style (inc. the correct spacing) of a section header  -->
+        <Style
+            x:Key="SectionHeaderTextBlockStyle"
+            BasedOn="{StaticResource BodyStrongTextBlockStyle}"
+            TargetType="TextBlock">
+            <Style.Setters>
+                <Setter Property="Margin" Value="1,29,0,5" />
+            </Style.Setters>
+        </Style>
+    </Page.Resources>
+
+    <StackPanel Padding="36,0,36,0">
+        <TextBlock
+            x:Name="PageHeader"
+            Margin="0,24,0,0"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="Monitors" />
+
+        <Grid x:Name="MonitorRootGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left StackPanel -->
+            <StackPanel
+                    Margin="0,0,29,0"
+                    Grid.RowSpan="2"
+                    Grid.Column="0"
+                    MinHeight="100"
+                    MinWidth="60">
+
+                <TextBlock Style="{StaticResource SectionHeaderTextBlockStyle}" Text="Monitors" />
+
+                <StackPanel>
+                    <TextBlock>My block</TextBlock>
+                </StackPanel>
+
+            </StackPanel>
+
+            <!-- Top right StackPanel -->
+            <StackPanel
+                    Margin="0,0,0,29"
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    MinHeight="100"
+                    MinWidth="60">
+
+                <TextBlock Style="{StaticResource SectionHeaderTextBlockStyle}" Text="List" />
+
+                <StackPanel>
+                    <TextBlock>My block</TextBlock>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Bottom right StackPanel -->
+            <StackPanel
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    MinHeight="100"
+                    MinWidth="60">
+
+                <TextBlock Style="{StaticResource SectionHeaderTextBlockStyle}" Text="List2" />
+
+                <StackPanel>
+                    <TextBlock>My block</TextBlock>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
 </Page>
