@@ -29,11 +29,7 @@ public sealed class UpdateVersion {
     public DateTime? LastUpdate { get; set; }
 
     public string LastUpdateHuman() {
-        if (LastUpdate != null) {
-            return LastUpdate.Humanize();
-        }
-
-        return "never";
+        return LastUpdate.Humanize();
     }
 }
 
@@ -43,28 +39,33 @@ public sealed class Version : IComparable<Version>, IEquatable<Version> {
     public int Patch { get; set; }
 
     public static bool operator <(Version version1, Version version2) {
-        int result = version1.CompareTo(version2);
-        return result < 0;
+        return version1.CompareTo(version2) < 0;
     }
 
     public static bool operator >(Version version1, Version version2) {
-        int result = version1.CompareTo(version2);
-        return result > 0;
+        return version1.CompareTo(version2) > 0;
     }
 
-    public int CompareTo(Version? obj) {
-        if (obj != null) {
-            var version = new System.Version(obj.Major, obj.Minor, obj.Patch);
-            int result = version.CompareTo(new System.Version(this.Major, this.Minor, this.Patch));
+    public int CompareTo(Version? version) {
+        if (version == null)
+            return 1;
 
-            switch (result) {
-                case -1: return 1;
-                case 0: return 0;
-                case 1: return -1;
-            }
-        }
+        if (ReferenceEquals(version, this))
+            return 0;
 
-        throw new ArgumentNullException(nameof(obj));
+        var MajorCmp = Major.CompareTo(version.Major);
+        if (MajorCmp != 0)
+            return MajorCmp;
+
+        var MinorCmp = Minor.CompareTo(version.Minor);
+        if (MinorCmp != 0)
+            return MinorCmp;
+
+        var PatchCmp = Patch.CompareTo(version.Patch);
+        if (PatchCmp != 0)
+            return PatchCmp;
+
+        return 0;
     }
 
     public static Maybe<Version> Parse(string version) {
@@ -84,12 +85,8 @@ public sealed class Version : IComparable<Version>, IEquatable<Version> {
         }
     }
 
-    public bool Equals(Version? other) {
-        if (other is Version version) {
-            return version.CompareTo(this) == 0;
-        }
-
-        return false;
+    public bool Equals(Version? version) {
+        return CompareTo(version) == 0;
     }
 }
 

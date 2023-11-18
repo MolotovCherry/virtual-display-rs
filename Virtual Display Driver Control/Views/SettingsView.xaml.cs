@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Virtual_Display_Driver_Control.Common;
 using Virtual_Display_Driver_Control.Helpers;
 using Windows.System;
@@ -41,6 +42,8 @@ public sealed partial class SettingsView : Page {
         themeMode_load();
         themeMaterial_load();
         updates_load();
+
+        Unloaded += Unload;
     }
 
     private void themeMode_SelectionChanged(object sender, RoutedEventArgs e) {
@@ -171,7 +174,7 @@ public sealed partial class SettingsView : Page {
             settings.Version = updateVersion;
 
             List<Asset> assets = new List<Asset>();
-            foreach (Octokit.ReleaseAsset asset in release.Assets) {
+            foreach (var asset in release.Assets) {
                 assets.Add(new Asset {
                     Name = asset.Name,
                     Url = asset.BrowserDownloadUrl
@@ -192,6 +195,7 @@ public sealed partial class SettingsView : Page {
         }
     }
 
+    private Timer? _timer;
     private void updates_load() {
         if (!clickToRelease) {
             try {
@@ -232,6 +236,19 @@ public sealed partial class SettingsView : Page {
             } catch { }
         }
 
-        updateCard.Description = $"Last checked: {App.Settings.UpdateVersion.LastUpdateHuman()}";
+        _timer?.Dispose();
+
+        _timer = new Timer((object? state) => {
+            var dispatcher = App.Window.DispatcherQueue;
+
+            // run it on the main window thread
+            dispatcher?.TryEnqueue(() => {
+                updateCard.Description = $"Last checked: {App.Settings.UpdateVersion.LastUpdateHuman()}";
+            });
+        }, null, 0, 1000);
+    }
+
+    private void Unload(object sender, RoutedEventArgs e) {
+        _timer?.Dispose();
     }
 }
