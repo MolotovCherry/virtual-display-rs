@@ -164,14 +164,11 @@ public sealed partial class SettingsView : Page {
             var release = await client.Repository.Release.GetLatest("MolotovCherry", "virtual-display-rs");
 
             var tag = release.TagName[1..6];
-            System.Version data = System.Version.Parse(tag);
+            Common.Version updateVersion = Common.Version.Parse(tag).GetValueOrThrow();
 
             // Update the settings latest checked version
-            settings.IsDirty = true;
             settings.ReleaseUrl = release.HtmlUrl;
-            settings.Version.Major = data.Major;
-            settings.Version.Minor = data.Minor;
-            settings.Version.Patch = data.Build;
+            settings.Version = updateVersion;
 
             List<Asset> assets = new List<Asset>();
             foreach (Octokit.ReleaseAsset asset in release.Assets) {
@@ -193,16 +190,22 @@ public sealed partial class SettingsView : Page {
     }
 
     private void updates_load() {
-        if (App.Settings.UpdateVersion.IsDirty && !clickToRelease) {
+        if (!clickToRelease) {
             try {
-                var data = App.Settings.UpdateVersion.Version;
+                var updateVersion = App.Settings.UpdateVersion.Version;
 
-                var major = uint.Parse(GitVersionInformation.Major);
-                var minor = uint.Parse(GitVersionInformation.Minor);
-                var patch = uint.Parse(GitVersionInformation.Patch);
+                var major = int.Parse(GitVersionInformation.Major);
+                var minor = int.Parse(GitVersionInformation.Minor);
+                var patch = int.Parse(GitVersionInformation.Patch);
 
-                if (data.Major > major || data.Minor > minor || data.Patch > patch) {
-                    updateCard.Header = $"Update is available: v{data.Major}.{data.Minor}.{data.Patch}";
+                var appVersion = new Common.Version {
+                    Major = major,
+                    Minor = minor,
+                    Patch = patch
+                };
+
+                if (updateVersion > appVersion) {
+                    updateCard.Header = $"Update is available: v{updateVersion.Major}.{updateVersion.Minor}.{updateVersion.Patch}";
                     
                     var flyout = new MenuFlyout { Placement = FlyoutPlacementMode.BottomEdgeAlignedRight };
 

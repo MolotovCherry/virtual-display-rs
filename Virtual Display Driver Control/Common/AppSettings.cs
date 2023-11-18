@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.UI.Xaml;
 
@@ -21,16 +22,65 @@ public sealed class AppSettings {
 }
 
 public sealed class UpdateVersion {
-    public bool IsDirty { get; set; } = false;
     public Version Version { get; set; } = new Version();
     public string ReleaseUrl { get; set; } = "";
     public List<Asset> Assets { get; set; } = new List<Asset>();
 }
 
-public sealed class Version {
+public sealed class Version : IComparable<Version>, IEquatable<Version> {
     public int Major { get; set; }
     public int Minor { get; set; }
     public int Patch { get; set; }
+
+    public static bool operator <(Version version1, Version version2) {
+        int result = version1.CompareTo(version2);
+        return result < 0;
+    }
+
+    public static bool operator >(Version version1, Version version2) {
+        int result = version1.CompareTo(version2);
+        return result > 0;
+    }
+
+    public int CompareTo(Version? obj) {
+        if (obj != null) {
+            var version = new System.Version(obj.Major, obj.Minor, obj.Patch);
+            int result = version.CompareTo(new System.Version(this.Major, this.Minor, this.Patch));
+
+            switch (result) {
+                case -1: return 1;
+                case 0: return 0;
+                case 1: return -1;
+            }
+        }
+
+        throw new ArgumentNullException(nameof(obj));
+    }
+
+    public static Maybe<Version> Parse(string version) {
+        try {
+            System.Version parsedVersion;
+            if (System.Version.TryParse(version, out parsedVersion!)) {
+                return new Version {
+                    Major = parsedVersion.Major,
+                    Minor = parsedVersion.Minor,
+                    Patch = parsedVersion.Build
+                };
+            }
+
+            return Maybe<Version>.None;
+        } catch {
+            return Maybe<Version>.None;
+        }
+    }
+
+    public bool Equals(Version? other) {
+        if (other is Version version) {
+            return version.CompareTo(this) == 0;
+        }
+
+        return false;
+    }
 }
 
 public sealed class Asset {
