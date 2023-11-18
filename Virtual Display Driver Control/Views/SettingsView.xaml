@@ -85,6 +85,7 @@
                         <controls:SettingsCard
                             x:Name="updateCard"
                             Header="You're up to date"
+                            Description="Last checked: never"
                             IsClickEnabled="True"
                             Click="updates_Click"
                             ActionIconToolTip="Open in new window"

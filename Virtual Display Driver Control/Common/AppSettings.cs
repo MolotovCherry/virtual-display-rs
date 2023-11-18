@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using CSharpFunctionalExtensions;
+using Humanizer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.UI.Xaml;
 
@@ -25,6 +26,15 @@ public sealed class UpdateVersion {
     public Version Version { get; set; } = new Version();
     public string ReleaseUrl { get; set; } = "";
     public List<Asset> Assets { get; set; } = new List<Asset>();
+    public DateTime? LastUpdate { get; set; }
+
+    public string LastUpdateHuman() {
+        if (LastUpdate != null) {
+            return LastUpdate.Humanize();
+        }
+
+        return "never";
+    }
 }
 
 public sealed class Version : IComparable<Version>, IEquatable<Version> {

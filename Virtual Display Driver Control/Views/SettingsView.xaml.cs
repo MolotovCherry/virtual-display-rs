@@ -172,12 +172,15 @@ public sealed partial class SettingsView : Page {
 
             List<Asset> assets = new List<Asset>();
             foreach (Octokit.ReleaseAsset asset in release.Assets) {
-                settings.Assets.Add(new Asset {
+                assets.Add(new Asset {
                     Name = asset.Name,
                     Url = asset.BrowserDownloadUrl
                 });
             }
 
+            settings.Assets = assets;
+
+            App.Settings.UpdateVersion.LastUpdate = DateTime.Now;
             App.Settings.Save();
 
             updates_load();
@@ -228,5 +231,7 @@ public sealed partial class SettingsView : Page {
                 }
             } catch { }
         }
+
+        updateCard.Description = $"Last checked: {App.Settings.UpdateVersion.LastUpdateHuman()}";
     }
 }
