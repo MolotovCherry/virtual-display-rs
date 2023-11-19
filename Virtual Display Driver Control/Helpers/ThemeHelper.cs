@@ -102,6 +102,10 @@ public static class ThemeHelper {
         var material = App.Settings.Material;
         if (material == Material.Mica && !MicaController.IsSupported()) {
             material = Material.None;
+        } else if (material == Material.MicaAlt && !MicaController.IsSupported()) {
+            material = Material.None;
+        } else if (material == Material.Acrylic && !DesktopAcrylicController.IsSupported()) {
+            material = Material.None;
         }
 
         Grid rootGrid = (Grid)App.Window.Content;

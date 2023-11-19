@@ -97,6 +97,7 @@ public sealed class Asset {
 
 public enum Material {
     Mica,
+    MicaAlt,
     Acrylic,
     None
 }

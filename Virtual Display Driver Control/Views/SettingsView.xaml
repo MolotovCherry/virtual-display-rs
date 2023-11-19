@@ -69,6 +69,7 @@
                     HeaderIcon="{ui:FontIcon Glyph=&#xEF1F;}">
                     <ComboBox x:Name="themeMaterial" SelectionChanged="themeMaterial_SelectionChanged">
                         <ComboBoxItem Content="Mica" Tag="Mica" />
+                        <ComboBoxItem Content="MicaAlt" Tag="MicaAlt" />
                         <ComboBoxItem Content="Acrylic" Tag="Acrylic" />
                         <ComboBoxItem Content="None" Tag="None" />
                     </ComboBox>

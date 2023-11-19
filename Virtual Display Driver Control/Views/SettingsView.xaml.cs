@@ -89,10 +89,11 @@ public sealed partial class SettingsView : Page {
     private void themeMaterial_load() {
         if (!MicaController.IsSupported()) {
             ((ComboBoxItem)themeMaterial.Items[0]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[1]).IsEnabled = false;
         }
 
         if (!DesktopAcrylicController.IsSupported()) {
-            ((ComboBoxItem)themeMaterial.Items[1]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[2]).IsEnabled = false;
         }
 
         // do not fire callback when we change the index here
@@ -101,10 +102,12 @@ public sealed partial class SettingsView : Page {
         var material = App.Settings.Material;
         if (material == Material.Mica && MicaController.IsSupported()) {
             themeMaterial.SelectedIndex = 0;
-        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
+        } else if (material == Material.MicaAlt && MicaController.IsSupported()) {
             themeMaterial.SelectedIndex = 1;
-        } else {
+        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
             themeMaterial.SelectedIndex = 2;
+        } else {
+            themeMaterial.SelectedIndex = 3;
         }
 
         themeMaterial.SelectionChanged += themeMaterial_SelectionChanged;
@@ -118,6 +121,9 @@ public sealed partial class SettingsView : Page {
             switch (selectedMaterial) {
                 case "Mica":
                     material = Material.Mica;
+                    break;
+                case "MicaAlt":
+                    material = Material.MicaAlt;
                     break;
                 case "Acrylic":
                     material = Material.Acrylic;

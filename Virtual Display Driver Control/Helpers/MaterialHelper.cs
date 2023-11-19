@@ -1,8 +1,6 @@
-﻿using CSharpFunctionalExtensions;
-using Microsoft.UI.Composition.SystemBackdrops;
+﻿using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml.Media;
 using Virtual_Display_Driver_Control.Common;
-using Windows.Storage;
 
 namespace Virtual_Display_Driver_Control.Helpers;
 
@@ -16,6 +14,9 @@ class MaterialHelper {
 
         if (material == Material.Mica && MicaController.IsSupported()) {
             App.Window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.Base };
+            Settings.Material = material;
+        } else if (material == Material.MicaAlt && MicaController.IsSupported()) {
+            App.Window.SystemBackdrop = new MicaBackdrop() { Kind = MicaKind.BaseAlt };
             Settings.Material = material;
         } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
             App.Window.SystemBackdrop = new DesktopAcrylicBackdrop();
