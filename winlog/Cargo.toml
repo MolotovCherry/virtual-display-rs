@@ -28,7 +28,10 @@ scopeguard = "1.2.0"
 [dependencies]
 env_logger = { version = "0.10.1", default-features = false, optional = true }
 log = { version = "0.4.20", features = ["std"] }
-windows-sys = { version = "0.48", features = ["Win32_System_EventLog"] }
+windows-sys = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_System_EventLog",
+] }
 widestring = "1.0.2"
 winreg = "0.52.0"
 thiserror = "1.0.49"
