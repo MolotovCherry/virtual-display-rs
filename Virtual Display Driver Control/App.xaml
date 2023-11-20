@@ -33,6 +33,14 @@
                     <Color x:Key="ButtonHoverBackgroundColor">#E9E9E9</Color>
                     <Color x:Key="ButtonPressedBackgroundColor">#EDEDED</Color>
                     <Color x:Key="ButtonPressedForegroundColor">Black</Color>
+
+                    <SolidColorBrush
+                        x:Key="BackgroundBlurred"
+                        Color="#40FFFFFF" />
+
+                    <SolidColorBrush
+                        x:Key="BackgroundTransparent"
+                        Color="#80FFFFFF" />
                 </ResourceDictionary>
 
                 <ResourceDictionary x:Key="Dark">
@@ -45,6 +53,14 @@
                     <Color x:Key="ButtonHoverBackgroundColor">#191919</Color>
                     <Color x:Key="ButtonPressedBackgroundColor">#1D1D1D</Color>
                     <Color x:Key="ButtonPressedForegroundColor">White</Color>
+
+                    <SolidColorBrush
+                        x:Key="BackgroundBlurred"
+                        Color="#1A000000" />
+
+                    <SolidColorBrush
+                        x:Key="BackgroundTransparent"
+                        Color="#99000000" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

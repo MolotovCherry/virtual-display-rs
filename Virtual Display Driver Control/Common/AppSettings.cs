@@ -99,6 +99,8 @@ public enum Material {
     Mica,
     MicaAlt,
     Acrylic,
+    Blurred,
+    Transparent,
     None
 }
 

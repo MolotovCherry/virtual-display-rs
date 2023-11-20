@@ -100,21 +100,22 @@ public static class ThemeHelper {
         }
 
         var material = App.Settings.Material;
-        if (material == Material.Mica && !MicaController.IsSupported()) {
-            material = Material.None;
-        } else if (material == Material.MicaAlt && !MicaController.IsSupported()) {
-            material = Material.None;
-        } else if (material == Material.Acrylic && !DesktopAcrylicController.IsSupported()) {
-            material = Material.None;
+        SolidColorBrush brush;
+        if (MaterialHelper.isMicaSupported(material)) {
+            brush = new SolidColorBrush(Colors.Transparent);
+        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
+            brush = new SolidColorBrush(Colors.Transparent);
+        } else if (material == Material.Blurred && DesktopAcrylicController.IsSupported()) {
+            brush = (SolidColorBrush)resourceTheme["BackgroundBlurred"];
+        } else if (material == Material.Transparent) {
+            brush = (SolidColorBrush)resourceTheme["BackgroundTransparent"];
+        } else {
+            brush = (SolidColorBrush)resourceTheme["Background"];
         }
 
         Grid rootGrid = (Grid)App.Window.Content;
 
-        if (material != Material.None) {
-            rootGrid.Background = new SolidColorBrush(Colors.Transparent);
-        } else {
-            rootGrid.Background = (SolidColorBrush)resourceTheme["Background"];
-        }
+        rootGrid.Background = brush;
     }
 
     public static void Initialize() {

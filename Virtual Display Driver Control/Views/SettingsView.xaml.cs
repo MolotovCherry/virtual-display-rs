@@ -2,6 +2,7 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -10,6 +11,25 @@ using Virtual_Display_Driver_Control.Helpers;
 using Windows.System;
 
 namespace Virtual_Display_Driver_Control.Views;
+
+public class ElementThemeToStringConverter : IValueConverter {
+    public object Convert(object value, Type targetType, object parameter, string language) {
+        if (value is ElementTheme theme) {
+            switch (theme) {
+                case ElementTheme.Default:
+                    return "Use system setting";
+            }
+
+            return theme.ToString();
+        }
+
+        return "";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) {
+        throw new NotImplementedException();
+    }
+}
 
 public sealed partial class SettingsView : Page {
     public string AppInfo {
@@ -39,6 +59,8 @@ public sealed partial class SettingsView : Page {
     public SettingsView() {
         InitializeComponent();
 
+        Initialize();
+
         themeMode_load();
         themeMaterial_load();
         updates_load();
@@ -46,25 +68,20 @@ public sealed partial class SettingsView : Page {
         Unloaded += Unload;
     }
 
+    private void Initialize() {
+        themeMaterial.DataContext = MaterialItems;
+        themeMaterial.ItemsSource = MaterialItems;
+
+        themeMode.DataContext = ThemeItems;
+        themeMode.ItemsSource = ThemeItems;
+    }
+
+    private List<ElementTheme> ThemeItems = new List<ElementTheme>((IEnumerable<ElementTheme>)Enum.GetValues(typeof(ElementTheme)));
     private void themeMode_SelectionChanged(object sender, RoutedEventArgs e) {
-        var themeString = ((ComboBoxItem)themeMode.SelectedItem)?.Tag?.ToString();
+        var theme = ((ElementTheme?)themeMode.SelectedItem);
 
-        if (themeString != null) {
-            ElementTheme theme;
-
-            switch (themeString) {
-                case "Light":
-                    theme = ElementTheme.Light;
-                    break;
-                case "Dark":
-                    theme = ElementTheme.Dark;
-                    break;
-                default:
-                    theme = ElementTheme.Default;
-                    break;
-            }
-
-            ThemeHelper.SetTheme(theme);
+        if (theme != null) {
+            ThemeHelper.SetTheme((ElementTheme)theme);
 
             App.Settings.Save();
         }
@@ -74,66 +91,41 @@ public sealed partial class SettingsView : Page {
         // do not fire callback when we change the index here
         themeMode.SelectionChanged -= themeMode_SelectionChanged;
 
-        var theme = App.Settings.Theme;
-        if (theme == ElementTheme.Light) {
-            themeMode.SelectedIndex = 0;
-        } else if (theme == ElementTheme.Dark) {
-            themeMode.SelectedIndex = 1;
-        } else {
-            themeMode.SelectedIndex = 2;
-        }
+        themeMode.SelectedItem = App.Settings.Theme;
 
         themeMode.SelectionChanged += themeMode_SelectionChanged;
     }
 
+    private List<Material> MaterialItems = new List<Material>((IEnumerable<Material>)Enum.GetValues(typeof(Material)));
     private void themeMaterial_load() {
         if (!MicaController.IsSupported()) {
-            ((ComboBoxItem)themeMaterial.Items[0]).IsEnabled = false;
-            ((ComboBoxItem)themeMaterial.Items[1]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[(int)Material.Mica]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[(int)Material.MicaAlt]).IsEnabled = false;
         }
 
         if (!DesktopAcrylicController.IsSupported()) {
-            ((ComboBoxItem)themeMaterial.Items[2]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[(int)Material.Acrylic]).IsEnabled = false;
+            ((ComboBoxItem)themeMaterial.Items[(int)Material.Blurred]).IsEnabled = false;
         }
 
         // do not fire callback when we change the index here
         themeMaterial.SelectionChanged -= themeMaterial_SelectionChanged;
 
         var material = App.Settings.Material;
-        if (material == Material.Mica && MicaController.IsSupported()) {
-            themeMaterial.SelectedIndex = 0;
-        } else if (material == Material.MicaAlt && MicaController.IsSupported()) {
-            themeMaterial.SelectedIndex = 1;
-        } else if (material == Material.Acrylic && DesktopAcrylicController.IsSupported()) {
-            themeMaterial.SelectedIndex = 2;
+        if (MaterialHelper.isSupported(material)) {
+            themeMaterial.SelectedItem = material;
         } else {
-            themeMaterial.SelectedIndex = 3;
+            themeMaterial.SelectedItem = Material.None;
         }
 
         themeMaterial.SelectionChanged += themeMaterial_SelectionChanged;
     }
 
     private void themeMaterial_SelectionChanged(object sender, RoutedEventArgs e) {
-        var selectedMaterial = ((ComboBoxItem)themeMaterial.SelectedItem)?.Tag?.ToString();
+        var selectedMaterial = (Material?)themeMaterial.SelectedItem;
 
         if (selectedMaterial != null) {
-            Material material;
-            switch (selectedMaterial) {
-                case "Mica":
-                    material = Material.Mica;
-                    break;
-                case "MicaAlt":
-                    material = Material.MicaAlt;
-                    break;
-                case "Acrylic":
-                    material = Material.Acrylic;
-                    break;
-                default:
-                    material = Material.None;
-                    break;
-            }
-
-            MaterialHelper.SetMaterial(material);
+            MaterialHelper.SetMaterial((Material)selectedMaterial);
 
             App.Settings.Save();
         }

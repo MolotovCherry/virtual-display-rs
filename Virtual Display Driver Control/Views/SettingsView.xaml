@@ -7,7 +7,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:ui="using:CommunityToolkit.WinUI">
+    xmlns:ui="using:CommunityToolkit.WinUI"
+    xmlns:local="using:Virtual_Display_Driver_Control.Views">
 
     <Page.Resources>
         <!--  Spacing between cards  -->
@@ -22,6 +23,8 @@
                 <Setter Property="Margin" Value="1,29,0,5" />
             </Style.Setters>
         </Style>
+
+        <local:ElementThemeToStringConverter x:Key="ElementThemeToStringConverter"/>
     </Page.Resources>
     
     <Grid x:Name="RootGrid">
@@ -56,10 +59,13 @@
                     Description="Select which app theme to display"
                     Header="App theme"
                     HeaderIcon="{ui:FontIcon Glyph=&#xE790;}">
+
                     <ComboBox x:Name="themeMode" SelectionChanged="themeMode_SelectionChanged">
-                        <ComboBoxItem Content="Light" Tag="Light" />
-                        <ComboBoxItem Content="Dark" Tag="Dark" />
-                        <ComboBoxItem Content="Use system setting" Tag="Default" />
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Converter={StaticResource ElementThemeToStringConverter}}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
                     </ComboBox>
                 </controls:SettingsCard>
 
@@ -67,12 +73,9 @@
                     Description="Select which app material to use"
                     Header="App material"
                     HeaderIcon="{ui:FontIcon Glyph=&#xEF1F;}">
-                    <ComboBox x:Name="themeMaterial" SelectionChanged="themeMaterial_SelectionChanged">
-                        <ComboBoxItem Content="Mica" Tag="Mica" />
-                        <ComboBoxItem Content="MicaAlt" Tag="MicaAlt" />
-                        <ComboBoxItem Content="Acrylic" Tag="Acrylic" />
-                        <ComboBoxItem Content="None" Tag="None" />
-                    </ComboBox>
+                    <ComboBox
+                        x:Name="themeMaterial"
+                        SelectionChanged="themeMaterial_SelectionChanged" />
                 </controls:SettingsCard>
 
                 <!--  About  -->

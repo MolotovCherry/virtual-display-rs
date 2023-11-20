@@ -1,9 +1,6 @@
-using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System;
-using WinRT.Interop;
 using Virtual_Display_Driver_Control.Views;
 
 namespace Virtual_Display_Driver_Control {
