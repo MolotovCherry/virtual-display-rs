@@ -145,7 +145,7 @@ impl DeviceContext {
                 Size: u32::try_from(size_of::<IDDCX_MONITOR_DESCRIPTION>()).unwrap(),
                 Type: IDDCX_MONITOR_DESCRIPTION_TYPE::IDDCX_MONITOR_DESCRIPTION_TYPE_EDID,
                 DataSize: u32::try_from(edid.len()).unwrap(),
-                pData: addr_of_mut!(edid).cast(),
+                pData: edid.as_mut_ptr().cast(),
             },
         };
 
