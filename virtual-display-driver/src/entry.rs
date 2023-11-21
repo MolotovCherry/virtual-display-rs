@@ -51,11 +51,13 @@ extern "C-unwind" fn DriverEntry(
             .map(|_| NTSTATUS::STATUS_SUCCESS)
             .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
 
-        info!(
-            "Initialized Virtual Display Driver v{} @ {}",
-            env!("CARGO_PKG_VERSION"),
-            env!("VERGEN_GIT_SHA")
-        );
+        if status == NTSTATUS::STATUS_SUCCESS {
+            info!(
+                "Initialized Virtual Display Driver v{} @ {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("VERGEN_GIT_SHA")
+            );
+        }
 
         status
     };

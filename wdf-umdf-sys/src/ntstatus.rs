@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 /// A NTSTATUS wrapper that gives information on the value
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct NTSTATUS(pub i32);
 
 impl NTSTATUS {
