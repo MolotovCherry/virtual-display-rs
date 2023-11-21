@@ -16,10 +16,13 @@ use wdf_umdf_sys::{
     WAIT_TIMEOUT, WDFOBJECT,
 };
 use windows::{
-    core::{ComInterface, Interface},
+    core::{w, ComInterface, Interface},
     Win32::{
-        Foundation::HANDLE as WHANDLE, Graphics::Dxgi::IDXGIDevice,
-        System::Threading::WaitForSingleObject,
+        Foundation::HANDLE as WHANDLE,
+        Graphics::Dxgi::IDXGIDevice,
+        System::Threading::{
+            AvRevertMmThreadCharacteristics, AvSetMmThreadCharacteristicsW, WaitForSingleObject,
+        },
     },
 };
 
@@ -54,14 +57,14 @@ impl SwapChainProcessor {
         let join_handle = thread::spawn(move || {
             // It is very important to prioritize this thread by making use of the Multimedia Scheduler Service.
             // It will intelligently prioritize the thread for improved throughput in high CPU-load scenarios.
-            // let mut task_handle = 0u32;
-            // let res = unsafe {
-            //     AvSetMmThreadCharacteristicsW(w!("DisplayPostProcessing"), &mut task_handle)
-            // };
-            // if let Err(e) = res {
-            //     error!("Failed to prioritize thread: {e}");
-            //     return;
-            // }
+            let mut task_handle = 0u32;
+            let res =
+                unsafe { AvSetMmThreadCharacteristicsW(w!("Distribution"), &mut task_handle) };
+
+            if let Err(e) = res {
+                error!("Failed to prioritize thread: {e:?}");
+                return;
+            }
 
             Self::run_core(*swap_chain, &device, *available_buffer_event, &terminate);
 
@@ -70,10 +73,13 @@ impl SwapChainProcessor {
             }
 
             // Revert the thread to normal once it's done
-            // let res = unsafe { AvRevertMmThreadCharacteristics(WHANDLE(task_handle as _)) };
-            // if let Err(e) = res {
-            //     error!("Failed to prioritize thread: {e}");
-            // }
+            let res = unsafe {
+                AvRevertMmThreadCharacteristics(WHANDLE(isize::try_from(task_handle).unwrap()))
+            };
+
+            if let Err(e) = res {
+                error!("Failed to revert prioritize thread: {e:?}");
+            }
         });
 
         self.thread = Some(join_handle);
