@@ -83,7 +83,7 @@ impl SwapChainProcessor {
         swap_chain: IDDCX_SWAPCHAIN,
         device: &Direct3DDevice,
         available_buffer_event: HANDLE,
-        terminate: &Arc<AtomicBool>,
+        terminate: &AtomicBool,
     ) {
         let dxgi_device = device.device.cast::<IDXGIDevice>();
         let Ok(dxgi_device) = dxgi_device else {
