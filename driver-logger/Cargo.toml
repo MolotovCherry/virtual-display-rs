@@ -1,0 +1,25 @@
+[package]
+name = "driver-logger"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = { version = "0.4.20", features = ["std"] }
+env_logger = { version = "0.10.1", default-features = false, optional = true }
+widestring = "1.0.2"
+winreg = "0.52.0"
+thiserror = "1.0.49"
+
+[dependencies.windows]
+version = "0.52.0"
+features = ["Win32_System_Diagnostics_Debug"]
+
+[dependencies.windows-sys]
+version = "0.52.0"
+features = ["Win32_Foundation", "Win32_System_EventLog"]
+
+[build-dependencies]
+winresource = "0.1.17"
+
+[lints]
+workspace = true

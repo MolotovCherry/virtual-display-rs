@@ -4,8 +4,8 @@ members = [
     "virtual-display-driver",
     "wdf-umdf-sys",
     "wdf-umdf",
-    "winlog",
     "driver-ipc",
+    "driver-logger",
 ]
 
 [profile.release]

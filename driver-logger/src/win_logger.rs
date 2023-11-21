@@ -2,6 +2,7 @@
 //! to send messages to [Windows event log](https://docs.microsoft.com/en-us/windows/desktop/eventlog/event-logging).
 
 #![warn(missing_docs)]
+#![allow(unused, clippy::unused_self)]
 
 use std::path::Path;
 
@@ -14,14 +15,14 @@ use windows_sys::Win32::{
         EVENTLOG_INFORMATION_TYPE, EVENTLOG_WARNING_TYPE,
     },
 };
-use winreg::{enums::*, RegKey};
+use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 // Generated from MC.
-const MSG_ERROR: u32 = 0xC0000001;
-const MSG_WARNING: u32 = 0x80000002;
-const MSG_INFO: u32 = 0x40000003;
-const MSG_DEBUG: u32 = 0x40000004;
-const MSG_TRACE: u32 = 0x40000005;
+const MSG_ERROR: u32 = 0xC000_0001;
+const MSG_WARNING: u32 = 0x8000_0002;
+const MSG_INFO: u32 = 0x4000_0003;
+const MSG_DEBUG: u32 = 0x4000_0004;
+const MSG_TRACE: u32 = 0x4000_0005;
 
 const REG_BASEKEY: &str = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\System";
 
@@ -64,7 +65,7 @@ fn make_filter() -> Filter {
     builder.build()
 }
 
-struct WinLogger {
+pub struct WinLogger {
     handle: HANDLE,
     filter: Filter,
 }
