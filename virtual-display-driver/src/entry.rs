@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use driver_logger::DriverLogger;
 use log::{error, info, Level};
 use wdf_umdf::{
     IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
@@ -33,16 +34,30 @@ extern "C-unwind" fn DriverEntry(
     // It always starts immediately when the computer is already booted up.
     // If you have a better solution, please by all means open an issue report
     let init_log = || {
-        driver_logger::init_with_level(
-            "VirtualDisplayDriver",
-            if cfg!(debug_assertions) {
-                Level::Debug
-            } else {
-                Level::Info
-            },
-        )
-        .map(|_| NTSTATUS::STATUS_SUCCESS)
-        .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL)
+        let mut logger = DriverLogger::new(if cfg!(debug_assertions) {
+            Level::Debug
+        } else {
+            Level::Info
+        });
+
+        if cfg!(debug_assertions) {
+            logger.debug();
+        } else if logger.name("VirtualDisplayDriver").is_err() {
+            return NTSTATUS::STATUS_UNSUCCESSFUL;
+        }
+
+        let status = logger
+            .init()
+            .map(|_| NTSTATUS::STATUS_SUCCESS)
+            .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
+
+        info!(
+            "Initialized Virtual Display Driver v{} @ {}",
+            env!("CARGO_PKG_VERSION"),
+            env!("VERGEN_GIT_SHA")
+        );
+
+        status
     };
 
     let status = init_log();

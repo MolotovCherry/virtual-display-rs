@@ -15,8 +15,7 @@ use wdf_umdf_sys::{
     IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE,
     LUID, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
-use widestring::u16cstr;
-use windows::core::GUID;
+use windows::core::{w, GUID};
 
 use crate::{
     direct_3d_device::Direct3DDevice,
@@ -83,9 +82,9 @@ impl DeviceContext {
                 GammaSupport: IDDCX_FEATURE_IMPLEMENTATION::IDDCX_FEATURE_IMPLEMENTATION_NONE,
                 TransmissionType: IDDCX_TRANSMISSION_TYPE::IDDCX_TRANSMISSION_TYPE_WIRED_OTHER,
 
-                pEndPointFriendlyName: u16cstr!("Virtual Display").as_ptr(),
-                pEndPointManufacturerName: u16cstr!("Cherry Tech").as_ptr(),
-                pEndPointModelName: u16cstr!("VirtuDisplay Pro").as_ptr(),
+                pEndPointFriendlyName: w!("Virtual Display Driver Adapter").as_ptr(),
+                pEndPointManufacturerName: w!("Cherry").as_ptr(),
+                pEndPointModelName: w!("Pro").as_ptr(),
 
                 pFirmwareVersion: addr_of_mut!(version).cast(),
                 pHardwareVersion: addr_of_mut!(version).cast(),

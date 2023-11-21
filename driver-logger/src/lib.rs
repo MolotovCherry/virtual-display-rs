@@ -1,3 +1,5 @@
+#![allow(clippy::missing_errors_doc)]
+
 mod win_debug;
 mod win_logger;
 
@@ -5,23 +7,46 @@ use std::error::Error;
 
 use log::{Level, Log};
 
-use crate::{win_debug::WinDebugLogger, win_logger::WinLogger};
+use crate::win_debug::WinDebugLogger;
+use crate::win_logger::WinLogger;
 
 // A logger which logs to multiple logger implementations
 pub struct DriverLogger {
     pub level: Level,
-    loggers: Vec<Box<dyn Log>>,
+    win_debug: Option<WinDebugLogger>,
+    win_logger: Option<WinLogger>,
 }
 
 impl DriverLogger {
-    #[allow(clippy::missing_errors_doc)]
-    pub fn new(name: &str, level: Level) -> Result<Self, Box<dyn Error>> {
-        let loggers: Vec<Box<dyn Log>> = vec![
-            Box::new(WinDebugLogger { level }),
-            Box::new(WinLogger::new(name)?),
-        ];
+    #[must_use]
+    pub fn new(level: Level) -> Self {
+        Self {
+            level,
+            win_logger: None,
+            win_debug: None,
+        }
+    }
 
-        Ok(Self { level, loggers })
+    pub fn debug(&mut self) -> &mut Self {
+        self.win_debug = Some(WinDebugLogger { level: self.level });
+        self
+    }
+
+    pub fn name(&mut self, name: &str) -> Result<&mut Self, Box<dyn Error>> {
+        self.win_logger = Some(WinLogger::new(name)?);
+        Ok(self)
+    }
+
+    pub fn init(self) -> Result<(), Box<dyn Error>> {
+        let level = self.level;
+
+        match log::set_boxed_logger(Box::new(self)) {
+            Ok(()) => {
+                log::set_max_level(level.to_level_filter());
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
@@ -35,26 +60,22 @@ impl Log for DriverLogger {
             return;
         }
 
-        for logger in &self.loggers {
+        if let Some(debug) = self.win_debug.as_ref() {
+            debug.log(record);
+        }
+
+        if let Some(logger) = self.win_logger.as_ref() {
             logger.log(record);
         }
     }
 
     fn flush(&self) {
-        for logger in &self.loggers {
+        if let Some(debug) = self.win_debug.as_ref() {
+            debug.flush();
+        }
+
+        if let Some(logger) = self.win_logger.as_ref() {
             logger.flush();
         }
-    }
-}
-
-#[allow(clippy::missing_errors_doc)]
-pub fn init_with_level(name: &str, level: Level) -> Result<(), Box<dyn Error>> {
-    let logger = DriverLogger::new(name, level)?;
-    match log::set_boxed_logger(Box::new(logger)) {
-        Ok(()) => {
-            log::set_max_level(level.to_level_filter());
-            Ok(())
-        }
-        Err(e) => Err(e.into()),
     }
 }

@@ -1,4 +1,8 @@
-fn main() {
+use std::error::Error;
+
+use vergen::EmitBuilder;
+
+fn main() -> Result<(), Box<dyn Error>> {
     let mut winres = winres::WindowsResource::new();
 
     // as much as I don't like setting this here, because it belongs to the logger crate
@@ -26,4 +30,9 @@ LANGUAGE 0x9, 0x1
     // need linked c runtime for umdf includes
     println!("cargo:rustc-link-lib=static=ucrt");
     //println!("cargo:rustc-link-lib=static=vcruntime");
+
+    // emit vergen build instructions
+    EmitBuilder::builder().all_git().git_sha(true).emit()?;
+
+    Ok(())
 }
