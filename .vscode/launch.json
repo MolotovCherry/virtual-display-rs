@@ -6,21 +6,9 @@
     "configurations": [
         {
             "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'virtual-display-driver-control'",
-            "cargo": {
-                "args": [
-                    "build",
-                    "--bin=virtual-display-driver-control",
-                    "--package=virtual-display-driver-control"
-                ],
-                "filter": {
-                    "name": "virtual-display-driver-control",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
+            "request": "attach",
+            "name": "Attach",
+            "pid": "${command:pickMyProcess}"
         }
     ]
 }
