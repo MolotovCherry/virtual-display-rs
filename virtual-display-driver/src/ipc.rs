@@ -201,7 +201,7 @@ fn notify(monitors: Vec<Monitor>) {
 
                         // replace existing item with new object
                         lock[i] = MonitorObject {
-                            monitor_object: None,
+                            monitor_object: mon.monitor_object,
                             monitor: monitor.clone(),
                         };
                     } else {
