@@ -36,7 +36,7 @@ pub fn generate_edid_with(serial: u32) -> Vec<u8> {
     let data = &MONITOR_EDID[std::mem::size_of::<Edid>()..];
 
     // splice together header and the rest of the EDID
-    let mut edid: Vec<u8> = header.iter().copied().chain(data.iter().copied()).collect();
+    let mut edid: Vec<u8> = header.iter().chain(data.iter()).copied().collect();
     // regenerate checksum
     gen_checksum(&mut edid);
 
@@ -44,7 +44,7 @@ pub fn generate_edid_with(serial: u32) -> Vec<u8> {
 }
 
 pub fn get_edid_serial(edid: &[u8]) -> u32 {
-    let header_bytes = &edid[0..std::mem::size_of::<Edid>()];
+    let header_bytes = &edid[..std::mem::size_of::<Edid>()];
     let header = bytemuck::pod_read_unaligned::<Edid>(header_bytes);
     header.serial_number
 }
