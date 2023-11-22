@@ -202,14 +202,14 @@ fn notify(monitors: Vec<Monitor>) {
                         // replace existing item with new object
                         lock[i] = MonitorObject {
                             monitor_object: mon.monitor_object,
-                            monitor: monitor.clone(),
+                            monitor,
                         };
                     } else {
                         should_arrive = monitor.enabled;
 
                         lock.push(MonitorObject {
                             monitor_object: None,
-                            monitor: monitor.clone(),
+                            monitor,
                         });
                     }
                 }
