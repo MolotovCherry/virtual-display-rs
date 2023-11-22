@@ -57,14 +57,13 @@ impl SwapChainProcessor {
         let join_handle = thread::spawn(move || {
             // It is very important to prioritize this thread by making use of the Multimedia Scheduler Service.
             // It will intelligently prioritize the thread for improved throughput in high CPU-load scenarios.
-            let mut task_handle = 0u32;
-            let res =
-                unsafe { AvSetMmThreadCharacteristicsW(w!("Distribution"), &mut task_handle) };
+            let mut av_task = 0u32;
+            let res = unsafe { AvSetMmThreadCharacteristicsW(w!("Distribution"), &mut av_task) };
 
-            if let Err(e) = res {
-                error!("Failed to prioritize thread: {e:?}");
+            let Ok(av_handle) = res else {
+                error!("Failed to prioritize thread: {:?}", res.unwrap_err());
                 return;
-            }
+            };
 
             Self::run_core(*swap_chain, &device, *available_buffer_event, &terminate);
 
@@ -73,9 +72,7 @@ impl SwapChainProcessor {
             }
 
             // Revert the thread to normal once it's done
-            let res = unsafe {
-                AvRevertMmThreadCharacteristics(WHANDLE(isize::try_from(task_handle).unwrap()))
-            };
+            let res = unsafe { AvRevertMmThreadCharacteristics(av_handle) };
 
             if let Err(e) = res {
                 error!("Failed to revert prioritize thread: {e:?}");
