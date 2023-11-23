@@ -25,15 +25,17 @@ pub struct Edid {
     revision: u8,
 }
 
+const EDID_SIZE: usize = std::mem::size_of::<Edid>();
+
 pub fn generate_edid_with(serial: u32) -> Vec<u8> {
     // change serial number in the header
-    let header_bytes = &MONITOR_EDID[..std::mem::size_of::<Edid>()];
+    let header_bytes = &MONITOR_EDID[..EDID_SIZE];
     let mut header = bytemuck::pod_read_unaligned::<Edid>(header_bytes);
     header.serial_number = serial;
     let header = bytemuck::bytes_of(&header);
 
     // slice of monitor edid minus header
-    let data = &MONITOR_EDID[std::mem::size_of::<Edid>()..];
+    let data = &MONITOR_EDID[EDID_SIZE..];
 
     // splice together header and the rest of the EDID
     let mut edid: Vec<u8> = header.iter().chain(data.iter()).copied().collect();
@@ -44,7 +46,7 @@ pub fn generate_edid_with(serial: u32) -> Vec<u8> {
 }
 
 pub fn get_edid_serial(edid: &[u8]) -> u32 {
-    let header_bytes = &edid[..std::mem::size_of::<Edid>()];
+    let header_bytes = &edid[..EDID_SIZE];
     let header = bytemuck::pod_read_unaligned::<Edid>(header_bytes);
     header.serial_number
 }
