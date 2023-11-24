@@ -3,8 +3,6 @@ use std::{
     ptr::NonNull,
 };
 
-use driver_ipc::Mode;
-
 use wdf_umdf::IntoHelper;
 use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1,
@@ -21,7 +19,7 @@ use wdf_umdf_sys::{
 use crate::{
     context::{DeviceContext, MonitorContext},
     edid::get_edid_serial,
-    ipc::{monitor_count, AdapterObject, ADAPTER, MONITOR_MODES},
+    ipc::{AdapterObject, ADAPTER, MONITOR_MODES},
 };
 
 pub extern "C-unwind" fn adapter_init_finished(
@@ -114,7 +112,12 @@ pub extern "C-unwind" fn parse_monitor_description(
         .find(|&m| m.monitor.id == monitor_index)
         .expect("to be found");
 
-    let number_of_modes = u32::try_from(monitor.monitor.modes.len()).unwrap();
+    let number_of_modes: u32 = monitor
+        .monitor
+        .modes
+        .iter()
+        .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX modes"))
+        .sum();
 
     out_args.MonitorModeBufferOutputCount = number_of_modes;
     if in_args.MonitorModeBufferInputCount < number_of_modes {
@@ -131,12 +134,20 @@ pub extern "C-unwind" fn parse_monitor_description(
             in_args
                 .pMonitorModes
                 .cast::<MaybeUninit<IDDCX_MONITOR_MODE>>(),
-            monitor_count as usize,
+            number_of_modes as usize,
         )
     };
 
-    for (out_mode, mode) in monitor_modes.iter_mut().zip(&monitor.monitor.modes) {
-        for refresh_rate in mode.refresh_rates.iter().copied() {
+    let mut monitor_modes_iter = monitor_modes.iter_mut();
+
+    for mode in &monitor.monitor.modes {
+        // create a new iterator over N next elements of the iterator
+        let next_n = monitor_modes_iter
+            .by_ref()
+            .take(mode.refresh_rates.len())
+            .zip(&mode.refresh_rates);
+
+        for (out_mode, &refresh_rate) in next_n {
             out_mode.write(IDDCX_MONITOR_MODE {
                 Size: u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()).unwrap(),
                 Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
@@ -214,7 +225,12 @@ pub extern "C-unwind" fn monitor_query_modes(
         .find(|&m| m.monitor_object.unwrap().as_ptr() == monitor_object)
         .unwrap();
 
-    let number_of_modes = u32::try_from(monitor.monitor.modes.len()).unwrap();
+    let number_of_modes = monitor
+        .monitor
+        .modes
+        .iter()
+        .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX modes"))
+        .sum();
 
     // Create a set of modes supported for frame processing and scan-out. These are typically not based on the
     // monitor's descriptor and instead are based on the static processing capability of the device. The OS will
@@ -231,21 +247,21 @@ pub extern "C-unwind" fn monitor_query_modes(
                 in_args
                     .pTargetModes
                     .cast::<MaybeUninit<IDDCX_TARGET_MODE>>(),
-                monitor_count as usize,
+                number_of_modes as usize,
             )
         };
 
-        for (
-            &Mode {
-                width,
-                height,
-                ref refresh_rates,
-            },
-            out_target,
-        ) in monitor.monitor.modes.iter().zip(out_target_modes)
-        {
-            for refresh_rate in refresh_rates.iter().copied() {
-                let target_mode = target_mode(width, height, refresh_rate);
+        let mut out_target_modes_iter = out_target_modes.iter_mut();
+
+        for mode in &monitor.monitor.modes {
+            // create a new iterator over N next elements of the iterator
+            let next_n = out_target_modes_iter
+                .by_ref()
+                .take(mode.refresh_rates.len())
+                .zip(&mode.refresh_rates);
+
+            for (out_target, &refresh_rate) in next_n {
+                let target_mode = target_mode(mode.width, mode.height, refresh_rate);
                 out_target.write(target_mode);
             }
         }

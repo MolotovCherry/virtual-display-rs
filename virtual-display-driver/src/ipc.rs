@@ -40,11 +40,6 @@ pub struct MonitorObject {
 unsafe impl Sync for MonitorObject {}
 unsafe impl Send for MonitorObject {}
 
-/// WARNING: Locks `MONITOR_MODES`, don't call if already locked or deadlock happens
-pub fn monitor_count() -> usize {
-    MONITOR_MODES.get().unwrap().lock().unwrap().len()
-}
-
 pub fn startup() {
     MONITOR_MODES.set(Mutex::new(Vec::new())).unwrap();
 
