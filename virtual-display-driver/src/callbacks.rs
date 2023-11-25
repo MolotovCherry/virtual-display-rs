@@ -19,7 +19,7 @@ use wdf_umdf_sys::{
 use crate::{
     context::{DeviceContext, MonitorContext},
     edid::get_edid_serial,
-    ipc::{AdapterObject, ADAPTER, MONITOR_MODES},
+    ipc::{AdapterObject, FlattenModes, ADAPTER, MONITOR_MODES},
 };
 
 pub extern "C-unwind" fn adapter_init_finished(
@@ -138,22 +138,17 @@ pub extern "C-unwind" fn parse_monitor_description(
         )
     };
 
-    let mut monitor_modes_iter = monitor_modes.iter_mut();
-
-    for mode in &monitor.monitor.modes {
-        // create a new iterator over N next elements of the iterator
-        let next_n = monitor_modes_iter
-            .by_ref()
-            .take(mode.refresh_rates.len())
-            .zip(&mode.refresh_rates);
-
-        for (out_mode, &refresh_rate) in next_n {
-            out_mode.write(IDDCX_MONITOR_MODE {
-                Size: u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()).unwrap(),
-                Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
-                MonitorVideoSignalInfo: display_info(mode.width, mode.height, refresh_rate),
-            });
-        }
+    for (mode, out_mode) in monitor
+        .monitor
+        .modes
+        .flatten()
+        .zip(monitor_modes.iter_mut())
+    {
+        out_mode.write(IDDCX_MONITOR_MODE {
+            Size: u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()).unwrap(),
+            Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
+            MonitorVideoSignalInfo: display_info(mode.width, mode.height, mode.refresh_rate),
+        });
     }
 
     // Set the preferred mode as represented in the EDID
@@ -251,19 +246,14 @@ pub extern "C-unwind" fn monitor_query_modes(
             )
         };
 
-        let mut out_target_modes_iter = out_target_modes.iter_mut();
-
-        for mode in &monitor.monitor.modes {
-            // create a new iterator over N next elements of the iterator
-            let next_n = out_target_modes_iter
-                .by_ref()
-                .take(mode.refresh_rates.len())
-                .zip(&mode.refresh_rates);
-
-            for (out_target, &refresh_rate) in next_n {
-                let target_mode = target_mode(mode.width, mode.height, refresh_rate);
-                out_target.write(target_mode);
-            }
+        for (mode, out_target) in monitor
+            .monitor
+            .modes
+            .flatten()
+            .zip(out_target_modes.iter_mut())
+        {
+            let target_mode = target_mode(mode.width, mode.height, mode.refresh_rate);
+            out_target.write(target_mode);
         }
     }
 

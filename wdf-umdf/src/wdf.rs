@@ -298,7 +298,7 @@ macro_rules! WDF_DECLARE_CONTEXT_TYPE {
                         Ok(())
                     }
 
-                    /// Borrow the context immutably
+                    /// Borrow the context mutably
                     /// Function returns with error and won't call cb if it failed to lock
                     ///
                     /// SAFETY:

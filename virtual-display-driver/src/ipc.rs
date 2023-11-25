@@ -6,7 +6,7 @@ use std::{
     thread,
 };
 
-use driver_ipc::{Command, Monitor};
+use driver_ipc::{Command, Dimen, Mode, Monitor, RefreshRate};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
@@ -247,5 +247,29 @@ fn remove(ids: &[u32]) {
                 true
             }
         });
+    }
+}
+
+pub trait FlattenModes {
+    fn flatten(&self) -> impl Iterator<Item = ModeItem> + '_;
+}
+
+#[derive(Copy, Clone)]
+pub struct ModeItem {
+    pub width: Dimen,
+    pub height: Dimen,
+    pub refresh_rate: RefreshRate,
+}
+
+/// Takes a slice of modes and creates a flattened structure that can be iterated over
+impl FlattenModes for Vec<Mode> {
+    fn flatten(&self) -> impl Iterator<Item = ModeItem> + '_ {
+        self.iter().flat_map(|m| {
+            m.refresh_rates.iter().map(|&rr| ModeItem {
+                width: m.width,
+                height: m.height,
+                refresh_rate: rr,
+            })
+        })
     }
 }
