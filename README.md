@@ -103,7 +103,7 @@ If you want to make them easier to see
      - type in `VirtualDisplayDriver` for the name, and press `Ok`
 2. You should now see any log messages under the `Custom Views` section for `VirtualDisplayDriver`
 
-To see panic messages and other information in a live logger, download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions). As long as the program is open and capturing, the messages will appear live as they are logged. This is a bit easier to use than the event log when you are trying to debug something.
+If you're using a driver compiled in debug mode, you can see panic messages and other information in a live logger: download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions). As long as the program is open and capturing, the messages will appear live as they are logged. This is a bit easier to use than the event log when you are trying to debug something.
 
 ## Contributions
 All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
