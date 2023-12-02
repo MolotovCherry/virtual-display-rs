@@ -106,4 +106,11 @@ If you want to make them easier to see
 If you're using a driver compiled in debug mode, you can see panic messages and other information in a live logger: download [DebugViewPP](https://github.com/CobaltFusion/DebugViewPP), run it, click on `Log`->`Capture Global Win32` (note, this requires DebugViewPP be run with admin permissions). As long as the program is open and capturing, the messages will appear live as they are logged. This is a bit easier to use than the event log when you are trying to debug something.
 
 ## Contributions
-All contributions are welcome! If you have any questions, feel free to post in the project [Discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section
+All contributions are welcome!
+
+For first time contributors, please read our [contributing](CONTRIBUTING.md) guide.
+
+## Where to talk or get help
+If you have any questions, need support, need to collaborate on development, or any other use-case, you may join our [discord server](https://discord.gg/pDDt78wYQy) (see related `#virtual-display-driver` channels). This is the quickest and easiest way to communicate.
+
+You may also post in the project [discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section. Though note that using the discord channel will get your messages seen and responded to quicker.
