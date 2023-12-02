@@ -71,7 +71,7 @@ CAT_FILE = "VirtualDisplayDriver.cat"
 env = { "BUILD_TARGET_PATH" = { script = ['''
     for /f "tokens=*" %%a in ('cargo target-dir') do set target_dir=%%a
 
-    echo %target_dir%/%TARGET_PATH%
+    echo %target_dir%\%TARGET_PATH%
 '''] } }
 
 [tasks.build-driver]
@@ -141,9 +141,9 @@ script = [
     ''',
     # copy output files to it
     '''
-        cp %BUILD_TARGET_PATH%/*.dll ../target/output
-        cp %BUILD_TARGET_PATH%/*.inf ../target/output
-        cp %BUILD_TARGET_PATH%/*.cat ../target/output
+        copy %BUILD_TARGET_PATH%\*.dll ..\target\output
+        copy %BUILD_TARGET_PATH%\*.inf ..\target\output
+        copy %BUILD_TARGET_PATH%\*.cat ..\target\output
     ''',
 ]
 
