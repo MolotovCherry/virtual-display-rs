@@ -85,12 +85,8 @@ macro_rules! IddCxCall {
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
             let result = unsafe { fn_handle(globals, $($args),*) };
 
-            if $other_is_error {
-                if $crate::is_nt_error(&result) {
-                    Err(result.into())
-                } else {
-                    Ok(result.into())
-                }
+            if $crate::is_nt_error(&result, $other_is_error) {
+                Err(result.into())
             } else {
                 Ok(result.into())
             }
