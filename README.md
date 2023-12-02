@@ -110,6 +110,11 @@ All contributions are welcome!
 
 For first time contributors, please read our [contributing](CONTRIBUTING.md) guide.
 
+## Forking or using in other projects
+You are welcome to use this project in your own projects.
+
+If you do so, please contribute back to the main project with your code changes, and even by [sponsoring](https://github.com/sponsors/MolotovCherry). Every little bit helps us make an even better project. We appreciate it, thank you!
+
 ## Where to talk or get help
 If you have any questions, need support, need to collaborate on development, or any other use-case, you may join our [discord server](https://discord.gg/pDDt78wYQy) (see related `#virtual-display-driver` channels). This is the quickest and easiest way to communicate.
 
