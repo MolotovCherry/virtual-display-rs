@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use driver_logger::DriverLogger;
 use log::{error, info, Level};
 use wdf_umdf::{
-    IddCxDeviceInitConfig, IddCxDeviceInitialize, IntoHelper, WdfDeviceCreate,
+    IddCxDeviceInitConfig, IddCxDeviceInitialize, WdfDeviceCreate,
     WdfDeviceInitSetPnpPowerEventCallbacks, WdfDeviceSetFailed, WdfDriverCreate,
 };
 use wdf_umdf_sys::{
@@ -48,8 +48,8 @@ extern "C-unwind" fn DriverEntry(
 
         let status = logger
             .init()
-            .map(|_| NTSTATUS::STATUS_SUCCESS)
-            .unwrap_or(NTSTATUS::STATUS_UNSUCCESSFUL);
+            .map_err(|_| NTSTATUS::STATUS_FAILED_DRIVER_ENTRY)
+            .into();
 
         if status == NTSTATUS::STATUS_SUCCESS {
             info!(
@@ -122,7 +122,7 @@ extern "C-unwind" fn DriverEntry(
             None,
         )
     }
-    .into_status()
+    .into()
 }
 
 extern "C-unwind" fn driver_add(
@@ -178,7 +178,7 @@ extern "C-unwind" fn driver_add(
 
     let context = DeviceContext::new(device);
 
-    unsafe { context.init(device as WDFOBJECT).into_status() }
+    unsafe { context.init(device as WDFOBJECT).into() }
 }
 
 unsafe extern "C-unwind" fn event_cleanup(wdf_object: WDFOBJECT) {

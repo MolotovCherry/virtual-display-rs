@@ -7,6 +7,7 @@ use std::{
 };
 
 use driver_ipc::{Command, Dimen, Mode, Monitor, RefreshRate};
+use log::error;
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
@@ -210,7 +211,9 @@ fn notify(monitors: Vec<Monitor>) {
                 }
 
                 if should_arrive {
-                    context.create_monitor(id);
+                    if let Err(e) = context.create_monitor(id) {
+                        error!("Failed to create monitor: {e:?}");
+                    };
                 }
             }
         })

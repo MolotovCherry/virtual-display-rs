@@ -8,8 +8,6 @@ use wdf_umdf_sys::{
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
 
-use crate::IntoHelper;
-
 #[derive(Debug, thiserror::Error)]
 pub enum IddCxError {
     #[error("{0}")]
@@ -18,9 +16,6 @@ pub enum IddCxError {
     CallFailed(NTSTATUS),
     #[error("{0}")]
     NtStatus(NTSTATUS),
-    // this is required for success status for ()
-    #[error("This is not an error, ignore it")]
-    Success,
 }
 
 impl From<IddCxError> for NTSTATUS {
@@ -30,7 +25,6 @@ impl From<IddCxError> for NTSTATUS {
         match value {
             IddCxFunctionNotAvailable(_) => Self::STATUS_NOT_FOUND,
             CallFailed(status) => status,
-            Success => 0.into(),
             NtStatus(n) => n,
         }
     }
@@ -42,12 +36,6 @@ impl From<NTSTATUS> for IddCxError {
     }
 }
 
-impl From<()> for IddCxError {
-    fn from(_: ()) -> Self {
-        IddCxError::Success
-    }
-}
-
 impl From<i32> for IddCxError {
     fn from(val: i32) -> Self {
         IddCxError::NtStatus(NTSTATUS(val))
@@ -55,7 +43,11 @@ impl From<i32> for IddCxError {
 }
 
 macro_rules! IddCxCall {
-    ($name:ident ( $($args:expr),* )) => {{
+    ($name:ident ( $($args:expr),* )) => {
+        IddCxCall!(false, $name($($args),*))
+    };
+
+    ($other_is_error:expr, $name:ident ( $($args:expr),* )) => {{
         let fn_handle = {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::IDDFUNCENUM::[<$name TableIndex>].0 as usize;
@@ -91,7 +83,17 @@ macro_rules! IddCxCall {
             let globals = unsafe { ::wdf_umdf_sys::IddDriverGlobals };
 
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
-            Ok(unsafe { fn_handle(globals, $($args),*) })
+            let result = unsafe { fn_handle(globals, $($args),*) };
+
+            if $other_is_error {
+                if $crate::is_nt_error(&result) {
+                    Err(result.into())
+                } else {
+                    Ok(result.into())
+                }
+            } else {
+                Ok(result.into())
+            }
         } else {
             // SAFETY: We checked if it was Ok above, and it clearly isn't
             Err(unsafe {
@@ -116,7 +118,6 @@ pub unsafe fn IddCxDeviceInitConfig(
             Config
         )
     }
-    .into_result()
 }
 
 /// # Safety
@@ -131,7 +132,6 @@ pub unsafe fn IddCxDeviceInitialize(
             Device
         )
     }
-    .into_result()
 }
 
 /// # Safety
@@ -149,7 +149,6 @@ pub unsafe fn IddCxAdapterInitAsync(
             pOutArgs
         )
     }
-    .into_result()
 }
 
 /// # Safety
@@ -171,7 +170,6 @@ pub unsafe fn IddCxMonitorCreate(
             pOutArgs
         )
     )
-    .into_result()
 }
 
 /// # Safety
@@ -190,7 +188,6 @@ pub unsafe fn IddCxMonitorArrival(
             pOutArgs
         )
     )
-    .into_result()
 }
 
 /// # Safety
@@ -204,12 +201,12 @@ pub unsafe fn IddCxSwapChainSetDevice(
     pInArgs: &IDARG_IN_SWAPCHAINSETDEVICE
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
+        true,
         IddCxSwapChainSetDevice(
             SwapChainObject,
             pInArgs
         )
     )
-    .into_result()
 }
 
 /// # Safety
@@ -223,12 +220,12 @@ pub unsafe fn IddCxSwapChainReleaseAndAcquireBuffer(
     pOutArgs: &mut IDARG_OUT_RELEASEANDACQUIREBUFFER
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
+        true,
         IddCxSwapChainReleaseAndAcquireBuffer(
             SwapChainObject,
             pOutArgs
         )
     )
-    .into_result()
 }
 
 /// # Safety
@@ -240,11 +237,11 @@ pub unsafe fn IddCxSwapChainFinishedProcessingFrame(
     SwapChainObject: IDDCX_SWAPCHAIN
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
+        true,
         IddCxSwapChainFinishedProcessingFrame(
             SwapChainObject
         )
     )
-    .into_result()
 }
 
 /// # Safety
@@ -260,5 +257,4 @@ pub unsafe fn IddCxMonitorDeparture(
             MonitorObject
         )
     )
-    .into_result()
 }

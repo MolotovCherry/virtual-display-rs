@@ -41,9 +41,17 @@ impl NTSTATUS {
     }
 }
 
+impl std::error::Error for NTSTATUS {}
+
+impl Display for NTSTATUS {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "0x{:X}", self.0)
+    }
+}
+
 impl From<()> for NTSTATUS {
     fn from(value: ()) -> Self {
-        Self(0)
+        Self(Self::STATUS_SUCCESS.0)
     }
 }
 
@@ -66,9 +74,18 @@ impl From<NTSTATUS> for u32 {
     }
 }
 
-impl Display for NTSTATUS {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "0x{:X}", self.0)
+impl From<NTSTATUS> for i32 {
+    fn from(value: NTSTATUS) -> Self {
+        value.0
+    }
+}
+
+impl<R: Into<NTSTATUS>, E: Into<NTSTATUS>> From<Result<R, E>> for NTSTATUS {
+    fn from(value: Result<R, E>) -> Self {
+        match value {
+            Ok(r) => r.into(),
+            Err(e) => e.into(),
+        }
     }
 }
 

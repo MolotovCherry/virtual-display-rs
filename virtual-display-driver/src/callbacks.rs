@@ -3,7 +3,7 @@ use std::{
     ptr::NonNull,
 };
 
-use wdf_umdf::IntoHelper;
+use log::error;
 use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1,
     DISPLAYCONFIG_VIDEO_SIGNAL_INFO__bindgen_ty_1__bindgen_ty_1, DISPLAYCONFIG_2DREGION,
@@ -26,10 +26,16 @@ pub extern "C-unwind" fn adapter_init_finished(
     adapter_object: *mut IDDCX_ADAPTER__,
     _p_in_args: *const IDARG_IN_ADAPTER_INIT_FINISHED,
 ) -> NTSTATUS {
+    let Some(adapter_ptr) = NonNull::new(adapter_object) else {
+        error!("Adapter ptr was null");
+        return NTSTATUS::STATUS_INVALID_ADDRESS;
+    };
+
     // store adapter object for listener to use
-    ADAPTER
-        .set(AdapterObject(NonNull::new(adapter_object).unwrap()))
-        .unwrap();
+    if ADAPTER.set(AdapterObject(adapter_ptr)).is_err() {
+        error!("Failed to set adapter");
+        return NTSTATUS::STATUS_ADAPTER_HARDWARE_ERROR;
+    }
 
     DeviceContext::finish_init();
 
@@ -40,11 +46,13 @@ pub extern "C-unwind" fn device_d0_entry(
     device: WDFDEVICE,
     _previous_state: WDF_POWER_DEVICE_STATE,
 ) -> NTSTATUS {
-    let status = unsafe {
+    let status: NTSTATUS = unsafe {
         DeviceContext::get_mut(device.cast(), |context| {
-            context.init_adapter();
+            if let Err(e) = context.init_adapter() {
+                error!("Failed to init adapter: {e:?}");
+            }
         })
-        .into_status()
+        .into()
     };
 
     if !status.is_success() {
@@ -96,7 +104,14 @@ pub extern "C-unwind" fn parse_monitor_description(
     let in_args = unsafe { &*p_in_args };
     let out_args = unsafe { &mut *p_out_args };
 
-    let monitors = MONITOR_MODES.get().unwrap().lock().unwrap();
+    let Some(monitors) = MONITOR_MODES.get() else {
+        error!("Failed to get monitor oncelock data");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
+    let Ok(monitors) = monitors.lock() else {
+        error!("MONITOR_MODES mutex poisoned");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
 
     let edid = unsafe {
         std::slice::from_raw_parts(
@@ -107,16 +122,16 @@ pub extern "C-unwind" fn parse_monitor_description(
 
     let monitor_index = get_edid_serial(edid);
 
-    let monitor = monitors
-        .iter()
-        .find(|&m| m.monitor.id == monitor_index)
-        .expect("to be found");
+    let Some(monitor) = monitors.iter().find(|&m| m.monitor.id == monitor_index) else {
+        error!("Failed to find monitor id {monitor_index}");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
 
     let number_of_modes: u32 = monitor
         .monitor
         .modes
         .iter()
-        .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX modes"))
+        .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX refresh rates"))
         .sum();
 
     out_args.MonitorModeBufferOutputCount = number_of_modes;
@@ -144,8 +159,17 @@ pub extern "C-unwind" fn parse_monitor_description(
         .flatten()
         .zip(monitor_modes.iter_mut())
     {
+        #[allow(non_snake_case)]
+        let Ok(Size) = u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()) else {
+            error!(
+                "IDDCX_MONITOIR_MODE size {} overflow",
+                mem::size_of::<IDDCX_MONITOR_MODE>()
+            );
+            return NTSTATUS::STATUS_INTEGER_OVERFLOW;
+        };
+
         out_mode.write(IDDCX_MONITOR_MODE {
-            Size: u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()).unwrap(),
+            Size,
             Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
             MonitorVideoSignalInfo: display_info(mode.width, mode.height, mode.refresh_rate),
         });
@@ -165,14 +189,27 @@ pub extern "C-unwind" fn monitor_get_default_modes(
     NTSTATUS::STATUS_NOT_IMPLEMENTED
 }
 
-pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_MODE {
+pub fn target_mode(
+    width: u32,
+    height: u32,
+    refresh_rate: u32,
+) -> Result<IDDCX_TARGET_MODE, NTSTATUS> {
     let total_size = DISPLAYCONFIG_2DREGION {
         cx: width,
         cy: height,
     };
 
-    IDDCX_TARGET_MODE {
-        Size: u32::try_from(mem::size_of::<IDDCX_TARGET_MODE>()).unwrap(),
+    #[allow(non_snake_case)]
+    let Ok(Size) = u32::try_from(mem::size_of::<IDDCX_TARGET_MODE>()) else {
+        error!(
+            "IDDCX_TARGET_MODE size {} overflow",
+            mem::size_of::<IDDCX_TARGET_MODE>()
+        );
+        return Err(NTSTATUS::STATUS_INTEGER_OVERFLOW);
+    };
+
+    Ok(IDDCX_TARGET_MODE {
+        Size,
 
         TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
             targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
@@ -202,7 +239,7 @@ pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_M
         },
 
         ..Default::default()
-    }
+    })
 }
 
 pub extern "C-unwind" fn monitor_query_modes(
@@ -212,13 +249,23 @@ pub extern "C-unwind" fn monitor_query_modes(
 ) -> NTSTATUS {
     // find out which monitor this belongs too
 
-    let monitors = MONITOR_MODES.get().unwrap().lock().unwrap();
+    let Some(monitors) = MONITOR_MODES.get() else {
+        error!("Failed to get monitor oncelock data");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
+    let Ok(monitors) = monitors.lock() else {
+        error!("MONITOR_MODES mutex poisoned");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
 
     // we have stored the monitor object per id, so we should be able to compare pointers
-    let monitor = monitors
-        .iter()
-        .find(|&m| m.monitor_object.unwrap().as_ptr() == monitor_object)
-        .unwrap();
+    let Some(monitor) = monitors.iter().find(|&m| {
+        m.monitor_object
+            .is_some_and(|p| p.as_ptr() == monitor_object)
+    }) else {
+        error!("Failed to find monitor object in cache for {monitor_object:?}");
+        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
+    };
 
     let number_of_modes = monitor
         .monitor
@@ -253,6 +300,12 @@ pub extern "C-unwind" fn monitor_query_modes(
             .zip(out_target_modes.iter_mut())
         {
             let target_mode = target_mode(mode.width, mode.height, mode.refresh_rate);
+            let Ok(target_mode) = target_mode else {
+                error!("Failed to create target mode");
+                // SAFETY: We checked if it was Ok already, and it's not
+                return unsafe { target_mode.unwrap_err_unchecked() };
+            };
+
             out_target.write(target_mode);
         }
     }
@@ -281,8 +334,8 @@ pub extern "C-unwind" fn assign_swap_chain(
                 p_in_args.hNextSurfaceAvailable,
             );
         })
+        .into()
     }
-    .into_status()
 }
 
 pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR__) -> NTSTATUS {
@@ -290,6 +343,6 @@ pub extern "C-unwind" fn unassign_swap_chain(monitor_object: *mut IDDCX_MONITOR_
         MonitorContext::get_mut(monitor_object.cast(), |context| {
             context.unassign_swap_chain();
         })
+        .into()
     }
-    .into_status()
 }

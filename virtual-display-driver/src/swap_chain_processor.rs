@@ -6,14 +6,14 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use log::error;
+use log::{debug, error};
 use wdf_umdf::{
     IddCxSwapChainFinishedProcessingFrame, IddCxSwapChainReleaseAndAcquireBuffer,
-    IddCxSwapChainSetDevice, IntoHelper, WdfObjectDelete,
+    IddCxSwapChainSetDevice, WdfObjectDelete,
 };
 use wdf_umdf_sys::{
     HANDLE, IDARG_IN_SWAPCHAINSETDEVICE, IDARG_OUT_RELEASEANDACQUIREBUFFER, IDDCX_SWAPCHAIN,
-    WAIT_TIMEOUT, WDFOBJECT,
+    NTSTATUS, WAIT_TIMEOUT, WDFOBJECT,
 };
 use windows::{
     core::{w, ComInterface, Interface},
@@ -59,21 +59,21 @@ impl SwapChainProcessor {
             // It will intelligently prioritize the thread for improved throughput in high CPU-load scenarios.
             let mut av_task = 0u32;
             let res = unsafe { AvSetMmThreadCharacteristicsW(w!("Distribution"), &mut av_task) };
-
             let Ok(av_handle) = res else {
-                error!("Failed to prioritize thread: {:?}", res.unwrap_err());
+                error!("Failed to prioritize thread: {res:?}");
                 return;
             };
 
             Self::run_core(*swap_chain, &device, *available_buffer_event, &terminate);
 
-            unsafe {
-                WdfObjectDelete(*swap_chain as WDFOBJECT).unwrap();
+            let res = unsafe { WdfObjectDelete(*swap_chain as WDFOBJECT) };
+            if let Err(e) = res {
+                error!("Failed to delete wdf object: {e:?}");
+                return;
             }
 
             // Revert the thread to normal once it's done
             let res = unsafe { AvRevertMmThreadCharacteristics(av_handle) };
-
             if let Err(e) = res {
                 error!("Failed to revert prioritize thread: {e:?}");
             }
@@ -90,11 +90,7 @@ impl SwapChainProcessor {
     ) {
         let dxgi_device = device.device.cast::<IDXGIDevice>();
         let Ok(dxgi_device) = dxgi_device else {
-            error!(
-                "Failed to cast ID3D11Device to IDXGIDevice: {}",
-                dxgi_device.unwrap_err()
-            );
-
+            error!("Failed to cast ID3D11Device to IDXGIDevice: {dxgi_device:?}");
             return;
         };
 
@@ -102,14 +98,16 @@ impl SwapChainProcessor {
             pDevice: dxgi_device.into_raw().cast(),
         };
 
-        if unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) }.is_err() {
+        let res = unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) };
+        if res.is_err() {
+            debug!("Failed to set swapchain device: {res:?}");
             return;
         }
 
         loop {
             let mut buffer = IDARG_OUT_RELEASEANDACQUIREBUFFER::default();
-            let hr = unsafe { IddCxSwapChainReleaseAndAcquireBuffer(swap_chain, &mut buffer) }
-                .into_status();
+            let hr: NTSTATUS =
+                unsafe { IddCxSwapChainReleaseAndAcquireBuffer(swap_chain, &mut buffer).into() };
 
             #[allow(clippy::items_after_statements)]
             const E_PENDING: u32 = 0x8000_000A;

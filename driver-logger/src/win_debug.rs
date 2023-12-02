@@ -1,4 +1,4 @@
-#![allow(unused, clippy::module_name_repetitions)]
+#![allow(unused)]
 
 use std::fmt::Write;
 

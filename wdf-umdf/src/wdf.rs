@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_errors_doc)]
-#![allow(clippy::module_name_repetitions)]
 
 use std::ffi::c_void;
 
@@ -10,8 +9,6 @@ use wdf_umdf_sys::{
     WDFMEMORY, WDFOBJECT, WDF_DEVICE_FAILED_ACTION, WDF_NO_HANDLE, WDF_NO_OBJECT_ATTRIBUTES,
     WDF_OBJECT_ATTRIBUTES, _WDF_DEVICE_PROPERTY_DATA, _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
-
-use crate::IntoHelper;
 
 #[derive(Debug, thiserror::Error)]
 pub enum WdfError {
@@ -23,14 +20,22 @@ pub enum WdfError {
     UpgradeFailed,
     #[error("Failed to lock")]
     LockFailed,
+    #[error("Unknown")]
+    Unknown,
     // this is required for success status for ()
     #[error("This is not an error, ignore it")]
-    Success,
+    _Success,
 }
 
 impl From<()> for WdfError {
     fn from(_: ()) -> Self {
-        WdfError::Success
+        WdfError::_Success
+    }
+}
+
+impl From<*mut c_void> for WdfError {
+    fn from(_: *mut c_void) -> Self {
+        Self::Unknown
     }
 }
 
@@ -43,7 +48,8 @@ impl From<WdfError> for NTSTATUS {
             CallFailed(status) => status,
             UpgradeFailed => Self::STATUS_INVALID_HANDLE,
             LockFailed => Self::STATUS_WAS_LOCKED,
-            Success => 0.into(),
+            Unknown => Self::STATUS_DRIVER_INTERNAL_ERROR,
+            _Success => 0.into(),
         }
     }
 }
@@ -55,7 +61,11 @@ impl From<NTSTATUS> for WdfError {
 }
 
 macro_rules! WdfCall {
-    ($name:ident ( $($args:expr),* )) => {{
+    ($name:ident ( $($args:expr),* )) => {
+        WdfCall!(false, $name($($args),*))
+    };
+
+    ($other_is_error:expr, $name:ident ( $($args:expr),* )) => {{
         let fn_handle = {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::WDFFUNCENUM::[<$name TableIndex>].0 as usize;
@@ -91,7 +101,17 @@ macro_rules! WdfCall {
             let globals = unsafe { ::wdf_umdf_sys::WdfDriverGlobals };
 
             // SAFETY: None. User is responsible for safety and must use their own unsafe block
-            Ok(unsafe { fn_handle(globals, $($args),*) })
+            let result = unsafe { fn_handle(globals, $($args),*) };
+
+            if $other_is_error {
+                if $crate::is_nt_error(&result) {
+                    Err(result.into())
+                } else {
+                    Ok(result.into())
+                }
+            } else {
+                Ok(result.into())
+            }
         } else {
             // SAFETY: We checked if it was Ok above, and it clearly isn't
             Err(unsafe {
@@ -441,7 +461,6 @@ pub unsafe fn WdfDriverCreate(
                 .unwrap_or(WDF_NO_HANDLE!())
         )
     }
-    .into_result()
 }
 
 /// # Safety
@@ -462,7 +481,6 @@ pub unsafe fn WdfDeviceCreate(
             Device
         )
     }
-    .into_result()
 }
 
 /// # Safety
