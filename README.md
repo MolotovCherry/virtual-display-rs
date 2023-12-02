@@ -119,3 +119,6 @@ If you do so, please contribute back to the main project with your code changes,
 If you have any questions, need support, need to collaborate on development, or any other use-case, you may join our [discord server](https://discord.gg/pDDt78wYQy) (see related `#virtual-display-driver` channels). This is the quickest and easiest way to communicate.
 
 You may also post in the project [discussion](https://github.com/MolotovCherry/virtual-display-rs/discussions) section. Though note that using the discord channel will get your messages seen and responded to quicker.
+
+## Supporting the project
+If this project has helped you, or you want to say thanks and help continued development, [sponsorships](https://github.com/sponsors/MolotovCherry) are very welcome. ❤️
