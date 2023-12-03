@@ -939,7 +939,7 @@ checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 [[package]]
 name = "win-pipes"
 version = "0.1.0"
-source = "git+https://github.com/MolotovCherry/WinPipes-rs#8e7331fac0eff8a53e8e60098119aaa31d613d00"
+source = "git+https://github.com/MolotovCherry/WinPipes-rs#1a590acd52cbe81b84677080363f2422d3431be3"
 dependencies = [
  "log",
  "windows",
