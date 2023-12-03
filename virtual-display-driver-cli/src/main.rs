@@ -80,7 +80,11 @@ fn main() -> eyre::Result<()> {
                             Some(name) => (" {}{name}{}", "[".dimmed(), "]".dimmed()),
                             None => "",
                         });
-                        println!("{}{name_label}:", monitor.id.blue(),);
+                        let disabled_label = lazy_format!(if monitor.enabled => ""
+                        else =>
+                            (" {}", "(disabled)".red())
+                        );
+                        println!("{}{name_label}{disabled_label}:", monitor.id.blue(),);
 
                         if monitor.modes.len() > 0 {
                             for mode in &monitor.modes {
