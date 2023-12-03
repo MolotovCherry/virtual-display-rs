@@ -189,27 +189,15 @@ pub extern "C-unwind" fn monitor_get_default_modes(
     NTSTATUS::STATUS_NOT_IMPLEMENTED
 }
 
-pub fn target_mode(
-    width: u32,
-    height: u32,
-    refresh_rate: u32,
-) -> Result<IDDCX_TARGET_MODE, NTSTATUS> {
+pub fn target_mode(width: u32, height: u32, refresh_rate: u32) -> IDDCX_TARGET_MODE {
     let total_size = DISPLAYCONFIG_2DREGION {
         cx: width,
         cy: height,
     };
 
-    #[allow(non_snake_case)]
-    let Ok(Size) = u32::try_from(mem::size_of::<IDDCX_TARGET_MODE>()) else {
-        error!(
-            "IDDCX_TARGET_MODE size {} overflow",
-            mem::size_of::<IDDCX_TARGET_MODE>()
-        );
-        return Err(NTSTATUS::STATUS_INTEGER_OVERFLOW);
-    };
-
-    Ok(IDDCX_TARGET_MODE {
-        Size,
+    IDDCX_TARGET_MODE {
+        #[allow(clippy::cast_possible_truncation)]
+        Size: mem::size_of::<IDDCX_TARGET_MODE>() as u32,
 
         TargetVideoSignalInfo: DISPLAYCONFIG_TARGET_MODE {
             targetVideoSignalInfo: DISPLAYCONFIG_VIDEO_SIGNAL_INFO {
@@ -239,7 +227,7 @@ pub fn target_mode(
         },
 
         ..Default::default()
-    })
+    }
 }
 
 pub extern "C-unwind" fn monitor_query_modes(
@@ -300,11 +288,6 @@ pub extern "C-unwind" fn monitor_query_modes(
             .zip(out_target_modes.iter_mut())
         {
             let target_mode = target_mode(mode.width, mode.height, mode.refresh_rate);
-            let Ok(target_mode) = target_mode else {
-                error!("Failed to create target mode");
-                // SAFETY: We checked if it was Ok already, and it's not
-                return unsafe { target_mode.unwrap_err_unchecked() };
-            };
 
             out_target.write(target_mode);
         }

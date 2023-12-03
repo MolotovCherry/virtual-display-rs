@@ -81,7 +81,9 @@ impl DeviceContext {
 
     pub fn init_adapter(&mut self) -> Result<(), ContextError> {
         let mut version = IDDCX_ENDPOINT_VERSION {
-            Size: u32::try_from(size_of::<IDDCX_ENDPOINT_VERSION>())?,
+            #[allow(clippy::cast_possible_truncation)]
+            Size: size_of::<IDDCX_ENDPOINT_VERSION>() as u32,
+
             MajorVer: env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>()?,
             MinorVer: env!("CARGO_PKG_VERSION_MINOR").parse::<u32>()?,
             Build: env!("CARGO_PKG_VERSION_PATCH").parse::<u32>()?,
@@ -89,11 +91,14 @@ impl DeviceContext {
         };
 
         let mut adapter_caps = IDDCX_ADAPTER_CAPS {
-            Size: u32::try_from(size_of::<IDDCX_ADAPTER_CAPS>())?,
+            #[allow(clippy::cast_possible_truncation)]
+            Size: size_of::<IDDCX_ADAPTER_CAPS>() as u32,
+
             MaxMonitorsSupported: u32::from(MAX_MONITORS),
 
             EndPointDiagnostics: IDDCX_ENDPOINT_DIAGNOSTIC_INFO {
-                Size: u32::try_from(size_of::<IDDCX_ENDPOINT_DIAGNOSTIC_INFO>())?,
+                #[allow(clippy::cast_possible_truncation)]
+                Size: size_of::<IDDCX_ENDPOINT_DIAGNOSTIC_INFO>() as u32,
                 GammaSupport: IDDCX_FEATURE_IMPLEMENTATION::IDDCX_FEATURE_IMPLEMENTATION_NONE,
                 TransmissionType: IDDCX_TRANSMISSION_TYPE::IDDCX_TRANSMISSION_TYPE_WIRED_OTHER,
 
@@ -139,17 +144,11 @@ impl DeviceContext {
             WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { MonitorContext::get_type_info() });
 
         // use the edid serial number to represent the monitor index for later identification
-        let generate = generate_edid_with(index);
-        let Ok(mut edid) = generate else {
-            error!("Failed to genererate edid: {generate:?}");
-            // SAFETY: Already checked that this was not Ok
-            return Err(ContextError::Other(unsafe {
-                generate.unwrap_err_unchecked()
-            }));
-        };
+        let mut edid = generate_edid_with(index);
 
         let mut monitor_info = IDDCX_MONITOR_INFO {
-            Size: u32::try_from(size_of::<IDDCX_MONITOR_INFO>())?,
+            #[allow(clippy::cast_possible_truncation)]
+            Size: size_of::<IDDCX_MONITOR_INFO>() as u32,
             // SAFETY: windows-rs + generated _GUID types are same size, with same fields, and repr C
             // see: https://microsoft.github.io/windows-docs-rs/doc/windows/core/struct.GUID.html
             // and: wmdf_umdf_sys::_GUID
@@ -159,9 +158,14 @@ impl DeviceContext {
 
             ConnectorIndex: index,
             MonitorDescription: IDDCX_MONITOR_DESCRIPTION {
-                Size: u32::try_from(size_of::<IDDCX_MONITOR_DESCRIPTION>())?,
+                #[allow(clippy::cast_possible_truncation)]
+                Size: size_of::<IDDCX_MONITOR_DESCRIPTION>() as u32,
+
                 Type: IDDCX_MONITOR_DESCRIPTION_TYPE::IDDCX_MONITOR_DESCRIPTION_TYPE_EDID,
-                DataSize: u32::try_from(edid.len())?,
+
+                #[allow(clippy::cast_possible_truncation)]
+                DataSize: edid.len() as u32,
+
                 pData: edid.as_mut_ptr().cast(),
             },
         };

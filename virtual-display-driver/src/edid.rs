@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use bytemuck::{Pod, Zeroable};
 
 static MONITOR_EDID: &[u8] = &[
@@ -27,7 +26,7 @@ pub struct Edid {
 
 const EDID_SIZE: usize = std::mem::size_of::<Edid>();
 
-pub fn generate_edid_with(serial: u32) -> anyhow::Result<Vec<u8>> {
+pub fn generate_edid_with(serial: u32) -> Vec<u8> {
     // change serial number in the header
     let header_bytes = &MONITOR_EDID[..EDID_SIZE];
     let mut header = bytemuck::pod_read_unaligned::<Edid>(header_bytes);
@@ -40,9 +39,9 @@ pub fn generate_edid_with(serial: u32) -> anyhow::Result<Vec<u8>> {
     // splice together header and the rest of the EDID
     let mut edid: Vec<u8> = header.iter().chain(data.iter()).copied().collect();
     // regenerate checksum
-    gen_checksum(&mut edid)?;
+    gen_checksum(&mut edid);
 
-    Ok(edid)
+    edid
 }
 
 pub fn get_edid_serial(edid: &[u8]) -> u32 {
@@ -51,7 +50,7 @@ pub fn get_edid_serial(edid: &[u8]) -> u32 {
     header.serial_number
 }
 
-fn gen_checksum(data: &mut [u8]) -> Result<(), anyhow::Error> {
+fn gen_checksum(data: &mut [u8]) {
     // important, this is the bare minimum length
     assert!(data.len() >= 128);
 
@@ -60,11 +59,10 @@ fn gen_checksum(data: &mut [u8]) -> Result<(), anyhow::Error> {
 
     // do checksum calculation
     let sum: u32 = edid_data.iter().copied().map(u32::from).sum();
-    let checksum =
-        u8::try_from(256 - (sum % 256)).map_err(|_| anyhow!("Edid checksum overflow"))?;
+    // this wont ever truncate
+    #[allow(clippy::cast_possible_truncation)]
+    let checksum = (256 - (sum % 256)) as u8;
 
     // update last byte with new checksum
     data[127] = checksum;
-
-    Ok(())
 }
