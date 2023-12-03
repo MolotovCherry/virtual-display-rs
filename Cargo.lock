@@ -875,7 +875,7 @@ dependencies = [
  "vergen",
  "wdf-umdf",
  "wdf-umdf-sys",
- "win-pipes 0.1.0 (git+https://github.com/MolotovCherry/WinPipes-rs)",
+ "win-pipes",
  "windows",
  "winreg",
  "winres",
@@ -894,7 +894,7 @@ dependencies = [
  "owo-colors",
  "serde",
  "serde_json",
- "win-pipes 0.1.0 (git+https://github.com/kylewlacy/WinPipes-rs?branch=fix-client-read-full-corruption)",
+ "win-pipes",
  "windows",
 ]
 
@@ -935,16 +935,6 @@ name = "widestring"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
-
-[[package]]
-name = "win-pipes"
-version = "0.1.0"
-source = "git+https://github.com/kylewlacy/WinPipes-rs?branch=fix-client-read-full-corruption#aa6ba1598fdd029aa1614aa35b1d6458c20c8863"
-dependencies = [
- "log",
- "windows",
- "windows-sys 0.52.0",
-]
 
 [[package]]
 name = "win-pipes"
