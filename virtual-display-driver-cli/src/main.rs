@@ -54,7 +54,7 @@ fn main() -> eyre::Result<()> {
                     println!("{}", "Virtual monitors".underline());
                     for monitor in monitors {
                         let name_label = lazy_format!(match (&monitor.name) {
-                            Some(name) => ("{}{name}{}", "[".dimmed(), "]".dimmed()),
+                            Some(name) => (" {}{name}{}", "[".dimmed(), "]".dimmed()),
                             None => "",
                         });
                         let primary_mode = monitor.modes.get(0);
