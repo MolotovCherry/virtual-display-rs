@@ -40,7 +40,7 @@ Issue report checklist:
  * Minimal example
 
 ## Working on issues
-Find or create an issue you are interested in working on. On the issue, let the project members know you want to work on that particular issue, and if agreed, you will be assigned to the issue. Please also discuss what changes you want to make, etc with project members so you can ensure that none of your or our time is wasted.
+Find or create an issue you are interested in working on. On the issue, let the project members know you want to work on that particular issue, and if agreed, you will be assigned to the issue. Please also discuss what changes you want to make, design decisions, or any other pertinent details with project members so you can ensure that none of your or our time is wasted.
 
 ## Contributing code
 These are some of the rules we try to follow:
