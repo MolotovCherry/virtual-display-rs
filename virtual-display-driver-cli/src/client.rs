@@ -63,6 +63,14 @@ impl Client {
         Ok(())
     }
 
+    pub fn remove_all(&mut self) -> eyre::Result<()> {
+        let command = driver_ipc::Command::DriverRemoveAll;
+
+        self.send_command(&command)?;
+
+        Ok(())
+    }
+
     fn next_id(&mut self) -> eyre::Result<driver_ipc::Id> {
         let monitors = self.list()?;
         let max_id = monitors.iter().map(|monitor| monitor.id).max();

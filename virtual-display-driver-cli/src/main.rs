@@ -33,6 +33,8 @@ enum Command {
     },
     /// Remove one or more virtual monitors.
     Remove { id: Vec<driver_ipc::Id> },
+    /// Remove all virtual monitors.
+    RemoveAll,
 }
 
 fn main() -> eyre::Result<()> {
@@ -117,6 +119,17 @@ fn main() -> eyre::Result<()> {
                 } else {
                     println!("Removed {} virtual monitors.", id.len());
                 }
+            }
+        }
+        Command::RemoveAll => {
+            let mut client = Client::connect()?;
+            client.remove_all()?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer(&mut stdout, &())?;
+            } else {
+                println!("Removed all virtual monitors.");
             }
         }
     }
