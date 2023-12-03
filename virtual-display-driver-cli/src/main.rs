@@ -110,10 +110,13 @@ fn main() -> eyre::Result<()> {
                         else =>
                             (" {}", "(disabled)".red())
                         );
-                        println!("{}{name_label}{disabled_label}:", monitor.id.blue(),);
+                        println!(
+                            "Monitor {}{name_label}{disabled_label}:",
+                            monitor.id.green(),
+                        );
 
                         if monitor.modes.len() > 0 {
-                            for mode in &monitor.modes {
+                            for (index, mode) in monitor.modes.iter().enumerate() {
                                 let refresh_rate_labels = mode
                                     .refresh_rates
                                     .iter()
@@ -125,7 +128,7 @@ fn main() -> eyre::Result<()> {
                                     ("{}Hz", refresh_rate_labels)
                                 );
                                 println!(
-                                    "{} {}x{} @ {}",
+                                    "{} Mode {index}: {}x{} @ {}",
                                     "-".dimmed(),
                                     mode.width.green(),
                                     mode.height.green(),
