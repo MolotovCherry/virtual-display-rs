@@ -1,5 +1,6 @@
 use clap::Parser;
 use client::Client;
+use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
 
@@ -55,33 +56,40 @@ fn main() -> eyre::Result<()> {
             } else {
                 if monitors.len() > 0 {
                     println!("{}", "Virtual monitors".underline());
-                    for monitor in monitors {
+                    for (i, monitor) in monitors.iter().enumerate() {
+                        if i > 0 {
+                            println!();
+                        }
+
                         let name_label = lazy_format!(match (&monitor.name) {
                             Some(name) => (" {}{name}{}", "[".dimmed(), "]".dimmed()),
                             None => "",
                         });
-                        let primary_mode = monitor.modes.get(0);
-                        let primary_width = lazy_format!(match (primary_mode) {
-                            Some(mode) => ("{}", mode.width.green()),
-                            None => ("{}", "?".red()),
-                        });
-                        let primary_height = lazy_format!(match (primary_mode) {
-                            Some(mode) => ("{}", mode.height.green()),
-                            None => ("{}", "?".red()),
-                        });
-                        let primary_refresh =
-                            primary_mode.and_then(|mode| mode.refresh_rates.get(0));
-                        let primary_refresh = lazy_format!(match (primary_refresh) {
-                            Some(refresh) => ("{}Hz", refresh.blue()),
-                            None => ("{}Hz", "?".red()),
-                        });
-                        println!(
-                            "  {}{name_label}: {} x {} @ {}",
-                            monitor.id.blue(),
-                            primary_width,
-                            primary_height,
-                            primary_refresh,
-                        );
+                        println!("{}{name_label}:", monitor.id.blue(),);
+
+                        if monitor.modes.len() > 0 {
+                            for mode in &monitor.modes {
+                                let refresh_rate_labels = mode
+                                    .refresh_rates
+                                    .iter()
+                                    .map(|rate| lazy_format!("{}", rate.blue()))
+                                    .join_with("/");
+                                let refresh_rates = lazy_format!(if mode.refresh_rates.is_empty() =>
+                                    ("{}Hz", "?".red())
+                                else =>
+                                    ("{}Hz", refresh_rate_labels)
+                                );
+                                println!(
+                                    "{} {}x{} @ {}",
+                                    "-".dimmed(),
+                                    mode.width.green(),
+                                    mode.height.green(),
+                                    refresh_rates
+                                );
+                            }
+                        } else {
+                            println!("{} {}", "-".dimmed(), "No modes".red());
+                        }
                     }
                 } else {
                     println!("No virtual monitors found.");
