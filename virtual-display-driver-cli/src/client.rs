@@ -33,6 +33,38 @@ impl Client {
         }
     }
 
+    pub fn add(&mut self, monitor: NewMonitor) -> eyre::Result<driver_ipc::Id> {
+        let new_id = match monitor.id {
+            Some(id) => id,
+            None => self.next_id()?,
+        };
+
+        let command = driver_ipc::Command::DriverNotify(vec![Monitor {
+            id: new_id,
+            name: None,
+            enabled: true,
+            modes: vec![driver_ipc::Mode {
+                width: monitor.width,
+                height: monitor.height,
+                refresh_rates: monitor.refresh_rates,
+            }],
+        }]);
+
+        self.send_command(&command)?;
+
+        Ok(new_id)
+    }
+
+    fn next_id(&mut self) -> eyre::Result<driver_ipc::Id> {
+        let monitors = self.list()?;
+        let max_id = monitors.iter().map(|monitor| monitor.id).max();
+
+        match max_id {
+            Some(id) => Ok(id + 1),
+            None => Ok(0),
+        }
+    }
+
     fn send_command(&mut self, command: &driver_ipc::Command) -> eyre::Result<()> {
         // Create a vector with the full message, then send it as a single
         // write. This is required because the pipe is in message mode.
@@ -57,4 +89,11 @@ impl Client {
 
         Ok(command)
     }
+}
+
+pub struct NewMonitor {
+    pub width: driver_ipc::Dimen,
+    pub height: driver_ipc::Dimen,
+    pub refresh_rates: Vec<driver_ipc::RefreshRate>,
+    pub id: Option<driver_ipc::Id>,
 }

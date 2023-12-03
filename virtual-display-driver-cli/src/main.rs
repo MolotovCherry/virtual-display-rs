@@ -19,6 +19,18 @@ struct Args {
 enum Command {
     /// List currently connected virtual monitors.
     List,
+    /// Add a new virtual monitor.
+    Add {
+        width: driver_ipc::Dimen,
+
+        height: driver_ipc::Dimen,
+
+        #[clap(short, long, default_value = "60")]
+        refresh_rates: Vec<driver_ipc::RefreshRate>,
+
+        #[clap(long)]
+        id: Option<driver_ipc::Id>,
+    },
 }
 
 fn main() -> eyre::Result<()> {
@@ -67,6 +79,27 @@ fn main() -> eyre::Result<()> {
                 } else {
                     println!("No virtual monitors found.");
                 }
+            }
+        }
+        Command::Add {
+            width,
+            height,
+            refresh_rates,
+            id,
+        } => {
+            let mut client = Client::connect()?;
+            let new_id = client.add(client::NewMonitor {
+                width,
+                height,
+                refresh_rates,
+                id,
+            })?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer(&mut stdout, &new_id)?;
+            } else {
+                println!("Added virtual monitor with id {}.", new_id.green());
             }
         }
     }
