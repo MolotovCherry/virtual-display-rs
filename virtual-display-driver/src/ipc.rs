@@ -75,7 +75,8 @@ pub fn startup() {
         }
 
         let sa = SECURITY_ATTRIBUTES {
-            nLength: u32::try_from(size_of::<SECURITY_ATTRIBUTES>()).unwrap(),
+            #[allow(clippy::cast_possible_truncation)]
+            nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
             lpSecurityDescriptor: addr_of_mut!(sd).cast(),
             bInheritHandle: false.into(),
         };
