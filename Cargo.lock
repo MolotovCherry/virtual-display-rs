@@ -892,6 +892,7 @@ dependencies = [
  "joinery",
  "lazy_format",
  "owo-colors",
+ "serde",
  "serde_json",
  "win-pipes 0.1.0 (git+https://github.com/kylewlacy/WinPipes-rs?branch=fix-client-read-full-corruption)",
  "windows",

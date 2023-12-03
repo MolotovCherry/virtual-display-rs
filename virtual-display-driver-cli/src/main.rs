@@ -3,6 +3,7 @@ use client::Client;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
+use serde::{Deserialize, Serialize};
 
 mod client;
 
@@ -45,6 +46,10 @@ enum Command {
         #[clap(long)]
         name: Option<String>,
     },
+    /// Enable a virtual monitor.
+    Enable { id: driver_ipc::Id },
+    /// Disable one or more virtual monitors.
+    Disable { id: driver_ipc::Id },
     /// Remove one or more virtual monitors.
     Remove { id: Vec<driver_ipc::Id> },
     /// Remove all virtual monitors.
@@ -144,7 +149,39 @@ fn main() -> eyre::Result<()> {
                 let mut stdout = std::io::stdout().lock();
                 serde_json::to_writer_pretty(&mut stdout, &id)?;
             } else {
-                println!("Added virtual monitor with id {}.", id.green());
+                println!("Added virtual monitor with ID {}.", id.green());
+            }
+        }
+        Command::Enable { id } => {
+            let mut client = Client::connect()?;
+            let outcome = set_enabled(&mut client, id, true)?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &outcome)?;
+            } else {
+                let footnote = if outcome.toggled {
+                    ""
+                } else {
+                    " (was already enabled)"
+                };
+                println!("Enabled virtual monitor with ID {}{footnote}.", id.green());
+            }
+        }
+        Command::Disable { id } => {
+            let mut client = Client::connect()?;
+            let outcome = set_enabled(&mut client, id, false)?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &outcome)?;
+            } else {
+                let footnote = if outcome.toggled {
+                    ""
+                } else {
+                    " (was already disabled)"
+                };
+                println!("Disabled virtual monitor with ID {}{footnote}.", id.green());
             }
         }
         Command::Remove { id } => {
@@ -176,4 +213,34 @@ fn main() -> eyre::Result<()> {
     }
 
     Ok(())
+}
+
+fn set_enabled(
+    client: &mut Client,
+    id: driver_ipc::Id,
+    enabled: bool,
+) -> eyre::Result<EnableDisableOutcome> {
+    let monitors = client.list()?;
+    let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
+    let Some(mut monitor) = monitor else {
+        eyre::bail!("no virtual monitor with ID {} found", id);
+    };
+
+    let should_toggle = enabled != monitor.enabled;
+
+    if should_toggle {
+        monitor.enabled = enabled;
+        client.notify(vec![monitor.clone()])?;
+    }
+
+    Ok(EnableDisableOutcome {
+        monitor,
+        toggled: should_toggle,
+    })
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+struct EnableDisableOutcome {
+    monitor: driver_ipc::Monitor,
+    toggled: bool,
 }
