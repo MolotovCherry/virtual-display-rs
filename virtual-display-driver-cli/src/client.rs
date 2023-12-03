@@ -21,9 +21,6 @@ impl Client {
     }
 
     pub fn list(&mut self) -> eyre::Result<Vec<Monitor>> {
-        // let read = self.receive_command()?;
-        // println!("{:?}", read);
-
         self.send_command(&driver_ipc::Command::RequestState)?;
         let response = self.receive_command()?;
 
