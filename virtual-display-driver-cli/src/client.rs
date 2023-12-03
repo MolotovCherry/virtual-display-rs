@@ -30,6 +30,16 @@ impl Client {
         }
     }
 
+    pub fn get(&mut self, id: driver_ipc::Id) -> eyre::Result<Monitor> {
+        let monitors = self.list()?;
+        let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
+
+        match monitor {
+            Some(monitor) => Ok(monitor),
+            None => eyre::bail!("no virtual monitor with ID {} found", id),
+        }
+    }
+
     pub fn notify(&mut self, monitors: Vec<driver_ipc::Monitor>) -> eyre::Result<()> {
         let command = driver_ipc::Command::DriverNotify(monitors);
 

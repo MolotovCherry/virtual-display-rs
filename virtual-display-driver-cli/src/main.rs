@@ -197,11 +197,7 @@ fn main() -> eyre::Result<()> {
             refresh_rate,
         } => {
             let mut client = Client::connect()?;
-            let monitors = client.list()?;
-            let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
-            let Some(mut monitor) = monitor else {
-                eyre::bail!("no virtual monitor with ID {} found", id);
-            };
+            let mut monitor = client.get(id)?;
 
             let new_mode_index = monitor.modes.len();
             let new_mode = driver_ipc::Mode {
@@ -225,11 +221,7 @@ fn main() -> eyre::Result<()> {
         }
         Command::RemoveMode { id, mode_index } => {
             let mut client = Client::connect()?;
-            let monitors = client.list()?;
-            let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
-            let Some(mut monitor) = monitor else {
-                eyre::bail!("no virtual monitor with ID {} found", id);
-            };
+            let mut monitor = client.get(id)?;
 
             if mode_index >= monitor.modes.len() {
                 eyre::bail!(
@@ -327,11 +319,7 @@ fn set_enabled(
     id: driver_ipc::Id,
     enabled: bool,
 ) -> eyre::Result<EnableDisableOutcome> {
-    let monitors = client.list()?;
-    let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
-    let Some(mut monitor) = monitor else {
-        eyre::bail!("no virtual monitor with ID {} found", id);
-    };
+    let mut monitor = client.get(id)?;
 
     let should_toggle = enabled != monitor.enabled;
 
