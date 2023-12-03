@@ -33,30 +33,16 @@ impl Client {
         }
     }
 
-    pub fn add(&mut self, monitor: NewMonitor) -> eyre::Result<driver_ipc::Id> {
-        let new_id = match monitor.id {
-            Some(id) => id,
-            None => self.next_id()?,
-        };
-
-        let command = driver_ipc::Command::DriverNotify(vec![Monitor {
-            id: new_id,
-            name: None,
-            enabled: true,
-            modes: vec![driver_ipc::Mode {
-                width: monitor.width,
-                height: monitor.height,
-                refresh_rates: monitor.refresh_rates,
-            }],
-        }]);
+    pub fn notify(&mut self, monitors: Vec<driver_ipc::Monitor>) -> eyre::Result<()> {
+        let command = driver_ipc::Command::DriverNotify(monitors);
 
         self.send_command(&command)?;
 
-        Ok(new_id)
+        Ok(())
     }
 
     pub fn remove(&mut self, ids: Vec<driver_ipc::Id>) -> eyre::Result<()> {
-        let command = driver_ipc::Command::DriverRemove(ids.to_vec());
+        let command = driver_ipc::Command::DriverRemove(ids);
 
         self.send_command(&command)?;
 
@@ -71,7 +57,7 @@ impl Client {
         Ok(())
     }
 
-    fn next_id(&mut self) -> eyre::Result<driver_ipc::Id> {
+    pub fn next_id(&mut self) -> eyre::Result<driver_ipc::Id> {
         let monitors = self.list()?;
         let max_id = monitors.iter().map(|monitor| monitor.id).max();
 
@@ -105,11 +91,4 @@ impl Client {
 
         Ok(command)
     }
-}
-
-pub struct NewMonitor {
-    pub width: driver_ipc::Dimen,
-    pub height: driver_ipc::Dimen,
-    pub refresh_rates: Vec<driver_ipc::RefreshRate>,
-    pub id: Option<driver_ipc::Id>,
 }

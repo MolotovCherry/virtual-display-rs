@@ -92,18 +92,27 @@ fn main() -> eyre::Result<()> {
             id,
         } => {
             let mut client = Client::connect()?;
-            let new_id = client.add(client::NewMonitor {
-                width,
-                height,
-                refresh_rates,
+            let id = match id {
+                Some(id) => id,
+                None => client.next_id()?,
+            };
+            let new_monitor = driver_ipc::Monitor {
                 id,
-            })?;
+                enabled: true,
+                name: None,
+                modes: vec![driver_ipc::Mode {
+                    width,
+                    height,
+                    refresh_rates,
+                }],
+            };
+            client.notify(vec![new_monitor])?;
 
             if args.json {
                 let mut stdout = std::io::stdout().lock();
-                serde_json::to_writer(&mut stdout, &new_id)?;
+                serde_json::to_writer(&mut stdout, &id)?;
             } else {
-                println!("Added virtual monitor with id {}.", new_id.green());
+                println!("Added virtual monitor with id {}.", id.green());
             }
         }
         Command::Remove { id } => {
