@@ -51,7 +51,7 @@ fn main() -> eyre::Result<()> {
 
             if args.json {
                 let mut stdout = std::io::stdout().lock();
-                serde_json::to_writer(&mut stdout, &monitors)?;
+                serde_json::to_writer_pretty(&mut stdout, &monitors)?;
             } else {
                 if monitors.len() > 0 {
                     println!("{}", "Virtual monitors".underline());
@@ -114,7 +114,7 @@ fn main() -> eyre::Result<()> {
 
             if args.json {
                 let mut stdout = std::io::stdout().lock();
-                serde_json::to_writer(&mut stdout, &id)?;
+                serde_json::to_writer_pretty(&mut stdout, &id)?;
             } else {
                 println!("Added virtual monitor with id {}.", id.green());
             }
@@ -125,7 +125,7 @@ fn main() -> eyre::Result<()> {
 
             if args.json {
                 let mut stdout = std::io::stdout().lock();
-                serde_json::to_writer(&mut stdout, &id)?;
+                serde_json::to_writer_pretty(&mut stdout, &id)?;
             } else {
                 if id.len() == 1 {
                     println!("Removed virtual monitor.");
@@ -140,7 +140,7 @@ fn main() -> eyre::Result<()> {
 
             if args.json {
                 let mut stdout = std::io::stdout().lock();
-                serde_json::to_writer(&mut stdout, &())?;
+                serde_json::to_writer_pretty(&mut stdout, &())?;
             } else {
                 println!("Removed all virtual monitors.");
             }
