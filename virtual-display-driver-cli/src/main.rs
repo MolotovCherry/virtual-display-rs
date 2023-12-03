@@ -50,6 +50,28 @@ enum Command {
         #[clap(long)]
         disabled: bool,
     },
+    AddMode {
+        /// ID of the virtual monitor to add a mode to.
+        id: driver_ipc::Id,
+
+        /// Width of the new mode.
+        width: driver_ipc::Dimen,
+
+        /// Height of the new mode.
+        height: driver_ipc::Dimen,
+
+        /// Refresh rate for the new mode. Pass multiple times to support
+        /// multiple refresh rates in this mode.
+        #[clap(short, long, default_value = "60")]
+        refresh_rate: Vec<driver_ipc::RefreshRate>,
+    },
+    RemoveMode {
+        /// ID of the virtual monitor to add a mode to.
+        id: driver_ipc::Id,
+
+        /// The index of the mode to remove.
+        mode_index: usize,
+    },
     /// Enable a virtual monitor.
     Enable { id: driver_ipc::Id },
     /// Disable one or more virtual monitors.
@@ -161,6 +183,69 @@ fn main() -> eyre::Result<()> {
                 );
                 println!(
                     "Added virtual monitor with ID {}{disabled_footnote}.",
+                    id.green()
+                );
+            }
+        }
+        Command::AddMode {
+            id,
+            width,
+            height,
+            refresh_rate,
+        } => {
+            let mut client = Client::connect()?;
+            let monitors = client.list()?;
+            let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
+            let Some(mut monitor) = monitor else {
+                eyre::bail!("no virtual monitor with ID {} found", id);
+            };
+
+            let new_mode_index = monitor.modes.len();
+            let new_mode = driver_ipc::Mode {
+                width,
+                height,
+                refresh_rates: refresh_rate,
+            };
+            monitor.modes.push(new_mode);
+            client.notify(vec![monitor])?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &new_mode_index)?;
+            } else {
+                println!(
+                    "Added new mode {} to virtual monitor with ID {}.",
+                    new_mode_index.blue(),
+                    id.green()
+                );
+            }
+        }
+        Command::RemoveMode { id, mode_index } => {
+            let mut client = Client::connect()?;
+            let monitors = client.list()?;
+            let monitor = monitors.into_iter().find(|monitor| monitor.id == id);
+            let Some(mut monitor) = monitor else {
+                eyre::bail!("no virtual monitor with ID {} found", id);
+            };
+
+            if mode_index >= monitor.modes.len() {
+                eyre::bail!(
+                    "virtual monitor with ID {} has no mode with index {}",
+                    id,
+                    mode_index
+                );
+            }
+
+            monitor.modes.remove(mode_index);
+            client.notify(vec![monitor])?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer_pretty(&mut stdout, &mode_index)?;
+            } else {
+                println!(
+                    "Removed mode {} from virtual monitor with ID {}.",
+                    mode_index.blue(),
                     id.green()
                 );
             }
