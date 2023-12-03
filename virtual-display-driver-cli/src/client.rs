@@ -55,6 +55,14 @@ impl Client {
         Ok(new_id)
     }
 
+    pub fn remove(&mut self, ids: Vec<driver_ipc::Id>) -> eyre::Result<()> {
+        let command = driver_ipc::Command::DriverRemove(ids.to_vec());
+
+        self.send_command(&command)?;
+
+        Ok(())
+    }
+
     fn next_id(&mut self) -> eyre::Result<driver_ipc::Id> {
         let monitors = self.list()?;
         let max_id = monitors.iter().map(|monitor| monitor.id).max();

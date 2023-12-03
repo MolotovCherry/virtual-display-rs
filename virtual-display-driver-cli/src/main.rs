@@ -31,6 +31,8 @@ enum Command {
         #[clap(long)]
         id: Option<driver_ipc::Id>,
     },
+    /// Remove one or more virtual monitors.
+    Remove { id: Vec<driver_ipc::Id> },
 }
 
 fn main() -> eyre::Result<()> {
@@ -100,6 +102,21 @@ fn main() -> eyre::Result<()> {
                 serde_json::to_writer(&mut stdout, &new_id)?;
             } else {
                 println!("Added virtual monitor with id {}.", new_id.green());
+            }
+        }
+        Command::Remove { id } => {
+            let mut client = Client::connect()?;
+            client.remove(id.clone())?;
+
+            if args.json {
+                let mut stdout = std::io::stdout().lock();
+                serde_json::to_writer(&mut stdout, &id)?;
+            } else {
+                if id.len() == 1 {
+                    println!("Removed virtual monitor.");
+                } else {
+                    println!("Removed {} virtual monitors.", id.len());
+                }
             }
         }
     }
