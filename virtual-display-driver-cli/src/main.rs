@@ -30,6 +30,9 @@ enum Command {
 
         #[clap(long)]
         id: Option<driver_ipc::Id>,
+
+        #[clap(long)]
+        name: Option<String>,
     },
     /// Remove one or more virtual monitors.
     Remove { id: Vec<driver_ipc::Id> },
@@ -90,6 +93,7 @@ fn main() -> eyre::Result<()> {
             height,
             refresh_rates,
             id,
+            name,
         } => {
             let mut client = Client::connect()?;
             let id = match id {
@@ -99,7 +103,7 @@ fn main() -> eyre::Result<()> {
             let new_monitor = driver_ipc::Monitor {
                 id,
                 enabled: true,
-                name: None,
+                name,
                 modes: vec![driver_ipc::Mode {
                     width,
                     height,
