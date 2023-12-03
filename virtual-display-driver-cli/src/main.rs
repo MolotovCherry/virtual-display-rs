@@ -142,10 +142,7 @@ fn main() -> eyre::Result<()> {
                 .collect();
 
             let mut client = Client::connect()?;
-            let id = match id {
-                Some(id) => id,
-                None => client.next_id()?,
-            };
+            let id = client.new_id(id)?;
             let new_monitor = driver_ipc::Monitor {
                 id,
                 enabled: !disabled,
