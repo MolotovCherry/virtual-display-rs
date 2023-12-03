@@ -22,16 +22,26 @@ enum Command {
     List,
     /// Add a new virtual monitor.
     Add {
+        /// Width of the virtual monitor.
         width: driver_ipc::Dimen,
 
+        /// Height of the virtual monitor.
         height: driver_ipc::Dimen,
 
-        #[clap(short, long, default_value = "60")]
-        refresh_rates: Vec<driver_ipc::RefreshRate>,
+        /// More resolutions to add as extra modes for the virtual monitor.
+        more_widths_and_heights: Vec<driver_ipc::Dimen>,
 
+        /// Refresh rate of the virtual monitor. Pass multiple times to
+        /// support multiple refresh rates.
+        #[clap(short, long, default_value = "60")]
+        refresh_rate: Vec<driver_ipc::RefreshRate>,
+
+        /// Manual ID to set for the monitor. Must not conflict with an
+        /// existing virtual monitor's ID.
         #[clap(long)]
         id: Option<driver_ipc::Id>,
 
+        /// Optional label for the virtual monitor.
         #[clap(long)]
         name: Option<String>,
     },
@@ -99,10 +109,24 @@ fn main() -> eyre::Result<()> {
         Command::Add {
             width,
             height,
-            refresh_rates,
+            more_widths_and_heights,
+            refresh_rate,
             id,
             name,
         } => {
+            if more_widths_and_heights.len() % 2 != 0 {
+                eyre::bail!("passed a width for an extra resolution without a height");
+            }
+
+            let modes = std::iter::once(&[width, height][..])
+                .chain(more_widths_and_heights.chunks_exact(2))
+                .map(|dim| driver_ipc::Mode {
+                    width: dim[0],
+                    height: dim[1],
+                    refresh_rates: refresh_rate.clone(),
+                })
+                .collect();
+
             let mut client = Client::connect()?;
             let id = match id {
                 Some(id) => id,
@@ -112,11 +136,7 @@ fn main() -> eyre::Result<()> {
                 id,
                 enabled: true,
                 name,
-                modes: vec![driver_ipc::Mode {
-                    width,
-                    height,
-                    refresh_rates,
-                }],
+                modes,
             };
             client.notify(vec![new_monitor])?;
 
