@@ -45,6 +45,10 @@ enum Command {
         /// Optional label for the virtual monitor.
         #[clap(long)]
         name: Option<String>,
+
+        /// Set the virtual monitor to disabled on creation.
+        #[clap(long)]
+        disabled: bool,
     },
     /// Enable a virtual monitor.
     Enable { id: driver_ipc::Id },
@@ -122,6 +126,7 @@ fn main() -> eyre::Result<()> {
             refresh_rate,
             id,
             name,
+            disabled,
         } => {
             if more_widths_and_heights.len() % 2 != 0 {
                 eyre::bail!("passed a width for an extra resolution without a height");
@@ -143,7 +148,7 @@ fn main() -> eyre::Result<()> {
             };
             let new_monitor = driver_ipc::Monitor {
                 id,
-                enabled: true,
+                enabled: !disabled,
                 name,
                 modes,
             };
@@ -153,7 +158,14 @@ fn main() -> eyre::Result<()> {
                 let mut stdout = std::io::stdout().lock();
                 serde_json::to_writer_pretty(&mut stdout, &id)?;
             } else {
-                println!("Added virtual monitor with ID {}.", id.green());
+                let disabled_footnote = lazy_format!(
+                    if disabled => (" {}", "(disabled)".red())
+                    else => ""
+                );
+                println!(
+                    "Added virtual monitor with ID {}{disabled_footnote}.",
+                    id.green()
+                );
             }
         }
         Command::Enable { id } => {
