@@ -238,6 +238,12 @@ fn main() -> eyre::Result<()> {
                     mode_index
                 );
             }
+            if monitor.modes.len() == 1 {
+                eyre::bail!(
+                    "cannot remove last mode from virtual monitor with ID {}",
+                    id
+                );
+            }
 
             monitor.modes.remove(mode_index);
             client.notify(vec![monitor])?;
