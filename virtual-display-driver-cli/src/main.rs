@@ -50,6 +50,7 @@ enum Command {
         #[clap(long)]
         disabled: bool,
     },
+    /// Add a new resolution/refresh rate mode to an existing virtual monitor.
     AddMode {
         /// ID of the virtual monitor to add a mode to.
         id: driver_ipc::Id,
@@ -65,6 +66,7 @@ enum Command {
         #[clap(short, long, default_value = "60")]
         refresh_rate: Vec<driver_ipc::RefreshRate>,
     },
+    /// Remove a resolution/refresh rate mode to an existing virtual monitor.
     RemoveMode {
         /// ID of the virtual monitor to add a mode to.
         id: driver_ipc::Id,
