@@ -159,17 +159,9 @@ pub extern "C-unwind" fn parse_monitor_description(
         .flatten()
         .zip(monitor_modes.iter_mut())
     {
-        #[allow(non_snake_case)]
-        let Ok(Size) = u32::try_from(mem::size_of::<IDDCX_MONITOR_MODE>()) else {
-            error!(
-                "IDDCX_MONITOIR_MODE size {} overflow",
-                mem::size_of::<IDDCX_MONITOR_MODE>()
-            );
-            return NTSTATUS::STATUS_INTEGER_OVERFLOW;
-        };
-
         out_mode.write(IDDCX_MONITOR_MODE {
-            Size,
+            #[allow(clippy::cast_possible_truncation)]
+            Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
             Origin: IDDCX_MONITOR_MODE_ORIGIN::IDDCX_MONITOR_MODE_ORIGIN_MONITORDESCRIPTOR,
             MonitorVideoSignalInfo: display_info(mode.width, mode.height, mode.refresh_rate),
         });
