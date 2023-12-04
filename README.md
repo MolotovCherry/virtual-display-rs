@@ -13,7 +13,7 @@ It has many uses, such as:
 
 Supports: Windows 10 2004+ (x64 only)
 
-_For any bug reports, please see the [debugging or reporting crashes](https://github.com/MolotovCherry/virtual-display-rs#debugging-or-reporting-crashes) section to get the panic message for the bug report_
+_For any bug reports, please see the [debugging or reporting crashes](#debugging-or-reporting-crashes) section to get the panic message for the bug report_
 
 ## Features
 - Multiple monitors (up to 10)
@@ -26,14 +26,14 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
 ## How to install
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 2. Download (you may receive a warning, just press accept)
-3. [Install certificate](https://github.com/MolotovCherry/virtual-display-rs#installing-the-certificate)
+3. [Install certificate](#installing-the-certificate)
 4. Run the msi installer
 5. The driver will be installed, started, and you can find a shortcut to the control app in the start menu, named "Virtual Display Driver Control"
 
 ## How to install portable version
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 2. Download (you may receive a warning, just press accept)
-3. [Install certificate](https://github.com/MolotovCherry/virtual-display-rs#installing-the-certificate)
+3. [Install certificate](#installing-the-certificate)
 4. Install `install.reg`
 5. Open device manager
    * click on any item in the list
