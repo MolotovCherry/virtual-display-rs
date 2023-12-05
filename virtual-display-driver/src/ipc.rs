@@ -156,16 +156,18 @@ fn get_data() -> Vec<Monitor> {
 
 /// used by notify to check the validity of a Vec<Monitor>
 fn has_duplicates(monitors: &[Monitor]) -> bool {
-    for (i, monitor) in monitors.iter().enumerate() {
-        let duplicate_id = monitors[i + 1..].iter().any(|b| monitor.id == b.id);
+    let mut monitor_iter = monitors.iter();
+    while let Some(monitor) = monitor_iter.next() {
+        let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
         if duplicate_id {
             warn!("Found duplicate monitor id {}", monitor.id);
             return true;
         }
 
-        for (j, mode) in monitor.modes.iter().enumerate() {
-            let duplicate_mode = monitor.modes[j + 1..]
-                .iter()
+        let mut mode_iter = monitor.modes.iter();
+        while let Some(mode) = mode_iter.next() {
+            let duplicate_mode = mode_iter
+                .clone()
                 .any(|m| mode.height == m.height && mode.width == m.width);
             if duplicate_mode {
                 warn!(
@@ -175,8 +177,9 @@ fn has_duplicates(monitors: &[Monitor]) -> bool {
                 return true;
             }
 
-            for (k, rr) in mode.refresh_rates.iter().copied().enumerate() {
-                let duplicate_rr = mode.refresh_rates[k + 1..].iter().any(|&r| rr == r);
+            let mut refresh_iter = mode.refresh_rates.iter().copied();
+            while let Some(rr) = refresh_iter.next() {
+                let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
                 if duplicate_rr {
                     warn!(
                         "Found duplicate refresh rate {rr} on mode {}x{} for monitor {}",
