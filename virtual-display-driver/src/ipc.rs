@@ -154,7 +154,11 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
-/// used by notify to check the validity of a Vec<Monitor>
+/// used to check the validity of a Vec<Monitor>
+/// the validity invariants are:
+/// 1. unique monitor ids
+/// 2. unique monitor modes (width+height must be unique per array element)
+/// 3. unique refresh rates per monitor mode
 fn has_duplicates(monitors: &[Monitor]) -> bool {
     let mut monitor_iter = monitors.iter();
     while let Some(monitor) = monitor_iter.next() {
