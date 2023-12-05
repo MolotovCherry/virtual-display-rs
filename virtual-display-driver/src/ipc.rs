@@ -197,6 +197,8 @@ fn has_duplicates(monitors: &[Monitor]) -> bool {
 /// Only adds/detaches, if required in order to update monitor state in the OS.
 /// e.g. only a name update would not detach/arrive a monitor
 fn notify(monitors: Vec<Monitor>) {
+    // Duplicated id's will not cause any issue, however duplicated resolutions/refresh rates are possible
+    // They should all be unique anyways. So warn + noop if the sender sent incorrect data
     if has_duplicates(&monitors) {
         warn!(
             "notify(): Duplicate data was detected; nothing was changed; please fix your program"
