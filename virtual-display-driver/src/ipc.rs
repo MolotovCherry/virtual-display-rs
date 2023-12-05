@@ -7,7 +7,7 @@ use std::{
 };
 
 use driver_ipc::{Command, Dimen, Mode, Monitor, RefreshRate};
-use log::error;
+use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
@@ -154,12 +154,50 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
+/// used by notify to check the validity of a Vec<Monitor>
+fn has_duplicates(monitors: &[Monitor]) -> bool {
+    for (i, monitor) in monitors.iter().enumerate() {
+        let duplicate_id = monitors[i + 1..].iter().any(|b| monitor.id == b.id);
+        if duplicate_id {
+            warn!("Found duplicate monitor id {}", monitor.id);
+            return true;
+        }
+
+        for (j, mode) in monitor.modes.iter().enumerate() {
+            let duplicate_mode = monitor.modes[j + 1..]
+                .iter()
+                .any(|m| mode.height == m.height && mode.width == m.width);
+            if duplicate_mode {
+                warn!("Found duplicate mode {}x{}", mode.width, mode.height);
+                return true;
+            }
+
+            for (k, rr) in mode.refresh_rates.iter().copied().enumerate() {
+                let duplicate_rr = mode.refresh_rates[k + 1..].iter().any(|&r| rr == r);
+                if duplicate_rr {
+                    warn!("Found duplicate refresh rate {rr}");
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// Adds if it doesn't exist,
 /// Or, if it does exist, updates it by detaching, update, and re-attaching
 ///
 /// Only adds/detaches, if required in order to update monitor state in the OS.
 /// e.g. only a name update would not detach/arrive a monitor
 fn notify(monitors: Vec<Monitor>) {
+    if has_duplicates(&monitors) {
+        warn!(
+            "notify(): Duplicate data was detected; nothing was changed; please fix your program"
+        );
+        return;
+    }
+
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
