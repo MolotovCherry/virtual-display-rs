@@ -168,14 +168,20 @@ fn has_duplicates(monitors: &[Monitor]) -> bool {
                 .iter()
                 .any(|m| mode.height == m.height && mode.width == m.width);
             if duplicate_mode {
-                warn!("Found duplicate mode {}x{}", mode.width, mode.height);
+                warn!(
+                    "Found duplicate mode {}x{} on monitor {}",
+                    mode.width, mode.height, monitor.id
+                );
                 return true;
             }
 
             for (k, rr) in mode.refresh_rates.iter().copied().enumerate() {
                 let duplicate_rr = mode.refresh_rates[k + 1..].iter().any(|&r| rr == r);
                 if duplicate_rr {
-                    warn!("Found duplicate refresh rate {rr}");
+                    warn!(
+                        "Found duplicate refresh rate {rr} on mode {}x{} for monitor {}",
+                        mode.width, mode.height, monitor.id
+                    );
                     return true;
                 }
             }
