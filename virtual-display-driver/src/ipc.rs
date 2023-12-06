@@ -308,7 +308,7 @@ fn remove(ids: &[u32]) {
 }
 
 pub trait FlattenModes {
-    fn flatten(&self) -> impl Iterator<Item = ModeItem> + '_;
+    fn flatten(&self) -> impl Iterator<Item = ModeItem>;
 }
 
 #[derive(Copy, Clone)]
@@ -320,7 +320,7 @@ pub struct ModeItem {
 
 /// Takes a slice of modes and creates a flattened structure that can be iterated over
 impl FlattenModes for Vec<Mode> {
-    fn flatten(&self) -> impl Iterator<Item = ModeItem> + '_ {
+    fn flatten(&self) -> impl Iterator<Item = ModeItem> {
         self.iter().flat_map(|m| {
             m.refresh_rates.iter().map(|&rr| ModeItem {
                 width: m.width,
