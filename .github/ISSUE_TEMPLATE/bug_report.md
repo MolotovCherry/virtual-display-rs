@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: '[Bug Report] My bug'
+title: 'My bug'
 labels: bug
 assignees: ''
 
@@ -15,7 +15,7 @@ Please answer the following questions for yourself before submitting an issue.
 - [ ] I am using a supported version of Windows, as stated in the README on the front page
 - [ ] I checked and carefully read the documentation, making sure to follow any troubleshooting problems
 - [ ] I have tried to solve the problem myself, but could not (or this is a unsolvable problem on my end)
-- [ ] I understand driver installation may fail if I didn't install the certificate properly. I have made sure the certificate is installed and exists in my local computer's root and TrustedPublisher stores
+- [ ] I understand driver installation will fail if I didn't install the certificate properly. I have made sure the certificate is installed and exists in my local computer's root and TrustedPublisher stores
 - [ ] I have uninstalled and reinstalled, and the problem is still present
 - [ ] I checked to make sure that this issue has not already been filed
 

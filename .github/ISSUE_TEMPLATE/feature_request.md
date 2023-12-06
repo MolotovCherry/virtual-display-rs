@@ -1,11 +1,17 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: '[Feature Request] My Idea'
+title: 'My Idea'
 labels: enhancement
 assignees: ''
 
 ---
+
+## Prerequisites
+
+Please answer the following questions for yourself before submitting an issue.
+
+- [ ] I checked to make sure that this request has not already been filed
 
 ## Description
 
