@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a report to help us improve
 title: '[Bug Report] My bug'
-labels: bug,new
+labels: bug
 assignees: ''
 
 ---
