@@ -7,7 +7,7 @@ use std::{
 };
 
 use driver_ipc::{Command, Dimen, Mode, Monitor, RefreshRate};
-use log::error;
+use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
@@ -154,12 +154,65 @@ fn get_data() -> Vec<Monitor> {
         .unwrap_or_default()
 }
 
+/// used to check the validity of a Vec<Monitor>
+/// the validity invariants are:
+/// 1. unique monitor ids
+/// 2. unique monitor modes (width+height must be unique per array element)
+/// 3. unique refresh rates per monitor mode
+fn has_duplicates(monitors: &[Monitor]) -> bool {
+    let mut monitor_iter = monitors.iter();
+    while let Some(monitor) = monitor_iter.next() {
+        let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
+        if duplicate_id {
+            warn!("Found duplicate monitor id {}", monitor.id);
+            return true;
+        }
+
+        let mut mode_iter = monitor.modes.iter();
+        while let Some(mode) = mode_iter.next() {
+            let duplicate_mode = mode_iter
+                .clone()
+                .any(|m| mode.height == m.height && mode.width == m.width);
+            if duplicate_mode {
+                warn!(
+                    "Found duplicate mode {}x{} on monitor {}",
+                    mode.width, mode.height, monitor.id
+                );
+                return true;
+            }
+
+            let mut refresh_iter = mode.refresh_rates.iter().copied();
+            while let Some(rr) = refresh_iter.next() {
+                let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
+                if duplicate_rr {
+                    warn!(
+                        "Found duplicate refresh rate {rr} on mode {}x{} for monitor {}",
+                        mode.width, mode.height, monitor.id
+                    );
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// Adds if it doesn't exist,
 /// Or, if it does exist, updates it by detaching, update, and re-attaching
 ///
 /// Only adds/detaches, if required in order to update monitor state in the OS.
 /// e.g. only a name update would not detach/arrive a monitor
 fn notify(monitors: Vec<Monitor>) {
+    // Duplicated id's will not cause any issue, however duplicated resolutions/refresh rates are possible
+    // They should all be unique anyways. So warn + noop if the sender sent incorrect data
+    if has_duplicates(&monitors) {
+        warn!(
+            "notify(): Duplicate data was detected; nothing was changed; please fix your program"
+        );
+        return;
+    }
+
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
     unsafe {
