@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "kylewlacy",
+      "id": 1362179,
+      "comment_id": 1837695375,
+      "created_at": "2023-12-04T01:24:52Z",
+      "repoId": 686128738,
+      "pullRequestNo": 47
+    }
+  ]
 }
