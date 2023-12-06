@@ -10,8 +10,10 @@ env:
 
 jobs:
   clippy:
-    permissions: write-all
     runs-on: windows-2022
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Checkout
