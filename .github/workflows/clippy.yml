@@ -11,18 +11,16 @@ env:
 jobs:
   clippy:
     runs-on: windows-2022
-    permissions:
-      contents: read
-      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Add Clippy Component
-        run: rustup component add clippy
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Add Clippy Component
+        run: rustup component add clippy
 
       - name: Clippy
         uses: giraffate/clippy-action@v1
@@ -30,3 +28,5 @@ jobs:
           reporter: 'github-pr-review'
           github_token: ${{ secrets.GITHUB_TOKEN }}
           clippy_flags: -- -Dwarnings
+          filter_mode: nofilter
+          fail_on_error: true
