@@ -6,6 +6,7 @@ members = [
     "wdf-umdf",
     "driver-ipc",
     "driver-logger",
+    "virtual-display-driver-cli",
 ]
 
 [profile.release]
