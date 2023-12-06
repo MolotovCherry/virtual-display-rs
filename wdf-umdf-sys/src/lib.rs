@@ -184,7 +184,10 @@ macro_rules! IDD_STRUCTURE_SIZE {
             let ptr = unsafe { IddStructures };
 
             if STRUCT_INDEX < struct_count {
-                Some(unsafe { ptr.add(STRUCT_INDEX as usize).read() } as u32)
+                // SAFETY: we validated struct index is able to be accessed
+                let ptr = unsafe { ptr.add(STRUCT_INDEX as usize) };
+                // SAFETY: So it's ok to read
+                Some(unsafe { ptr.read() } as u32)
             } else {
                 // struct CANNOT be used
                 None

@@ -215,63 +215,67 @@ fn notify(monitors: Vec<Monitor>) {
 
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
-    unsafe {
-        DeviceContext::get_mut(adapter.cast(), |context| {
-            for monitor in monitors {
-                let id = monitor.id;
+    let cb = |context: &mut DeviceContext| {
+        for monitor in monitors {
+            let id = monitor.id;
 
-                let should_arrive;
+            let should_arrive;
 
-                {
-                    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+            {
+                let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-                    let cur_mon = lock
-                        .iter_mut()
-                        .enumerate()
-                        .find(|(_, mon)| mon.monitor.id == id);
+                let cur_mon = lock
+                    .iter_mut()
+                    .enumerate()
+                    .find(|(_, mon)| mon.monitor.id == id);
 
-                    if let Some((i, mon)) = cur_mon {
-                        let modes_changed = mon.monitor.modes != monitor.modes;
+                if let Some((i, mon)) = cur_mon {
+                    let modes_changed = mon.monitor.modes != monitor.modes;
 
-                        #[allow(clippy::nonminimal_bool)]
-                        {
-                            should_arrive =
-                                // previously was disabled, and it was just enabled
-                                (!mon.monitor.enabled && monitor.enabled) ||
-                                // OR monitor is enabled and the display modes changed
-                                (monitor.enabled && modes_changed);
-                        }
+                    #[allow(clippy::nonminimal_bool)]
+                    {
+                        should_arrive =
+                            // previously was disabled, and it was just enabled
+                            (!mon.monitor.enabled && monitor.enabled) ||
+                            // OR monitor is enabled and the display modes changed
+                            (monitor.enabled && modes_changed);
+                    }
 
-                        // should only detach if modes changed, or if state is false
-                        if modes_changed || !monitor.enabled {
-                            if let Some(mut obj) = mon.monitor_object.take() {
-                                IddCxMonitorDeparture(obj.as_mut()).unwrap();
+                    // should only detach if modes changed, or if state is false
+                    if modes_changed || !monitor.enabled {
+                        if let Some(mut obj) = mon.monitor_object.take() {
+                            let obj = unsafe { obj.as_mut() };
+                            unsafe {
+                                IddCxMonitorDeparture(obj).unwrap();
                             }
                         }
-
-                        // replace existing item with new object
-                        lock[i] = MonitorObject {
-                            monitor_object: mon.monitor_object,
-                            monitor,
-                        };
-                    } else {
-                        should_arrive = monitor.enabled;
-
-                        lock.push(MonitorObject {
-                            monitor_object: None,
-                            monitor,
-                        });
                     }
-                }
 
-                if should_arrive {
-                    if let Err(e) = context.create_monitor(id) {
-                        error!("Failed to create monitor: {e:?}");
+                    // replace existing item with new object
+                    lock[i] = MonitorObject {
+                        monitor_object: mon.monitor_object,
+                        monitor,
                     };
+                } else {
+                    should_arrive = monitor.enabled;
+
+                    lock.push(MonitorObject {
+                        monitor_object: None,
+                        monitor,
+                    });
                 }
             }
-        })
-        .unwrap();
+
+            if should_arrive {
+                if let Err(e) = context.create_monitor(id) {
+                    error!("Failed to create monitor: {e:?}");
+                };
+            }
+        }
+    };
+
+    unsafe {
+        DeviceContext::get_mut(adapter.cast(), cb).unwrap();
     }
 }
 
@@ -280,8 +284,9 @@ fn remove_all() {
 
     for monitor in lock.drain(..) {
         if let Some(mut monitor_object) = monitor.monitor_object {
+            let obj = unsafe { monitor_object.as_mut() };
             unsafe {
-                IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+                IddCxMonitorDeparture(obj).unwrap();
             }
         }
     }
@@ -294,8 +299,9 @@ fn remove(ids: &[u32]) {
         lock.retain_mut(|monitor| {
             if id == monitor.monitor.id {
                 if let Some(mut monitor_object) = monitor.monitor_object.take() {
+                    let obj = unsafe { monitor_object.as_mut() };
                     unsafe {
-                        IddCxMonitorDeparture(monitor_object.as_mut()).unwrap();
+                        IddCxMonitorDeparture(obj).unwrap();
                     }
                 }
 

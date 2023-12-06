@@ -1,6 +1,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::all)]
 #![allow(clippy::pedantic)]
+#![allow(clippy::restriction)]
 
 // stand-in type replacing NTSTATUS in the bindings
 use crate::NTSTATUS;

@@ -19,6 +19,7 @@ unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
 pedantic = "warn"
+multiple_unsafe_ops_per_block = "deny"
 ignored_unit_patterns = "allow"
 missing_errors_doc = "allow"
 module_inception = "allow"

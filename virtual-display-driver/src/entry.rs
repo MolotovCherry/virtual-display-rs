@@ -151,7 +151,8 @@ extern "C-unwind" fn driver_add(
     config.EvtIddCxMonitorAssignSwapChain = Some(assign_swap_chain);
     config.EvtIddCxMonitorUnassignSwapChain = Some(unassign_swap_chain);
 
-    let status = unsafe { IddCxDeviceInitConfig(&mut *init, &config) };
+    let init_data = unsafe { &mut *init };
+    let status = unsafe { IddCxDeviceInitConfig(init_data, &config) };
     if let Err(e) = status {
         error!("Failed to init iddcx config: {e:?}");
         return e.into();
