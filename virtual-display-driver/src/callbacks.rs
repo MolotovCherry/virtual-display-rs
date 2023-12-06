@@ -18,7 +18,7 @@ use wdf_umdf_sys::{
 
 use crate::{
     context::{DeviceContext, MonitorContext},
-    edid::get_edid_serial,
+    edid::Edid,
     ipc::{AdapterObject, FlattenModes, ADAPTER, MONITOR_MODES},
 };
 
@@ -120,7 +120,14 @@ pub extern "C-unwind" fn parse_monitor_description(
         )
     };
 
-    let monitor_index = get_edid_serial(edid);
+    let monitor_index = Edid::get_serial(edid);
+    let Ok(monitor_index) = monitor_index else {
+        error!(
+            "We got an edid {} bytes long, but this is incorrect",
+            edid.len()
+        );
+        return NTSTATUS::STATUS_INVALID_VIEW_SIZE;
+    };
 
     let Some(monitor) = monitors.iter().find(|&m| m.monitor.id == monitor_index) else {
         error!("Failed to find monitor id {monitor_index}");

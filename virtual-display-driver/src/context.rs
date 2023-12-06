@@ -22,7 +22,7 @@ use windows::core::{w, GUID};
 
 use crate::{
     direct_3d_device::Direct3DDevice,
-    edid::generate_edid_with,
+    edid::Edid,
     ipc::{startup, MONITOR_MODES},
     swap_chain_processor::SwapChainProcessor,
 };
@@ -144,7 +144,7 @@ impl DeviceContext {
             WDF_OBJECT_ATTRIBUTES::init_context_type(unsafe { MonitorContext::get_type_info() });
 
         // use the edid serial number to represent the monitor index for later identification
-        let mut edid = generate_edid_with(index);
+        let mut edid = Edid::generate_with(index);
 
         let mut monitor_info = IDDCX_MONITOR_INFO {
             #[allow(clippy::cast_possible_truncation)]
