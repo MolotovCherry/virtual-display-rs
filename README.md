@@ -30,6 +30,8 @@ https://github.com/MolotovCherry/virtual-display-rs/assets/13651622/4a244e40-65d
 4. Run the msi installer
 5. The driver will be installed, started, and you can find a shortcut to the control app in the start menu, named "Virtual Display Driver Control"
 
+_Note: For users having trouble installing, please see [#49](https://github.com/MolotovCherry/virtual-display-rs/issues/49)_
+
 ## How to install portable version
 1. Go to the [releases](https://github.com/MolotovCherry/virtual-display-rs/releases) section for the latest driver.
 2. Download (you may receive a warning, just press accept)
