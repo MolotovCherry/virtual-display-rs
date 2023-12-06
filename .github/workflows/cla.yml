@@ -25,7 +25,7 @@ jobs:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/MolotovCherry/virtual-display-rs/blob/master/CLA.md' # e.g. a CLA or a DCO document
           # branch should not be protected
-          branch: 'main'
+          branch: 'signatures'
           allowlist: MolotovCherry,bot*
           create-file-commit-message: 'Creating file for storing CLA Signatures'
           signed-commit-message: '$contributorName has signed the CLA in $owner/$repo#$pullRequestNo'
