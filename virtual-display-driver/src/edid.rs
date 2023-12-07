@@ -2,7 +2,7 @@ use std::{array::TryFromSliceError, ops::Deref};
 
 use bytemuck::{Pod, Zeroable};
 
-const EDID: [u8; 128] = [
+const _EDID: [u8; 128] = [
     0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x0D, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xFF, 0x21, 0x01, 0x03, 0x80, 0x32, 0x1F, 0x78, 0x07, 0xEE, 0x95, 0xA3, 0x54, 0x4C, 0x99, 0x26,
     0x0F, 0x50, 0x54, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
@@ -13,10 +13,10 @@ const EDID: [u8; 128] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-const EDID_LEN: usize = EDID.len();
+const EDID_LEN: usize = _EDID.len();
 
-static MONITOR_EDID: AlignedEdid<EDID_LEN> = AlignedEdid {
-    data: EDID,
+static EDID: AlignedEdid<EDID_LEN> = AlignedEdid {
+    data: _EDID,
     _align: [],
 };
 
@@ -61,7 +61,7 @@ pub struct Edid {
 impl Edid {
     pub fn generate_with(serial: u32) -> Vec<u8> {
         // change serial number in the header
-        let mut header = *MONITOR_EDID;
+        let mut header = *EDID;
         header.serial_number = serial;
 
         header.generate()
@@ -76,7 +76,7 @@ impl Edid {
         let header = bytemuck::bytes_of(self);
 
         // slice of monitor edid minus header
-        let data = &MONITOR_EDID.data[EDID_SIZE..];
+        let data = &EDID.data[EDID_SIZE..];
 
         // splice together header and the rest of the EDID
         let mut edid: Vec<u8> = header.iter().chain(data.iter()).copied().collect();
