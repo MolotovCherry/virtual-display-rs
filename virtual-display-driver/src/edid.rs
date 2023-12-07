@@ -79,7 +79,7 @@ impl Edid {
         let data = &EDID.data[EDID_SIZE..];
 
         // splice together header and the rest of the EDID
-        let mut edid: Vec<u8> = header.iter().chain(data.iter()).copied().collect();
+        let mut edid: Vec<u8> = header.iter().chain(data).copied().collect();
         // regenerate checksum
         Self::gen_checksum(&mut edid);
 
