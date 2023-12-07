@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 /// An unsafe wrapper to allow sending across threads
 ///
 /// USE WISELY, IT CAN CAUSE UB OTHERWISE
@@ -34,5 +36,3 @@ macro_rules! debug {
         }
     };
 }
-
-use std::ops::{Deref, DerefMut};
