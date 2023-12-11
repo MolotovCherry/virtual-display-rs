@@ -10,7 +10,7 @@ workspace = true
 clap = { version = "4.4.10", features = ["derive"] }
 color-eyre = "0.6.2"
 driver-ipc = { path = "../driver-ipc" }
-eyre = "0.6.9"
+eyre = "0.6.10"
 owo-colors = "3.5.0"
 serde_json = "1.0.108"
 windows = { version = "0.52.0", features = ["Win32_Foundation"] }
