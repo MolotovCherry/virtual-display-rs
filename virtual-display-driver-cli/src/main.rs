@@ -116,40 +116,39 @@ struct RemoveCommand {
 
 fn main() -> eyre::Result<()> {
     let Args { options, command } = Args::parse();
+    let mut client = Client::connect()?;
 
     match command {
         Command::List => {
-            list(&options)?;
+            list(&mut client, &options)?;
         }
         Command::Add(command) => {
-            add(&options, command)?;
+            add(&mut client, &options, command)?;
         }
         Command::AddMode(command) => {
-            add_mode(&options, command)?;
+            add_mode(&mut client, &options, command)?;
         }
         Command::RemoveMode(command) => {
-            remove_mode(&options, &command)?;
+            remove_mode(&mut client, &options, &command)?;
         }
         Command::Enable(command) => {
-            enable(&options, &command)?;
+            enable(&mut client, &options, &command)?;
         }
         Command::Disable(command) => {
-            disable(&options, &command)?;
+            disable(&mut client, &options, &command)?;
         }
         Command::Remove(command) => {
-            remove(&options, &command)?;
+            remove(&mut client, &options, &command)?;
         }
         Command::RemoveAll => {
-            remove_all(&options)?;
+            remove_all(&mut client, &options)?;
         }
     }
 
     Ok(())
 }
 
-fn list(opts: &GlobalOptions) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
-
+fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
     let monitors = client.list()?;
 
     if opts.json {
@@ -206,7 +205,7 @@ fn list(opts: &GlobalOptions) -> eyre::Result<()> {
     Ok(())
 }
 
-fn add(opts: &GlobalOptions, command: AddCommand) -> eyre::Result<()> {
+fn add(client: &mut Client, opts: &GlobalOptions, command: AddCommand) -> eyre::Result<()> {
     if command.more_widths_and_heights.len() % 2 != 0 {
         eyre::bail!("passed a width for an extra resolution without a height");
     }
@@ -220,7 +219,6 @@ fn add(opts: &GlobalOptions, command: AddCommand) -> eyre::Result<()> {
         })
         .collect();
 
-    let mut client = Client::connect()?;
     let id = client.new_id(command.id)?;
     let new_monitor = driver_ipc::Monitor {
         id,
@@ -247,8 +245,11 @@ fn add(opts: &GlobalOptions, command: AddCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-fn add_mode(opts: &GlobalOptions, command: AddModeCommand) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
+fn add_mode(
+    client: &mut Client,
+    opts: &GlobalOptions,
+    command: AddModeCommand,
+) -> eyre::Result<()> {
     let mut monitor = client.get(command.id)?;
 
     let new_mode_index = monitor.modes.len();
@@ -274,8 +275,11 @@ fn add_mode(opts: &GlobalOptions, command: AddModeCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-fn remove_mode(opts: &GlobalOptions, command: &RemoveModeCommand) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
+fn remove_mode(
+    client: &mut Client,
+    opts: &GlobalOptions,
+    command: &RemoveModeCommand,
+) -> eyre::Result<()> {
     let mut monitor = client.get(command.id)?;
 
     if command.mode_index >= monitor.modes.len() {
@@ -309,9 +313,8 @@ fn remove_mode(opts: &GlobalOptions, command: &RemoveModeCommand) -> eyre::Resul
     Ok(())
 }
 
-fn enable(opts: &GlobalOptions, command: &EnableCommand) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
-    let outcome = set_enabled(&mut client, command.id, true)?;
+fn enable(client: &mut Client, opts: &GlobalOptions, command: &EnableCommand) -> eyre::Result<()> {
+    let outcome = set_enabled(client, command.id, true)?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -331,9 +334,12 @@ fn enable(opts: &GlobalOptions, command: &EnableCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-fn disable(opts: &GlobalOptions, command: &DisableCommand) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
-    let outcome = set_enabled(&mut client, command.id, false)?;
+fn disable(
+    client: &mut Client,
+    opts: &GlobalOptions,
+    command: &DisableCommand,
+) -> eyre::Result<()> {
+    let outcome = set_enabled(client, command.id, false)?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -353,8 +359,7 @@ fn disable(opts: &GlobalOptions, command: &DisableCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-fn remove(opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
+fn remove(client: &mut Client, opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
     client.remove(command.id.clone())?;
 
     if opts.json {
@@ -369,8 +374,7 @@ fn remove(opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
     Ok(())
 }
 
-fn remove_all(opts: &GlobalOptions) -> eyre::Result<()> {
-    let mut client = Client::connect()?;
+fn remove_all(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
     client.remove_all()?;
 
     if opts.json {
