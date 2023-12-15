@@ -35,7 +35,7 @@ enum Command {
     RemoveMode(RemoveModeCommand),
     /// Enable a virtual monitor.
     Enable(EnableCommand),
-    /// Disable one or more virtual monitors.
+    /// Disable a virtual monitor.
     Disable(DisableCommand),
     /// Remove one or more virtual monitors.
     Remove(RemoveCommand),
