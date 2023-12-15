@@ -67,22 +67,19 @@ impl Client {
     pub fn new_id(&mut self, preferred_id: Option<driver_ipc::Id>) -> eyre::Result<driver_ipc::Id> {
         let monitors = self.list()?;
 
-        match preferred_id {
-            Some(id) => {
-                if monitors.iter().any(|monitor| monitor.id == id) {
-                    eyre::bail!("monitor with ID {} already exists", id);
-                }
+        if let Some(id) = preferred_id {
+            if monitors.iter().any(|monitor| monitor.id == id) {
+                eyre::bail!("monitor with ID {} already exists", id);
+            }
 
-                Ok(id)
-            }
-            None => {
-                let max_id = monitors.iter().map(|monitor| monitor.id).max();
-                let id = match max_id {
-                    Some(id) => id + 1,
-                    None => 0,
-                };
-                Ok(id)
-            }
+            Ok(id)
+        } else {
+            let max_id = monitors.iter().map(|monitor| monitor.id).max();
+            let id = match max_id {
+                Some(id) => id + 1,
+                None => 0,
+            };
+            Ok(id)
         }
     }
 
