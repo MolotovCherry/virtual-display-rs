@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{collections::HashSet, io::Write as _};
 
 use driver_ipc::Monitor;
 use eyre::Context;
@@ -65,19 +65,25 @@ impl Client {
     }
 
     pub fn new_id(&mut self, preferred_id: Option<driver_ipc::Id>) -> eyre::Result<driver_ipc::Id> {
+        let existing_ids = self
+            .state
+            .iter()
+            .map(|monitor| monitor.id)
+            .collect::<HashSet<_>>();
+
         if let Some(id) = preferred_id {
-            if self.state.iter().any(|monitor| monitor.id == id) {
-                eyre::bail!("monitor with ID {} already exists", id);
-            }
+            eyre::ensure!(
+                !existing_ids.contains(&id),
+                "monitor with ID {id} already exists"
+            );
 
             Ok(id)
         } else {
-            let max_id = self.state.iter().map(|monitor| monitor.id).max();
-            let id = match max_id {
-                Some(id) => id + 1,
-                None => 0,
-            };
-            Ok(id)
+            #[allow(clippy::maybe_infinite_iter)]
+            let new_id = (0..)
+                .find(|id| !existing_ids.contains(id))
+                .expect("failed to get a new ID");
+            Ok(new_id)
         }
     }
 }
