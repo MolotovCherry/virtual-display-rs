@@ -16,7 +16,8 @@ impl Client {
                 .wait()
                 .access_duplex()
                 .mode_message()
-                .create()?;
+                .create()
+                .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working. Other program using the driver must also be closed, such as the Virtual Display Driver Control app.")?;
 
         send_command(&mut writer, &driver_ipc::Command::RequestState)?;
         let state = receive_command(&mut reader)?;
