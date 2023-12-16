@@ -360,6 +360,7 @@ fn disable(
 }
 
 fn remove(client: &mut Client, opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
+    client.validate_has_ids(&command.id)?;
     client.remove(command.id.clone())?;
 
     if opts.json {

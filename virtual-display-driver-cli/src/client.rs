@@ -1,7 +1,11 @@
-use std::{collections::HashSet, io::Write as _};
+use std::{
+    collections::{BTreeSet, HashSet},
+    io::Write as _,
+};
 
 use driver_ipc::Monitor;
-use eyre::Context;
+use eyre::Context as _;
+use joinery::Joinable as _;
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
 
 pub struct Client {
@@ -37,7 +41,7 @@ impl Client {
 
         match monitor {
             Some(monitor) => Ok(monitor.clone()),
-            None => eyre::bail!("no virtual monitor with ID {} found", id),
+            None => eyre::bail!("virtual monitor with ID {} not found", id),
         }
     }
 
@@ -47,6 +51,27 @@ impl Client {
         send_command(&mut self.writer, &command)?;
 
         Ok(())
+    }
+
+    pub fn validate_has_ids(&self, ids: &[driver_ipc::Id]) -> eyre::Result<()> {
+        let ids = ids.iter().copied().collect::<BTreeSet<_>>();
+        let existing_ids = self
+            .state
+            .iter()
+            .map(|monitor| monitor.id)
+            .collect::<BTreeSet<_>>();
+        let missing_ids = ids.difference(&existing_ids).copied().collect::<Vec<_>>();
+
+        if missing_ids.is_empty() {
+            Ok(())
+        } else if missing_ids.len() == 1 {
+            eyre::bail!("virtual monitor with ID {} not found", missing_ids[0])
+        } else {
+            eyre::bail!(
+                "virtual monitors with IDs not found: {}",
+                missing_ids.join_with(", ")
+            )
+        }
     }
 
     pub fn remove(&mut self, ids: Vec<driver_ipc::Id>) -> eyre::Result<()> {
