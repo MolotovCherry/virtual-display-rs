@@ -149,7 +149,7 @@ fn main() -> eyre::Result<()> {
 }
 
 fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
-    let monitors = client.list()?;
+    let monitors = client.monitors();
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
