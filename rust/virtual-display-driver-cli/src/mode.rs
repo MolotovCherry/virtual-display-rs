@@ -28,6 +28,15 @@ pub struct Mode {
     pub refresh_rates: BTreeSet<driver_ipc::RefreshRate>,
 }
 
+impl Mode {
+    /// Add the default refresh rate if the list of refresh rates is empty.
+    fn ensure_refresh_rate(&mut self) {
+        if self.refresh_rates.is_empty() {
+            self.refresh_rates.insert(DEFAULT_REFRESH_RATE);
+        }
+    }
+}
+
 impl From<driver_ipc::Mode> for Mode {
     fn from(value: driver_ipc::Mode) -> Self {
         Self {
@@ -40,9 +49,7 @@ impl From<driver_ipc::Mode> for Mode {
 
 impl From<Mode> for driver_ipc::Mode {
     fn from(mut value: Mode) -> Self {
-        if value.refresh_rates.is_empty() {
-            value.refresh_rates.insert(DEFAULT_REFRESH_RATE);
-        }
+        value.ensure_refresh_rate();
 
         Self {
             width: value.width,
@@ -144,7 +151,9 @@ pub fn remove(
     let mut resolutions =
         HashMap::<(driver_ipc::Dimen, driver_ipc::Dimen), BTreeSet<driver_ipc::RefreshRate>>::new();
 
-    for mode in modes {
+    for mut mode in modes {
+        mode.ensure_refresh_rate();
+
         let refresh_rates = resolutions.entry((mode.width, mode.height)).or_default();
         refresh_rates.extend(&mode.refresh_rates);
     }
@@ -169,6 +178,7 @@ pub fn remove(
 
     let modes = resolutions
         .into_iter()
+        .filter(|(_, refresh_rates)| !refresh_rates.is_empty())
         .map(|((width, height), refresh_rates)| Mode {
             width,
             height,
