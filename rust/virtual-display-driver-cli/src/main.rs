@@ -164,23 +164,20 @@ fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
             if monitor.modes.is_empty() {
                 println!("{} {}", "-".dimmed(), "No modes".red());
             } else {
-                for (index, mode) in monitor.modes.iter().enumerate() {
+                for mode in &monitor.modes {
                     let refresh_rate_labels = mode
                         .refresh_rates
                         .iter()
                         .map(|rate| lazy_format!("{}", rate.blue()))
                         .join_with("/");
-                    let refresh_rates = lazy_format!(if mode.refresh_rates.is_empty() =>
-                        ("{}Hz", "?".red())
-                    else =>
-                        ("{}Hz", refresh_rate_labels)
-                    );
                     println!(
-                        "{} Mode {index}: {}x{} @ {}",
+                        "{} {}{}{}{}{}",
                         "-".dimmed(),
                         mode.width.green(),
+                        "x".dimmed(),
                         mode.height.green(),
-                        refresh_rates
+                        "@".dimmed(),
+                        refresh_rate_labels,
                     );
                 }
             }
