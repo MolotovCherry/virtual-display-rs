@@ -32,6 +32,7 @@ impl Client {
         &self.state
     }
 
+    /// Find a monitor by ID or name.
     pub fn find_monitor(&self, query: &str) -> eyre::Result<Monitor> {
         let query_id: Option<driver_ipc::Id> = query.parse().ok();
         if let Some(query_id) = query_id {
