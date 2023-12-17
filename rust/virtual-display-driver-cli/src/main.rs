@@ -238,7 +238,7 @@ fn add_mode(
         new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
     monitor.modes = new_modes.clone();
-    client.notify(vec![monitor])?;
+    client.notify(vec![monitor.clone()])?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -246,7 +246,7 @@ fn add_mode(
     } else {
         println!(
             "Added modes to virtual monitor with ID {}.",
-            command.id.green()
+            monitor.id.green()
         );
     }
 
@@ -266,7 +266,7 @@ fn remove_mode(
         new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
     monitor.modes = new_modes.clone();
-    client.notify(vec![monitor])?;
+    client.notify(vec![monitor.clone()])?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -275,7 +275,7 @@ fn remove_mode(
         println!(
             "Removed mode {} from virtual monitor with ID {}.",
             command.mode.blue(),
-            command.id.green()
+            monitor.id.green()
         );
     }
 
@@ -296,7 +296,7 @@ fn enable(client: &mut Client, opts: &GlobalOptions, command: &EnableCommand) ->
         };
         println!(
             "Enabled virtual monitor with ID {}{footnote}.",
-            command.id.green()
+            outcome.monitor.id.green()
         );
     }
 
@@ -321,7 +321,7 @@ fn disable(
         };
         println!(
             "Disabled virtual monitor with ID {}{footnote}.",
-            command.id.green()
+            outcome.monitor.id.green()
         );
     }
 
