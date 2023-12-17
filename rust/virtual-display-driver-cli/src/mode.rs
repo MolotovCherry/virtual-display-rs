@@ -5,6 +5,22 @@ use joinery::JoinableIterator as _;
 
 const DEFAULT_REFRESH_RATE: driver_ipc::RefreshRate = 60;
 
+/// Represent a mode as specified by the user as a CLI argument. Can be parsed
+/// from a string such as `1920x1080` or `3840x2160@60/120`, or converted
+/// from/to the type [`driver_ipc::Mode`].
+///
+/// This type is very similar to [`driver_ipc::Mode`], but with a few key
+/// differences:
+///
+/// - The list of refresh rates can be empty by design. When converting to
+///   [`driver_ipc::Mode`], the refresh rate is set to [`DEFAULT_REFRESH_RATE`]
+///   if one isn't specified. See [`remove`] for a use-case where the empty list
+///   of refresh rates is used.
+/// - It implements [`std::str::FromStr`], with a convenient user-facing error
+///   message using `eyre`.
+/// - It implements [`std::fmt::Display`] with a nice output format.
+/// - The list of resolutions is represented with a set, meaning that duplicate
+///   resolutions will be ignored.
 #[derive(Debug, Clone)]
 pub struct Mode {
     pub width: driver_ipc::Dimen,
@@ -93,6 +109,8 @@ impl std::str::FromStr for Mode {
     }
 }
 
+/// Merge together a list of modes. Multiple modes with the same resolution
+/// will be merged into one, and the sets of refresh rates will be combined.
 pub fn merge(modes: impl IntoIterator<Item = Mode>) -> Vec<Mode> {
     let mut resolutions =
         HashMap::<(driver_ipc::Dimen, driver_ipc::Dimen), BTreeSet<driver_ipc::RefreshRate>>::new();
@@ -112,6 +130,13 @@ pub fn merge(modes: impl IntoIterator<Item = Mode>) -> Vec<Mode> {
         .collect()
 }
 
+/// Remove a mode from a list of modes. If `remove_mode` includes a refresh
+/// rate, then only that refresh rate will be removed from the mode; otherwise,
+/// the entire mode will be removed. Returns an error if no mode matches
+/// `remove_mode`.
+///
+/// This function will also implicitly merge together the list of provided
+/// modes, see [`merge`] for more details.
 pub fn remove(
     modes: impl IntoIterator<Item = Mode>,
     remove_mode: &Mode,
