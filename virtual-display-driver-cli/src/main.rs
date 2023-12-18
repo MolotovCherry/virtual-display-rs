@@ -149,7 +149,7 @@ fn main() -> eyre::Result<()> {
 }
 
 fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
-    let monitors = client.list()?;
+    let monitors = client.monitors();
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -360,6 +360,7 @@ fn disable(
 }
 
 fn remove(client: &mut Client, opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
+    client.validate_has_ids(&command.id)?;
     client.remove(command.id.clone())?;
 
     if opts.json {
