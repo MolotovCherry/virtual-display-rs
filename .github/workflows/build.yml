@@ -2,6 +2,12 @@ name: Build
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release'
+        required: true
+        default: false
+        type: boolean
   push:
     branches: [ "master" ]
   pull_request:
@@ -24,7 +30,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+          key: ${{ (github.event_name == 'release' || inputs.release) && 'prod' || 'dev' }}
 
       - name: Install cargo-make
         uses: baptiste0928/cargo-install@v2
@@ -64,7 +70,7 @@ jobs:
       - name: Build
         env:
           PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
-          RELEASE: ${{ github.event_name == 'release' && 'prod' || 'dev' }}
+          RELEASE: ${{ (github.event_name == 'release' || inputs.release) && 'prod' || 'dev' }}
         run: cargo make -p $env:RELEASE build
 
       - name: Upload Artifacts
