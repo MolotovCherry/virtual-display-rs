@@ -1,4 +1,4 @@
-[env.dev]
+[env]
 TARGET_PATH = "debug"
 
 [env.prod]

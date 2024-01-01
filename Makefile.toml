@@ -4,6 +4,7 @@ BUILD_TARGET_PATH = { script = ['''
 
     echo %target_dir%
 '''] }
+PROFILE = "-p dev"
 
 [env.prod]
 PROD = "1"
