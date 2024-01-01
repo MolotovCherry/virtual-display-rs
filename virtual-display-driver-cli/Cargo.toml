@@ -12,7 +12,7 @@ color-eyre = "0.6.2"
 driver-ipc = { path = "../driver-ipc" }
 eyre = "0.6.11"
 owo-colors = "4.0.0"
-serde_json = "1.0.108"
+serde_json = "1.0.109"
 windows = { version = "0.52.0", features = ["Win32_Foundation"] }
 win-pipes = { git = "https://github.com/MolotovCherry/WinPipes-rs" }
 lazy_format = "2.0.3"

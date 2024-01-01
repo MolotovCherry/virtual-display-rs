@@ -16,7 +16,7 @@ wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.20"
 bytemuck = { version = "1.14.0", features = ["derive"] }
-serde_json = "1.0.108"
+serde_json = "1.0.109"
 driver-ipc = { path = "../driver-ipc" }
 winreg = "0.52.0"
 driver-logger = { path = "../driver-logger" }
