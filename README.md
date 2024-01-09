@@ -42,7 +42,7 @@ _Note: For users having trouble installing/running the app, please see [#49](htt
    * go to `Actions -> Add legacy hardware`
    * next on `Install hardware that I manually select from a list`
    * next on `Show all devices
-   * click on `Have Disk...` and select the folder with the driver files file in it
+   * click on `Have Disk...` and select the folder with the driver files in it
    * finish the setup
 7. The driver will be installed and started. The control panel exe you see in the folder will work from anywhere you put it.
 
