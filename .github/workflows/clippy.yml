@@ -16,6 +16,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Cd rust dir
+        run: cd rust
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
 

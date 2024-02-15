@@ -27,6 +27,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Cd rust dir
+        run: cd rust
+
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -59,7 +62,7 @@ jobs:
 
       - name: Export PR Private Certificate
         if: github.event_name == 'pull_request'
-        run: cp .github/workflows/build_res/pr.pfx private.pfx
+        run: cp ../.github/workflows/build_res/pr.pfx private.pfx
 
       - name: Export Public Certificate
         env:
@@ -100,7 +103,7 @@ jobs:
         with:
           name: driver
           path: |
-            installer/install-cert.bat
+            ../installer/install-cert.bat
 
       - name: Set release version
         if: github.event_name == 'release'
@@ -113,7 +116,7 @@ jobs:
       - name: Create installer
         if: github.event_name == 'release'
         run: |
-          cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I installer/main.wxs -o target\output -C -ext -C WixDifxAppExtension -L -ext -L WixDifxAppExtension -L "C:\Program Files (x86)\WiX Toolset v3.11\bin\difxapp_x64.wixlib"
+          cargo wix -p virtual-display-driver -i ${{ env.RELEASE_VERSION }} --nocapture -I ../installer/main.wxs -o target\output -C -ext -C WixDifxAppExtension -L -ext -L WixDifxAppExtension -L "C:\Program Files (x86)\WiX Toolset v3.11\bin\difxapp_x64.wixlib"
 
       - name: Sign installer
         if: github.event_name == 'release'
@@ -127,12 +130,12 @@ jobs:
       - name: Zip up install package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, ../installer/install-cert.bat, target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
 
       - name: Zip up portable package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, target/output/*.inf, target/output/*.dll, target/output/*.cat, target/output/*.exe, installer/files/*.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, ../installer/install-cert.bat, target/output/*.inf, target/output/*.dll, target/output/*.cat, target/output/*.exe, ../installer/files/*.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'

@@ -1,4 +1,4 @@
-/target
+target
 *.cer
 Virtual Display Driver Control/bin/*
 Virtual Display Driver Control/obj/*
