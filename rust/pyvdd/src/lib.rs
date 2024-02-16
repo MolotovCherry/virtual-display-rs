@@ -315,7 +315,14 @@ impl Monitors {
         #[allow(clippy::redundant_closure_for_method_calls)]
         let name = dict
             .get_item("name")?
-            .map(|o| o.extract::<String>())
+            // fix it if it's None
+            .and_then(|o| {
+                if o.is_none() {
+                    None
+                } else {
+                    Some(o.extract::<String>())
+                }
+            })
             .transpose()?;
 
         #[allow(clippy::redundant_closure_for_method_calls)]
@@ -456,8 +463,8 @@ impl MonitorWrapper {
     }
 
     #[setter]
-    fn set_name(&self, name: &str) -> PyResult<()> {
-        with_monitor(self.0, |monitor| monitor.name = Some(name.to_owned()))?;
+    fn set_name(&self, name: Option<&str>) -> PyResult<()> {
+        with_monitor(self.0, |monitor| monitor.name = name.map(ToOwned::to_owned))?;
         Ok(())
     }
 
