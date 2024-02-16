@@ -8,7 +8,7 @@ use driver_ipc::{Command, Dimen, Id, Mode, Monitor, RefreshRate};
 use eyre::{bail, eyre, Result};
 use pyo3::prelude::*;
 use pyo3::{
-    exceptions::{PyIndexError, PyKeyError},
+    exceptions::{PyIndexError, PyKeyError, PyTypeError},
     types::{PyDict, PyList},
 };
 use tracing::{error, trace, trace_span};
@@ -625,6 +625,11 @@ impl ModeList {
         Ok(repr)
     }
 
+    fn __len__(&self) -> PyResult<usize> {
+        let len = with_monitor(self.0, |mon| mon.modes.len())?;
+        Ok(len)
+    }
+
     #[allow(clippy::needless_pass_by_value, clippy::used_underscore_binding)]
     fn __iter__(_slf: Py<Self>, py: Python) -> PyResult<ModeIterator> {
         let id = _slf.borrow(py).0;
@@ -639,6 +644,63 @@ impl ModeList {
         };
 
         Ok(iter)
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    fn __add__(&self, py: Python, obj: PyObject) -> PyResult<()> {
+        if let Ok(list) = obj.downcast::<PyList>(py) {
+            let mut modes = Vec::new();
+            for dict in list {
+                let width = dict.get_item("width")?.extract::<Dimen>()?;
+                let height = dict.get_item("height")?.extract::<Dimen>()?;
+                let refresh_rates = dict
+                    .get_item("refresh_rates")?
+                    .extract::<Vec<RefreshRate>>()?;
+
+                let mode = Mode {
+                    width,
+                    height,
+                    refresh_rates,
+                };
+
+                modes.push(mode);
+            }
+
+            with_monitor(self.0, |mon| mon.modes.extend(modes))?;
+        } else if let Ok(dict) = obj.downcast::<PyDict>(py) {
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let width = dict
+                .get_item("width")?
+                .map(|o| o.extract::<Dimen>())
+                .transpose()?
+                .ok_or(PyTypeError::new_err("must be u32"))?;
+
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let height = dict
+                .get_item("height")?
+                .map(|o| o.extract::<Dimen>())
+                .transpose()?
+                .ok_or(PyTypeError::new_err("must be u32"))?;
+
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let refresh_rates = dict
+                .get_item("refresh_rates")?
+                .map(|o| o.extract::<Vec<RefreshRate>>())
+                .transpose()?
+                .ok_or(PyTypeError::new_err("must be u32"))?;
+
+            let mode = Mode {
+                width,
+                height,
+                refresh_rates,
+            };
+
+            with_monitor(self.0, |mon| mon.modes.push(mode))?;
+        } else {
+            return Err(PyTypeError::new_err("expected dict or list"));
+        }
+
+        Ok(())
     }
 }
 
