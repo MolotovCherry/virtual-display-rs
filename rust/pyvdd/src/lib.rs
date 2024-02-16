@@ -123,6 +123,8 @@ fn pyvdd(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<Monitors>()?;
     m.add_class::<MonitorWrapper>()?;
     m.add_class::<ModeWrapper>()?;
+    m.add_class::<ModeList>()?;
+    m.add_class::<ModeIterator>()?;
     m.add_class::<MonitorIterator>()?;
 
     Ok(())
@@ -263,7 +265,7 @@ impl Monitors {
         Ok(iterator)
     }
 
-    fn __delitem__(&self, id: u32) -> Result<()> {
+    fn __delitem__(&self, id: u32) -> PyResult<()> {
         remove_monitor(id)?;
 
         REMOVAL_QUEUE
@@ -274,6 +276,24 @@ impl Monitors {
             .push(id);
 
         Ok(())
+    }
+
+    fn __getitem__(&self, id: u32) -> PyResult<MonitorWrapper> {
+        let exists = MONITORS
+            .get()
+            .unwrap()
+            .lock()
+            .map_err(|e| eyre!("{e}"))?
+            .iter()
+            .any(|m| m.id == id);
+
+        if !exists {
+            return Err(PyIndexError::new_err(format!("Monitor id {id} not found")));
+        }
+
+        let monitor = MonitorWrapper(id);
+
+        Ok(monitor)
     }
 
     #[allow(clippy::needless_pass_by_value)]
@@ -453,19 +473,58 @@ impl MonitorWrapper {
         Ok(())
     }
 
-    fn __getitem__(&self, idx: usize) -> PyResult<ModeWrapper> {
-        let found = with_monitor(self.0, |monitor| monitor.modes.get(idx).is_some())?;
-        if !found {
-            return Err(PyIndexError::new_err("list index out of range"));
-        }
-
-        let mode = ModeWrapper { id: self.0, idx };
-
-        Ok(mode)
+    #[getter]
+    fn get_modes(&self) -> ModeList {
+        ModeList(self.0)
     }
 
-    fn __delitem__(&self, idx: usize) -> PyResult<()> {
-        remove_mode(self.0, idx)?;
+    #[allow(clippy::needless_pass_by_value)]
+    #[setter]
+    fn set_modes(&self, py: Python, list: PyObject) -> PyResult<()> {
+        let list = list.downcast::<PyList>(py)?;
+
+        let mut modes = Vec::new();
+        for obj in list {
+            let dict = obj.downcast::<PyDict>()?;
+
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let Some(width) = dict
+                .get_item("width")?
+                .map(|o| o.extract::<Dimen>())
+                .transpose()?
+            else {
+                return Err(PyKeyError::new_err("width"));
+            };
+
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let Some(height) = dict
+                .get_item("height")?
+                .map(|o| o.extract::<Dimen>())
+                .transpose()?
+            else {
+                return Err(PyKeyError::new_err("height"));
+            };
+
+            #[allow(clippy::redundant_closure_for_method_calls)]
+            let Some(refresh_rates) = dict
+                .get_item("refresh_rates")?
+                .map(|o| o.extract::<Vec<RefreshRate>>())
+                .transpose()?
+            else {
+                return Err(PyKeyError::new_err("refresh_rates"));
+            };
+
+            let mode = Mode {
+                width,
+                height,
+                refresh_rates,
+            };
+
+            modes.push(mode);
+        }
+
+        with_monitor(self.0, |mon| mon.modes = modes)?;
+
         Ok(())
     }
 
@@ -477,10 +536,30 @@ impl MonitorWrapper {
         let repr = with_monitor(self.0, |monitor| format!("{monitor:?}"))?;
         Ok(repr)
     }
+}
 
-    #[allow(clippy::unused_self, clippy::needless_pass_by_value, non_snake_case)]
-    fn __setitem__(&self, py: Python, idx: usize, data: PyObject) -> PyResult<()> {
-        let dict = data.downcast::<PyDict>(py)?;
+#[pyclass(frozen)]
+struct ModeList(Id);
+
+#[pymethods]
+impl ModeList {
+    fn __getitem__(&self, idx: usize) -> PyResult<ModeWrapper> {
+        let mode = with_monitor(self.0, |mon| idx < mon.modes.len())?;
+        if !mode {
+            return Err(PyIndexError::new_err("list index out of range"));
+        }
+
+        Ok(ModeWrapper { id: self.0, idx })
+    }
+
+    fn __delitem__(&self, idx: usize) -> PyResult<()> {
+        remove_mode(self.0, idx)?;
+        Ok(())
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    fn __setitem__(&self, py: Python, idx: usize, obj: PyObject) -> PyResult<()> {
+        let dict = obj.downcast::<PyDict>(py)?;
 
         #[allow(clippy::redundant_closure_for_method_calls)]
         let Some(width) = dict
@@ -515,9 +594,44 @@ impl MonitorWrapper {
             refresh_rates,
         };
 
-        with_mode(self.0, idx, |m| *m = mode)?;
+        let valid = with_monitor(self.0, |mon| {
+            if let Some(int_mode) = mon.modes.get_mut(idx) {
+                _ = std::mem::replace(int_mode, mode);
+            }
+
+            idx < mon.modes.len()
+        })?;
+
+        if !valid {
+            return Err(PyIndexError::new_err("list index out of range"));
+        }
 
         Ok(())
+    }
+
+    fn __str__(&self) -> PyResult<String> {
+        self.__repr__()
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        let repr = with_monitor(self.0, |mon| format!("{:?}", mon.modes))?;
+        Ok(repr)
+    }
+
+    #[allow(clippy::needless_pass_by_value, clippy::used_underscore_binding)]
+    fn __iter__(_slf: Py<Self>, py: Python) -> PyResult<ModeIterator> {
+        let id = _slf.borrow(py).0;
+
+        let modes = with_monitor(id, |mon| mon.modes.clone())?
+            .into_iter()
+            .enumerate()
+            .map(move |(idx, _)| ModeWrapper { id, idx });
+
+        let iter = ModeIterator {
+            iter: Box::new(modes),
+        };
+
+        Ok(iter)
     }
 }
 
@@ -587,6 +701,22 @@ impl MonitorIterator {
     }
 
     fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<MonitorWrapper> {
+        slf.iter.next()
+    }
+}
+
+#[pyclass]
+struct ModeIterator {
+    iter: Box<dyn Iterator<Item = ModeWrapper> + Send>,
+}
+
+#[pymethods]
+impl ModeIterator {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<ModeWrapper> {
         slf.iter.next()
     }
 }
