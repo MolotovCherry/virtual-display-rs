@@ -21,6 +21,7 @@ use winreg::{
 
 static WRITER: OnceLock<Mutex<NamedPipeClientWriter>> = OnceLock::new();
 static MONITORS: OnceLock<Mutex<Vec<Monitor>>> = OnceLock::new();
+static REMOVAL_QUEUE: OnceLock<Mutex<Vec<Id>>> = OnceLock::new();
 
 fn with_writer<R>(f: impl FnOnce(&mut NamedPipeClientWriter) -> R) -> Result<R> {
     let span = trace_span!("with_writer");
@@ -81,6 +82,16 @@ fn remove_monitor(id: Id) -> Result<Monitor> {
     let monitor = monitors.remove(monitor);
 
     Ok(monitor)
+}
+
+fn remove_all_monitors() -> Result<()> {
+    let span = trace_span!("remove_all_monitors");
+    let _guard = span.enter();
+
+    let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
+    monitors.clear();
+
+    Ok(())
 }
 
 fn remove_mode(id: Id, idx: usize) -> Result<Mode> {
@@ -159,13 +170,26 @@ impl Monitors {
 
         MONITORS.set(Mutex::new(monitors)).unwrap();
         WRITER.set(Mutex::new(writer)).unwrap();
+        REMOVAL_QUEUE.set(Mutex::new(Vec::new())).unwrap();
 
         Ok(Self)
     }
 
     /// Notify driver of changes
-
     fn notify(&self) -> PyResult<()> {
+        let mut queue = REMOVAL_QUEUE
+            .get()
+            .unwrap()
+            .lock()
+            .map_err(|e| eyre!("{e}"))?;
+
+        let removals = queue.drain(..).collect::<Vec<_>>();
+        if !removals.is_empty() {
+            let command = Command::DriverRemove(removals);
+            let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
+            with_writer(|writer| writer.write_all(&command))??;
+        }
+
         let monitors = MONITORS
             .get()
             .unwrap()
@@ -182,8 +206,12 @@ impl Monitors {
     }
 
     /// Remove multiple monitors by id
-
     fn remove(&self, list: Vec<Id>) -> PyResult<()> {
+        // clear it out of our monitor list
+        for &id in &list {
+            remove_monitor(id)?;
+        }
+
         let command = Command::DriverRemove(list);
         let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
         with_writer(|writer| writer.write_all(&command))??;
@@ -191,9 +219,11 @@ impl Monitors {
         Ok(())
     }
 
-    /// Remove all monitors at once
-
+    /// Remove all monitors
     fn remove_all(&self) -> PyResult<()> {
+        // clear entire monitor list
+        remove_all_monitors()?;
+
         let command = Command::DriverRemoveAll;
         let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
         with_writer(|writer| writer.write_all(&command))??;
@@ -235,6 +265,14 @@ impl Monitors {
 
     fn __delitem__(&self, id: u32) -> Result<()> {
         remove_monitor(id)?;
+
+        REMOVAL_QUEUE
+            .get()
+            .unwrap()
+            .lock()
+            .map_err(|e| eyre!("{e}"))?
+            .push(id);
+
         Ok(())
     }
 
@@ -242,6 +280,15 @@ impl Monitors {
     fn __setitem__(&self, py: Python, id: u32, data: PyObject) -> PyResult<()> {
         let span = trace_span!("Monitors::__setitem__()", id = id);
         let _guard = span.enter();
+
+        let mut queue = REMOVAL_QUEUE
+            .get()
+            .unwrap()
+            .lock()
+            .map_err(|e| eyre!("{e}"))?;
+
+        // make sure no ids we just added will be removed on notify
+        queue.retain(|&qid| qid != id);
 
         let dict = data.downcast::<PyDict>(py)?;
 
