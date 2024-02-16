@@ -11,8 +11,6 @@ use pyo3::{
     exceptions::{PyIndexError, PyKeyError, PyTypeError},
     types::{PyDict, PyList},
 };
-use tracing::{error, trace, trace_span};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use win_pipes::{NamedPipeClientOptions, NamedPipeClientWriter};
 use winreg::{
     enums::{HKEY_CURRENT_USER, KEY_SET_VALUE},
@@ -24,9 +22,6 @@ static MONITORS: OnceLock<Mutex<Vec<Monitor>>> = OnceLock::new();
 static REMOVAL_QUEUE: OnceLock<Mutex<Vec<Id>>> = OnceLock::new();
 
 fn with_writer<R>(f: impl FnOnce(&mut NamedPipeClientWriter) -> R) -> Result<R> {
-    let span = trace_span!("with_writer");
-    let _guard = span.enter();
-
     let mut lock = WRITER.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
 
     let r = f(&mut lock);
@@ -35,9 +30,6 @@ fn with_writer<R>(f: impl FnOnce(&mut NamedPipeClientWriter) -> R) -> Result<R> 
 }
 
 fn with_monitor<R>(id: Id, f: impl FnOnce(&mut Monitor) -> R) -> Result<R> {
-    let span = trace_span!("with_monitor", id = id);
-    let _guard = span.enter();
-
     let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
     let monitor = monitors
         .iter_mut()
@@ -50,9 +42,6 @@ fn with_monitor<R>(id: Id, f: impl FnOnce(&mut Monitor) -> R) -> Result<R> {
 }
 
 fn with_mode<R>(id: Id, idx: usize, f: impl FnOnce(&mut Mode) -> R) -> Result<R> {
-    let span = trace_span!("with_mode", id = id, idx = idx);
-    let _guard = span.enter();
-
     let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
     let monitor = monitors
         .iter_mut()
@@ -70,9 +59,6 @@ fn with_mode<R>(id: Id, idx: usize, f: impl FnOnce(&mut Mode) -> R) -> Result<R>
 }
 
 fn remove_monitor(id: Id) -> Result<Monitor> {
-    let span = trace_span!("remove_monitor", id = id);
-    let _guard = span.enter();
-
     let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
     let monitor = monitors
         .iter()
@@ -85,9 +71,6 @@ fn remove_monitor(id: Id) -> Result<Monitor> {
 }
 
 fn remove_all_monitors() -> Result<()> {
-    let span = trace_span!("remove_all_monitors");
-    let _guard = span.enter();
-
     let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
     monitors.clear();
 
@@ -95,9 +78,6 @@ fn remove_all_monitors() -> Result<()> {
 }
 
 fn remove_mode(id: Id, idx: usize) -> Result<Mode> {
-    let span = trace_span!("remove_mode", id = id, idx = idx);
-    let _guard = span.enter();
-
     let mut monitors = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
     let monitor = monitors
         .iter_mut()
@@ -115,11 +95,6 @@ fn remove_mode(id: Id, idx: usize) -> Result<Mode> {
 
 #[pymodule]
 fn pyvdd(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(EnvFilter::from_env("PYVDD_LOG"))
-        .init();
-
     m.add_class::<Monitors>()?;
     m.add_class::<MonitorWrapper>()?;
     m.add_class::<ModeWrapper>()?;
@@ -139,16 +114,10 @@ struct Monitors;
 impl Monitors {
     #[new]
     fn new() -> PyResult<Self> {
-        let span = trace_span!("Monitors::new()");
-        let _guard = span.enter();
-
         // singleton check, just return self if already initialized
         if WRITER.get().is_some() {
-            trace!("already instantiated");
             return Ok(Self);
         }
-
-        trace!("instantiating");
 
         let (reader, mut writer) = NamedPipeClientOptions::new("virtualdisplaydriver")
             .wait()
@@ -167,8 +136,6 @@ impl Monitors {
         let Command::ReplyState(monitors) = command else {
             return Err(eyre!("invalid command reply: {command:?}").into());
         };
-
-        trace!("received reply: {monitors:?}");
 
         MONITORS.set(Mutex::new(monitors)).unwrap();
         WRITER.set(Mutex::new(writer)).unwrap();
@@ -199,7 +166,7 @@ impl Monitors {
             .map_err(|e| eyre!("{e}"))?
             .clone();
         let command = Command::DriverNotify(monitors);
-        trace!("command {command:?}");
+
         let data = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
 
         with_writer(|writer| writer.write_all(&data))??;
@@ -298,9 +265,6 @@ impl Monitors {
 
     #[allow(clippy::needless_pass_by_value)]
     fn __setitem__(&self, py: Python, id: u32, data: PyObject) -> PyResult<()> {
-        let span = trace_span!("Monitors::__setitem__()", id = id);
-        let _guard = span.enter();
-
         let mut queue = REMOVAL_QUEUE
             .get()
             .unwrap()
@@ -388,15 +352,11 @@ impl Monitors {
             modes,
         };
 
-        trace!("computed {monitor:?}");
-
         let mut lock = MONITORS.get().unwrap().lock().map_err(|e| eyre!("{e}"))?;
         let pos = lock.iter().position(|mon| mon.id == id);
         if let Some(pos) = pos {
-            trace!("replacing {pos}");
             _ = std::mem::replace(&mut lock[pos], monitor);
         } else {
-            trace!("pushing");
             lock.push(monitor);
         }
 
@@ -410,22 +370,13 @@ impl Drop for Monitors {
         // Note that this will silently fail if unable to access or write to the registry
         // If it fails, check that you have access rights and that the path/key exists!
 
-        let span = trace_span!("Monitors::drop()");
-        let _guard = span.enter();
-
-        trace!("drop");
-
         let Ok(monitors) = MONITORS.get().unwrap().lock() else {
             return;
         };
 
-        trace!("got monitors OK");
-
         let Ok(data) = serde_json::to_string(&*monitors) else {
             return;
         };
-
-        trace!(data = data, "convert to string OK");
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let Ok(vdisplay_reg) =
@@ -434,14 +385,7 @@ impl Drop for Monitors {
             return;
         };
 
-        trace!(r"open subkey SOFTWARE\VirtualDisplayDriver OK");
-
-        if let Err(e) = vdisplay_reg.set_value("data", &data) {
-            error!("failed to persist: {e}");
-            return;
-        };
-
-        trace!("save data OK");
+        _ = vdisplay_reg.set_value("data", &data);
     }
 }
 
