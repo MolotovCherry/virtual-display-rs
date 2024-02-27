@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20.2", features = ["eyre"] }
+pyo3 = { version = "0.20.3", features = ["eyre"] }
 win-pipes = { git = "https://github.com/MolotovCherry/WinPipes-rs" }
 winreg = "0.52.0"
 serde_json = "1.0.114"
