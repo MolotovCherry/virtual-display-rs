@@ -16,7 +16,7 @@ use wdf_umdf_sys::{
     NTSTATUS, WAIT_TIMEOUT, WDFOBJECT,
 };
 use windows::{
-    core::{w, ComInterface, Interface},
+    core::{w, Interface},
     Win32::{
         Foundation::HANDLE as WHANDLE,
         Graphics::Dxgi::IDXGIDevice,
