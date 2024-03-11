@@ -40,9 +40,9 @@ pub enum Error {
     SetLoggerFailed(#[from] SetLoggerError),
 }
 
-#[cfg(not(feature = "env_logger"))]
+#[cfg(not(feature = "env_filter"))]
 struct Filter {}
-#[cfg(not(feature = "env_logger"))]
+#[cfg(not(feature = "env_filter"))]
 impl Filter {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         true
@@ -51,17 +51,16 @@ impl Filter {
         true
     }
 }
-#[cfg(not(feature = "env_logger"))]
+#[cfg(not(feature = "env_filter"))]
 fn make_filter() -> Filter {
     Filter {}
 }
 
-#[cfg(feature = "env_logger")]
-use env_logger::filter::Filter;
-#[cfg(feature = "env_logger")]
+#[cfg(feature = "env_filter")]
+use env_filter::Filter;
+#[cfg(feature = "env_filter")]
 fn make_filter() -> Filter {
-    use env_logger::filter::Builder;
-    let mut builder = Builder::from_env("RUST_LOG");
+    let mut builder = env_filter::Builder::from_env("RUST_LOG");
     builder.build()
 }
 
