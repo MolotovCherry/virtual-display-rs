@@ -1,11 +1,7 @@
-use std::{
-    collections::{BTreeSet, HashSet},
-    io::Write as _,
-};
+use std::{collections::HashSet, io::Write as _};
 
 use driver_ipc::Monitor;
 use eyre::Context as _;
-use joinery::Joinable as _;
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
 
 pub struct Client {
@@ -36,13 +32,25 @@ impl Client {
         &self.state
     }
 
-    pub fn get(&mut self, id: driver_ipc::Id) -> eyre::Result<Monitor> {
-        let monitor = self.state.iter().find(|monitor| monitor.id == id);
-
-        match monitor {
-            Some(monitor) => Ok(monitor.clone()),
-            None => eyre::bail!("virtual monitor with ID {} not found", id),
+    /// Find a monitor by ID or name.
+    pub fn find_monitor(&self, query: &str) -> eyre::Result<Monitor> {
+        let query_id: Option<driver_ipc::Id> = query.parse().ok();
+        if let Some(query_id) = query_id {
+            let monitor_by_id = self.state.iter().find(|monitor| monitor.id == query_id);
+            if let Some(monitor) = monitor_by_id {
+                return Ok(monitor.clone());
+            }
         }
+
+        let monitor_by_name = self
+            .state
+            .iter()
+            .find(|monitor| monitor.name.as_deref().is_some_and(|name| name == query));
+        if let Some(monitor) = monitor_by_name {
+            return Ok(monitor.clone());
+        }
+
+        eyre::bail!("virtual monitor with ID {} not found", query);
     }
 
     pub fn notify(&mut self, monitors: Vec<driver_ipc::Monitor>) -> eyre::Result<()> {
@@ -51,27 +59,6 @@ impl Client {
         send_command(&mut self.writer, &command)?;
 
         Ok(())
-    }
-
-    pub fn validate_has_ids(&self, ids: &[driver_ipc::Id]) -> eyre::Result<()> {
-        let ids = ids.iter().copied().collect::<BTreeSet<_>>();
-        let existing_ids = self
-            .state
-            .iter()
-            .map(|monitor| monitor.id)
-            .collect::<BTreeSet<_>>();
-        let missing_ids = ids.difference(&existing_ids).copied().collect::<Vec<_>>();
-
-        if missing_ids.is_empty() {
-            Ok(())
-        } else if missing_ids.len() == 1 {
-            eyre::bail!("virtual monitor with ID {} not found", missing_ids[0])
-        } else {
-            eyre::bail!(
-                "virtual monitors with IDs not found: {}",
-                missing_ids.join_with(", ")
-            )
-        }
     }
 
     pub fn remove(&mut self, ids: Vec<driver_ipc::Id>) -> eyre::Result<()> {

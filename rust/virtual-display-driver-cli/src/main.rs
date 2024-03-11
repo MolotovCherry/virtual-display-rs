@@ -6,6 +6,7 @@ use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 mod client;
+mod mode;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -45,19 +46,9 @@ enum Command {
 
 #[derive(Debug, Parser)]
 struct AddCommand {
-    /// Width of the virtual monitor.
-    width: driver_ipc::Dimen,
-
-    /// Height of the virtual monitor.
-    height: driver_ipc::Dimen,
-
-    /// More resolutions to add as extra modes for the virtual monitor.
-    more_widths_and_heights: Vec<driver_ipc::Dimen>,
-
-    /// Refresh rate of the virtual monitor. Pass multiple times to
-    /// support multiple refresh rates.
-    #[clap(short, long, default_value = "60")]
-    refresh_rate: Vec<driver_ipc::RefreshRate>,
+    /// One or more resolutions/refresh rates to add to the virtual monitor.
+    /// Example values: `1920x1080`, `3840x2160@120`, `1280x720@60/120`.
+    mode: Vec<mode::Mode>,
 
     /// Manual ID to set for the monitor. Must not conflict with an
     /// existing virtual monitor's ID.
@@ -75,43 +66,42 @@ struct AddCommand {
 
 #[derive(Debug, Parser)]
 struct AddModeCommand {
-    /// ID of the virtual monitor to add a mode to.
-    id: driver_ipc::Id,
+    /// ID or name of the virtual monitor to add a mode to.
+    id: String,
 
-    /// Width of the new mode.
-    width: driver_ipc::Dimen,
-
-    /// Height of the new mode.
-    height: driver_ipc::Dimen,
-
-    /// Refresh rate for the new mode. Pass multiple times to support
-    /// multiple refresh rates in this mode.
-    #[clap(short, long, default_value = "60")]
-    refresh_rate: Vec<driver_ipc::RefreshRate>,
+    /// One or more resolutions/refresh rates to add to the virtual monitor.
+    /// Example values: `1920x1080`, `3840x2160@120`, `1280x720@60/120`.
+    mode: Vec<mode::Mode>,
 }
 
 #[derive(Debug, Parser)]
 struct RemoveModeCommand {
-    /// ID of the virtual monitor to add a mode to.
-    id: driver_ipc::Id,
+    /// ID or name of the virtual monitor to add a mode to.
+    id: String,
 
-    /// The index of the mode to remove.
-    mode_index: usize,
+    /// A resolution and optional refresh rate to remove from the virtual
+    /// monitor. Omitting the refresh rate will remove the resolution, including
+    /// the refresh rate will keep the resolution but remove just the given
+    /// refresh rate. Example values: `1920x1080`, `3840x2160@120`.
+    mode: mode::Mode,
 }
 
 #[derive(Debug, Parser)]
 struct EnableCommand {
-    id: driver_ipc::Id,
+    // The ID or name of the monitor to enable.
+    id: String,
 }
 
 #[derive(Debug, Parser)]
 struct DisableCommand {
-    id: driver_ipc::Id,
+    // The ID or name of the monitor to disable.
+    id: String,
 }
 
 #[derive(Debug, Parser)]
 struct RemoveCommand {
-    id: Vec<driver_ipc::Id>,
+    // One or more monitor IDs or names to remove.
+    id: Vec<String>,
 }
 
 fn main() -> eyre::Result<()> {
@@ -177,23 +167,20 @@ fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
             if monitor.modes.is_empty() {
                 println!("{} {}", "-".dimmed(), "No modes".red());
             } else {
-                for (index, mode) in monitor.modes.iter().enumerate() {
+                for mode in &monitor.modes {
                     let refresh_rate_labels = mode
                         .refresh_rates
                         .iter()
                         .map(|rate| lazy_format!("{}", rate.blue()))
                         .join_with("/");
-                    let refresh_rates = lazy_format!(if mode.refresh_rates.is_empty() =>
-                        ("{}Hz", "?".red())
-                    else =>
-                        ("{}Hz", refresh_rate_labels)
-                    );
                     println!(
-                        "{} Mode {index}: {}x{} @ {}",
+                        "{} {}{}{}{}{}",
                         "-".dimmed(),
                         mode.width.green(),
+                        "x".dimmed(),
                         mode.height.green(),
-                        refresh_rates
+                        "@".dimmed(),
+                        refresh_rate_labels,
                     );
                 }
             }
@@ -206,18 +193,11 @@ fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
 }
 
 fn add(client: &mut Client, opts: &GlobalOptions, command: AddCommand) -> eyre::Result<()> {
-    if command.more_widths_and_heights.len() % 2 != 0 {
-        eyre::bail!("passed a width for an extra resolution without a height");
-    }
-
-    let modes = std::iter::once(&[command.width, command.height][..])
-        .chain(command.more_widths_and_heights.chunks_exact(2))
-        .map(|dim| driver_ipc::Mode {
-            width: dim[0],
-            height: dim[1],
-            refresh_rates: command.refresh_rate.clone(),
-        })
-        .collect();
+    let modes = command
+        .mode
+        .into_iter()
+        .map(driver_ipc::Mode::from)
+        .collect::<Vec<_>>();
 
     let id = client.new_id(command.id)?;
     let new_monitor = driver_ipc::Monitor {
@@ -250,25 +230,23 @@ fn add_mode(
     opts: &GlobalOptions,
     command: AddModeCommand,
 ) -> eyre::Result<()> {
-    let mut monitor = client.get(command.id)?;
+    let mut monitor = client.find_monitor(&command.id)?;
 
-    let new_mode_index = monitor.modes.len();
-    let new_mode = driver_ipc::Mode {
-        width: command.width,
-        height: command.height,
-        refresh_rates: command.refresh_rate,
-    };
-    monitor.modes.push(new_mode);
-    client.notify(vec![monitor])?;
+    let existing_modes = monitor.modes.iter().cloned().map(mode::Mode::from);
+    let new_modes = mode::merge(existing_modes.chain(command.mode));
+    let new_modes: Vec<driver_ipc::Mode> =
+        new_modes.into_iter().map(driver_ipc::Mode::from).collect();
+
+    monitor.modes = new_modes.clone();
+    client.notify(vec![monitor.clone()])?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
-        serde_json::to_writer_pretty(&mut stdout, &new_mode_index)?;
+        serde_json::to_writer_pretty(&mut stdout, &new_modes)?;
     } else {
         println!(
-            "Added new mode {} to virtual monitor with ID {}.",
-            new_mode_index.blue(),
-            command.id.green()
+            "Added modes to virtual monitor with ID {}.",
+            monitor.id.green()
         );
     }
 
@@ -280,33 +258,24 @@ fn remove_mode(
     opts: &GlobalOptions,
     command: &RemoveModeCommand,
 ) -> eyre::Result<()> {
-    let mut monitor = client.get(command.id)?;
+    let mut monitor = client.find_monitor(&command.id)?;
 
-    if command.mode_index >= monitor.modes.len() {
-        eyre::bail!(
-            "virtual monitor with ID {} has no mode with index {}",
-            command.id,
-            command.mode_index
-        );
-    }
-    if monitor.modes.len() == 1 {
-        eyre::bail!(
-            "cannot remove last mode from virtual monitor with ID {}",
-            command.id
-        );
-    }
+    let modes = monitor.modes.iter().cloned().map(mode::Mode::from);
+    let new_modes = mode::remove(modes, &command.mode)?;
+    let new_modes: Vec<driver_ipc::Mode> =
+        new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
-    monitor.modes.remove(command.mode_index);
-    client.notify(vec![monitor])?;
+    monitor.modes = new_modes.clone();
+    client.notify(vec![monitor.clone()])?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
-        serde_json::to_writer_pretty(&mut stdout, &command.mode_index)?;
+        serde_json::to_writer_pretty(&mut stdout, &new_modes)?;
     } else {
         println!(
             "Removed mode {} from virtual monitor with ID {}.",
-            command.mode_index.blue(),
-            command.id.green()
+            command.mode.blue(),
+            monitor.id.green()
         );
     }
 
@@ -314,7 +283,7 @@ fn remove_mode(
 }
 
 fn enable(client: &mut Client, opts: &GlobalOptions, command: &EnableCommand) -> eyre::Result<()> {
-    let outcome = set_enabled(client, command.id, true)?;
+    let outcome = set_enabled(client, &command.id, true)?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -327,7 +296,7 @@ fn enable(client: &mut Client, opts: &GlobalOptions, command: &EnableCommand) ->
         };
         println!(
             "Enabled virtual monitor with ID {}{footnote}.",
-            command.id.green()
+            outcome.monitor.id.green()
         );
     }
 
@@ -339,7 +308,7 @@ fn disable(
     opts: &GlobalOptions,
     command: &DisableCommand,
 ) -> eyre::Result<()> {
-    let outcome = set_enabled(client, command.id, false)?;
+    let outcome = set_enabled(client, &command.id, false)?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -352,7 +321,7 @@ fn disable(
         };
         println!(
             "Disabled virtual monitor with ID {}{footnote}.",
-            command.id.green()
+            outcome.monitor.id.green()
         );
     }
 
@@ -360,8 +329,15 @@ fn disable(
 }
 
 fn remove(client: &mut Client, opts: &GlobalOptions, command: &RemoveCommand) -> eyre::Result<()> {
-    client.validate_has_ids(&command.id)?;
-    client.remove(command.id.clone())?;
+    let monitor_ids = command
+        .id
+        .iter()
+        .map(|query| {
+            let monitor = client.find_monitor(query)?;
+            eyre::Ok(monitor.id)
+        })
+        .collect::<eyre::Result<Vec<_>>>()?;
+    client.remove(monitor_ids)?;
 
     if opts.json {
         let mut stdout = std::io::stdout().lock();
@@ -390,10 +366,10 @@ fn remove_all(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {
 
 fn set_enabled(
     client: &mut Client,
-    id: driver_ipc::Id,
+    monitor_query: &str,
     enabled: bool,
 ) -> eyre::Result<EnableDisableOutcome> {
-    let mut monitor = client.get(id)?;
+    let mut monitor = client.find_monitor(monitor_query)?;
 
     let should_toggle = enabled != monitor.enabled;
 
