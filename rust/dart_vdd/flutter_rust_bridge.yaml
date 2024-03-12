@@ -1,0 +1,3 @@
+rust_input: rust/src/api.rs # Glob pattern
+dart_output: lib/src/generated # Directory
+web: false

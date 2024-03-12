@@ -1,0 +1,20 @@
+name: dart_vdd
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.3.0
+
+# Add regular dependencies here.
+dependencies:
+  flutter_rust_bridge: 2.0.0-dev.28
+  freezed_annotation: ^2.4.1
+  native_assets_cli: ^0.4.2
+  # path: ^1.8.0
+
+dev_dependencies:
+  build_runner: ^2.4.8
+  freezed: ^2.4.7
+  lints: ^3.0.0
+  test: ^1.24.0
