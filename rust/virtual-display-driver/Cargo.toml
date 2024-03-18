@@ -10,7 +10,7 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 anyhow = "1.0.81"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
