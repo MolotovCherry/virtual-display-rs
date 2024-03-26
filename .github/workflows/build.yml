@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -34,19 +34,19 @@ jobs:
           key: ${{ (github.event_name == 'release' || inputs.release) && 'prod' || 'dev' }}
 
       - name: Install cargo-make
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-make
 
       - name: Install cargo-target-dir
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-target-dir
           git: https://github.com/MolotovCherry/cargo-target-dir
 
       - name: Install cargo-wix
         if: github.event_name == 'release'
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-wix
 
@@ -77,7 +77,7 @@ jobs:
 
       - name: Upload Artifacts
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: driver
           path: |
@@ -89,7 +89,7 @@ jobs:
       # this is split from the top in order to allow the files to all be at the top level of the archive
       - name: Upload Artifacts
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: driver
           path: |
@@ -98,7 +98,7 @@ jobs:
       # this is split from the top in order to allow the files to all be at the top level of the archive
       - name: Upload Artifacts
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: driver
           path: |
