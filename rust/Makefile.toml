@@ -4,24 +4,17 @@ BUILD_TARGET_PATH = { script = ['''
 
     echo %target_dir%
 '''] }
-PROFILE = "-p dev"
 
 [env.prod]
 PROD = "1"
-PROFILE = "-p prod"
-BUILD_FLAGS = "--release"
 
 [tasks.build]
 clear = true
-script = [
-    # build virtual-display-driver
-    "cargo make %PROFILE% --cwd virtual-display-driver build",
-    # copy all files to single output directory
-    "cargo make %PROFILE% --cwd virtual-display-driver copy",
-    # build cli
-    "cargo build -p virtual-display-driver-cli %BUILD_FLAGS%",
-    # copy all files to single output directory
-    "cargo make %PROFILE% --cwd virtual-display-driver-cli copy",
+dependencies = [
+    { name = "build", path = "virtual-display-driver" },
+    { name = "copy", path = "virtual-display-driver" },
+    { name = "build", path = "virtual-display-driver-cli" },
+    { name = "copy", path = "virtual-display-driver-cli" },
 ]
 
 [tasks.build-installer]

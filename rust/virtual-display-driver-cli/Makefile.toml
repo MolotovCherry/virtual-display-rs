@@ -3,6 +3,7 @@ TARGET_PATH = "debug"
 
 [env.prod]
 TARGET_PATH = "release"
+BUILD_FLAGS = "--release"
 
 [tasks.set-build-path]
 env = { "BUILD_TARGET_PATH" = { script = ['''
@@ -25,3 +26,7 @@ script = [
         copy %BUILD_TARGET_PATH%\*.exe ..\target\output
     ''',
 ]
+
+[tasks.build]
+clear = true
+script = ["cargo b %BUILD_FLAGS%"]
