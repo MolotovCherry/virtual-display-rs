@@ -75,34 +75,30 @@ jobs:
         working-directory: rust
         run: cargo make -p $env:RELEASE build
 
-      - name: Upload Artifacts
+      - name: Prepare Artifact Upload
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: driver
-          path: |
-            rust/target/output/*.exe
-            rust/target/output/*.cat
-            rust/target/output/*.dll
-            rust/target/output/*.inf
+        run: |
+          # copy any required files to . so artifact upload files are in top level
+          Get-ChildItem -Path `
+            "rust/target/output/*.exe", `
+            "rust/target/output/*.cat", `
+            "rust/target/output/*.dll", `
+            "rust/target/output/*.inf", `
+            "installer/install-cert.bat" `
+            | ForEach-Object { Copy-Item -Path $_.FullName -Destination "." }
 
-      # this is split from the top in order to allow the files to all be at the top level of the archive
       - name: Upload Artifacts
         if: github.event_name != 'release'
         uses: actions/upload-artifact@v4
         with:
           name: driver
           path: |
+            *.exe
+            *.cat
+            *.dll
+            *.inf
             DriverCertificate.cer
-
-      # this is split from the top in order to allow the files to all be at the top level of the archive
-      - name: Upload Artifacts
-        if: github.event_name != 'release'
-        uses: actions/upload-artifact@v4
-        with:
-          name: driver
-          path: |
-            installer/install-cert.bat
+            install-cert.bat
 
       - name: Set release version
         if: github.event_name == 'release'
