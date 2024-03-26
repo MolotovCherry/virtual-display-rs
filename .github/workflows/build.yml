@@ -30,6 +30,7 @@ jobs:
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
+          workspaces: "rust -> target"
           key: ${{ (github.event_name == 'release' || inputs.release) && 'prod' || 'dev' }}
 
       - name: Install cargo-make
