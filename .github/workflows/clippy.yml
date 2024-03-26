@@ -18,6 +18,8 @@ jobs:
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "rust -> target"
 
       - name: Add Clippy Component
         working-directory: rust
