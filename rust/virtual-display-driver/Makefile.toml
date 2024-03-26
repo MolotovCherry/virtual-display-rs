@@ -45,7 +45,7 @@ BUILD_DLL_OLD_NAME = "virtual_display_driver.dll"
 BUILD_DLL_NAME = "VirtualDisplayDriver.dll"
 SIGN_OPTIONS = { script = ['''
 if defined CI (
-    echo /f ../private.pfx /p %PRIVATE_KEY_PASSWORD%
+    echo /f ../../private.pfx /p %PRIVATE_KEY_PASSWORD%
 ) else (
     echo /sm /n DriverCertificate
 )
