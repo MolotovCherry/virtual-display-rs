@@ -81,6 +81,8 @@ Please see the [wiki](https://github.com/MolotovCherry/virtual-display-rs/wiki/V
 3. Install [`cargo-make`](https://github.com/sagiegurari/cargo-make) if you don't have it
 4. Install [`cargo-target-dir`](https://github.com/MolotovCherry/cargo-target-dir)
 
+Make sure you generate your own windows code signing cert and install it according to "Installing the certificate" section.
+
 You can build it with `cargo make build` (debug) or `cargo make -p prod build` (release), and check the `target/output` directory for all the files
 
 To build the installer, do a `cargo make build-installer` (dev) or `cargo make -p prod build-installer` (release). In order to build the installer, you need [wix toolset](https://github.com/wixtoolset/wix3/releases) installed and on `Path`

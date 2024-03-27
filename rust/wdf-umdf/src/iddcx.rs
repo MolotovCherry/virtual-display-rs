@@ -2,8 +2,9 @@
 #![allow(clippy::missing_errors_doc)]
 
 use wdf_umdf_sys::{
-    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_SWAPCHAINSETDEVICE,
-    IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE,
+    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_QUERY_HWCURSOR,
+    IDARG_IN_SETUP_HWCURSOR, IDARG_IN_SWAPCHAINSETDEVICE, IDARG_OUT_ADAPTER_INIT,
+    IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDARG_OUT_QUERY_HWCURSOR,
     IDARG_OUT_RELEASEANDACQUIREBUFFER, IDDCX_ADAPTER, IDDCX_MONITOR, IDDCX_SWAPCHAIN,
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
@@ -135,9 +136,9 @@ pub unsafe fn IddCxDeviceInitialize(
 /// None. User is responsible for safety.
 pub unsafe fn IddCxAdapterInitAsync(
     // in
-    pInArgs: *const IDARG_IN_ADAPTER_INIT,
+    pInArgs: &IDARG_IN_ADAPTER_INIT,
     // out
-    pOutArgs: *mut IDARG_OUT_ADAPTER_INIT,
+    pOutArgs: &mut IDARG_OUT_ADAPTER_INIT,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall! {
         IddCxAdapterInitAsync(
@@ -155,9 +156,9 @@ pub unsafe fn IddCxMonitorCreate(
     // in
     AdapterObject: IDDCX_ADAPTER,
     // in
-    pInArgs: *const IDARG_IN_MONITORCREATE,
+    pInArgs: &IDARG_IN_MONITORCREATE,
     // out
-    pOutArgs: *mut IDARG_OUT_MONITORCREATE,
+    pOutArgs: &mut IDARG_OUT_MONITORCREATE,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
         IddCxMonitorCreate(
@@ -176,7 +177,7 @@ pub unsafe fn IddCxMonitorArrival(
     // in
     MonitorObject: IDDCX_MONITOR,
     // out
-    pOutArgs: *mut IDARG_OUT_MONITORARRIVAL,
+    pOutArgs: &mut IDARG_OUT_MONITORARRIVAL,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
         IddCxMonitorArrival(
@@ -251,6 +252,45 @@ pub unsafe fn IddCxMonitorDeparture(
     IddCxCall!(
         IddCxMonitorDeparture(
             MonitorObject
+        )
+    )
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorSetupHardwareCursor(
+    // in
+    MonitorObject: IDDCX_MONITOR,
+    // in
+    pInArgs: &IDARG_IN_SETUP_HWCURSOR
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorSetupHardwareCursor(
+            MonitorObject,
+            pInArgs
+        )
+    )
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorQueryHardwareCursor(
+    // in
+    MonitorObject: IDDCX_MONITOR,
+    // in
+    pInArgs: &IDARG_IN_QUERY_HWCURSOR,
+    // out
+    pOutArgs: &mut IDARG_OUT_QUERY_HWCURSOR
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorQueryHardwareCursor(
+            MonitorObject,
+            pInArgs,
+            pOutArgs
         )
     )
 }

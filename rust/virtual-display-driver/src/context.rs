@@ -1,24 +1,29 @@
 use std::{
+    ffi::c_void,
     mem::{self, size_of},
     num::{ParseIntError, TryFromIntError},
     ptr::{addr_of_mut, NonNull},
 };
 
 use anyhow::anyhow;
-use log::error;
+use log::{error, warn};
 use wdf_umdf::{
-    IddCxAdapterInitAsync, IddCxError, IddCxMonitorArrival, IddCxMonitorCreate, WdfError,
-    WdfObjectDelete, WDF_DECLARE_CONTEXT_TYPE,
+    IddCxAdapterInitAsync, IddCxError, IddCxMonitorArrival, IddCxMonitorCreate,
+    IddCxMonitorSetupHardwareCursor, WdfError, WdfObjectDelete, WDF_DECLARE_CONTEXT_TYPE,
 };
 use wdf_umdf_sys::{
     DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY, HANDLE, IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE,
-    IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER,
-    IDDCX_ADAPTER_CAPS, IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION,
-    IDDCX_FEATURE_IMPLEMENTATION, IDDCX_MONITOR, IDDCX_MONITOR_DESCRIPTION,
-    IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO, IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE,
-    LUID, NTSTATUS, WDFDEVICE, WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
+    IDARG_IN_SETUP_HWCURSOR, IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL,
+    IDARG_OUT_MONITORCREATE, IDDCX_ADAPTER, IDDCX_ADAPTER_CAPS, IDDCX_CURSOR_CAPS,
+    IDDCX_ENDPOINT_DIAGNOSTIC_INFO, IDDCX_ENDPOINT_VERSION, IDDCX_FEATURE_IMPLEMENTATION,
+    IDDCX_MONITOR, IDDCX_MONITOR_DESCRIPTION, IDDCX_MONITOR_DESCRIPTION_TYPE, IDDCX_MONITOR_INFO,
+    IDDCX_SWAPCHAIN, IDDCX_TRANSMISSION_TYPE, IDDCX_XOR_CURSOR_SUPPORT, LUID, NTSTATUS, WDFDEVICE,
+    WDFOBJECT, WDF_OBJECT_ATTRIBUTES,
 };
-use windows::core::{w, GUID};
+use windows::{
+    core::{s, w, GUID},
+    Win32::{Foundation::TRUE, System::Threading::CreateEventA},
+};
 
 use crate::{
     direct_3d_device::Direct3DDevice,
@@ -250,6 +255,8 @@ impl MonitorContext {
             processor.run(swap_chain, device, new_frame_event);
 
             self.swap_chain_processor = Some(processor);
+
+            self.setup_hw_cursor();
         } else {
             // It's important to delete the swap-chain if D3D initialization fails, so that the OS knows to generate a new
             // swap-chain and try again.
@@ -262,5 +269,41 @@ impl MonitorContext {
 
     pub fn unassign_swap_chain(&mut self) {
         self.swap_chain_processor.take();
+    }
+
+    pub fn setup_hw_cursor(&mut self) {
+        let mouse_event = unsafe { CreateEventA(None, false, false, s!("vdd_mouse_event")) };
+        let Ok(mouse_event) = mouse_event else {
+            error!("CreateEventA failed: {mouse_event:?}");
+            return;
+        };
+
+        // setup hardware cursor
+        let cursor_info = IDDCX_CURSOR_CAPS {
+            #[allow(clippy::cast_possible_truncation)]
+            Size: std::mem::size_of::<IDDCX_CURSOR_CAPS>() as u32,
+            AlphaCursorSupport: TRUE.0,
+            MaxX: 512,
+            MaxY: 512,
+            ColorXorCursorSupport: IDDCX_XOR_CURSOR_SUPPORT::IDDCX_XOR_CURSOR_SUPPORT_NONE,
+        };
+
+        let hw_cursor = IDARG_IN_SETUP_HWCURSOR {
+            CursorInfo: cursor_info,
+            hNewCursorDataAvailable: mouse_event.0 as *mut c_void,
+        };
+
+        let res = unsafe { IddCxMonitorSetupHardwareCursor(self.device, &hw_cursor) };
+        let Ok(res) = res else {
+            error!("IddCxMonitorSetupHardwareCursor() failed: {res:?}");
+            return;
+        };
+
+        if res.is_warning() {
+            warn!("IddCxMonitorSetupHardwareCursor() warn: {res:?}");
+        }
+        if res.is_error() {
+            error!("IddCxMonitorSetupHardwareCursor() failed: {res:?}");
+        }
     }
 }
