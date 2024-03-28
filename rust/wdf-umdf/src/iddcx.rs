@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::sync::OnceLock;
+
 use wdf_umdf_sys::{
     IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_QUERY_HWCURSOR,
     IDARG_IN_SETUP_HWCURSOR, IDARG_IN_SWAPCHAINSETDEVICE, IDARG_OUT_ADAPTER_INIT,
@@ -9,7 +11,7 @@ use wdf_umdf_sys::{
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum IddCxError {
     #[error("{0}")]
     IddCxFunctionNotAvailable(&'static str),
@@ -49,7 +51,17 @@ macro_rules! IddCxCall {
     };
 
     ($other_is_error:expr, $name:ident ( $($args:expr),* )) => {{
-        let fn_handle = {
+        static CACHED_FN: OnceLock<
+            Result<
+                ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+                IddCxError
+            >
+        > = OnceLock::new();
+
+        let fn_handle: &Result<
+            ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+            IddCxError
+        > = CACHED_FN.get_or_init(|| {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::IDDFUNCENUM::[<$name TableIndex>].0 as usize;
 
@@ -69,15 +81,16 @@ macro_rules! IddCxCall {
 
                     // SAFETY: Ensured that this is present by if condition from `IddIsFunctionAvailable!`
                     let fn_handle = unsafe { fn_handle.read() };
-                    // SAFETY: All available function handles are not null
-                    let fn_handle = unsafe { fn_handle.unwrap_unchecked() };
 
                     Ok(fn_handle)
                 } else {
                     Err($crate::IddCxError::IddCxFunctionNotAvailable(concat!(stringify!($name), " is not available")))
                 }
             }
-        };
+        });
+
+        // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
+        let fn_handle = fn_handle.map(|f| unsafe { f.unwrap_unchecked() });
 
         if let Ok(fn_handle) = fn_handle {
             // SAFETY: Pointer to globals is always immutable
