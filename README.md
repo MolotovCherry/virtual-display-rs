@@ -46,6 +46,21 @@ _Note: For users having trouble installing/running the app, please see [#49](htt
    * finish the setup
 7. The driver will be installed and started. The control panel exe you see in the folder will work from anywhere you put it.
 
+### Optional: Installing the driver with `nefcon` CLI
+
+0. You might need to install the driver certificate
+1. Get `nefconw` CLI
+  - Download the [official latest release](https://github.com/nefarius/nefcon/releases/latest)
+  - Or from our repo: [installer/nefconw.exe](./installer/files/nefconw.exe)
+3. Put `nefconw.exe` in the extracted portable folder
+4. Open console on this folder and run:
+
+```
+start /wait .\nefconw.exe --remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid "4D36E968-E325-11CE-BFC1-08002BE10318"
+start /wait .\nefconw.exe --create-device-node --class-name Display --class-guid "4D36E968-E325-11CE-BFC1-08002BE10318" --hardware-id Root\VirtualDisplayDriver
+start /wait .\nefconw.exe --install-driver --inf-path ".\VirtualDisplayDriver.inf"
+```
+
 ## Installing the certificate
 The certificate needs installation for Windows to accept the driver
 1. In your downloaded zip, there is a file `DriverCertificate.cer` and `install-cert.bat`
