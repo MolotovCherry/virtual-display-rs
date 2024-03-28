@@ -465,7 +465,7 @@ pub unsafe fn WdfDriverCreate(
             DriverAttributes.unwrap_or(WDF_NO_OBJECT_ATTRIBUTES!()),
             DriverConfig,
             Driver
-                .map(|d| d as *mut _)
+                .map(std::ptr::from_mut)
                 .unwrap_or(WDF_NO_HANDLE!())
         )
     }
@@ -485,7 +485,7 @@ pub unsafe fn WdfDeviceCreate(
     WdfCall! {
         WdfDeviceCreate(
             DeviceInit,
-            DeviceAttributes.map_or(WDF_NO_OBJECT_ATTRIBUTES!(), |d| d as *mut _),
+            DeviceAttributes.map_or(WDF_NO_OBJECT_ATTRIBUTES!(), std::ptr::from_mut),
             Device
         )
     }
@@ -597,7 +597,7 @@ pub unsafe fn WdfMemoryGetBuffer(
     WdfCall! {
         WdfMemoryGetBuffer(
             Memory,
-            BufferSize.map_or(std::ptr::null_mut(), |s| s as *mut _)
+            BufferSize.map_or(std::ptr::null_mut(), std::ptr::from_mut)
         )
     }
 }
