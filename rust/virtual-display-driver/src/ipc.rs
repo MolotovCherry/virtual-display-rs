@@ -1,6 +1,6 @@
 use std::{
     io::Write,
-    mem::{size_of, ManuallyDrop},
+    mem::{self, size_of},
     ptr::{addr_of_mut, NonNull},
     sync::{Mutex, OnceLock},
     thread,
@@ -100,7 +100,7 @@ pub fn startup() {
 
             thread::spawn(move || {
                 // process changed events
-                let mut notify_writer = ManuallyDrop::new(writer.clone());
+                let mut notify_writer = writer.clone();
                 thread::spawn(move || {
                     while let Ok((id, data)) = notify_r.recv() {
                         // this is the same client, so ignore it
@@ -116,6 +116,8 @@ pub fn startup() {
 
                         _ = notify_writer.write_all(serialized.as_bytes());
                     }
+
+                    mem::forget(notify_writer);
                 });
 
                 for data in reader.iter_read_full() {
