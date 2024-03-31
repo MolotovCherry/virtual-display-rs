@@ -1,13 +1,15 @@
 use std::{
     io::Write,
-    mem::size_of,
+    mem::{size_of, ManuallyDrop},
     ptr::{addr_of_mut, NonNull},
-    sync::{Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock},
     thread,
 };
 
+use crossbeam_channel::unbounded;
 use driver_ipc::{
-    Command, Dimen, DriverCommand, Mode, Monitor, RefreshRate, ReplyCommand, RequestCommand,
+    Command, Dimen, DriverCommand, EventCommand, Mode, Monitor, RefreshRate, ReplyCommand,
+    RequestCommand,
 };
 use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
@@ -20,15 +22,12 @@ use windows::Win32::{
     },
     System::SystemServices::SECURITY_DESCRIPTOR_REVISION,
 };
-use winreg::{
-    enums::{HKEY_CURRENT_USER, KEY_READ},
-    RegKey,
-};
 
-use crate::context::DeviceContext;
+use crate::{context::DeviceContext, helpers::LazyLock};
 
 pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
-pub static MONITOR_MODES: OnceLock<Mutex<Vec<MonitorObject>>> = OnceLock::new();
+pub static MONITOR_MODES: LazyLock<Mutex<Vec<MonitorObject>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
 
 #[derive(Debug)]
 pub struct AdapterObject(pub NonNull<IDDCX_ADAPTER__>);
@@ -37,23 +36,15 @@ unsafe impl Send for AdapterObject {}
 
 #[derive(Debug)]
 pub struct MonitorObject {
-    pub monitor_object: Option<NonNull<IDDCX_MONITOR__>>,
-    pub monitor: Monitor,
+    pub object: Option<NonNull<IDDCX_MONITOR__>>,
+    pub data: Monitor,
 }
 unsafe impl Sync for MonitorObject {}
 unsafe impl Send for MonitorObject {}
 
+#[allow(clippy::too_many_lines)]
 pub fn startup() {
-    MONITOR_MODES.set(Mutex::new(Vec::new())).unwrap();
-
     thread::spawn(move || {
-        let monitors = get_data();
-
-        // add default monitors saved in registry
-        if !monitors.is_empty() {
-            notify(monitors);
-        }
-
         // These security attributes will allow anyone access, so local account does not need admin privileges to use it
 
         let mut sd = SECURITY_DESCRIPTOR::default();
@@ -83,84 +74,109 @@ pub fn startup() {
             bInheritHandle: false.into(),
         };
 
-        let server = NamedPipeServerOptions::new("virtualdisplaydriver")
-            .reject_remote()
-            .read_message()
-            .write_message()
-            .access_duplex()
-            .first_pipe_instance()
-            .max_instances(1)
-            .in_buffer_size(4096)
-            .out_buffer_size(4096)
-            .security_attributes(&sa)
-            .wait()
-            .create()
-            .unwrap();
+        let (notify_s, notify_r) = unbounded();
+        let mut client_id = 0usize;
 
-        for client in server.incoming() {
-            let Ok((reader, mut writer)) = client else {
-                // errors are safe to continue on
+        loop {
+            let server = Arc::new(
+                NamedPipeServerOptions::new("virtualdisplaydriver")
+                    .reject_remote()
+                    .read_message()
+                    .write_message()
+                    .access_duplex()
+                    .unlimited_instances()
+                    .in_buffer_size(4096)
+                    .out_buffer_size(4096)
+                    .security_attributes(&sa)
+                    .wait()
+                    .create()
+                    .unwrap(),
+            );
+
+            let Ok((reader, mut writer)) = server.connect() else {
                 continue;
             };
 
-            for data in reader.iter_read_full() {
-                let Ok(msg) = std::str::from_utf8(&data) else {
-                    _ = server.disconnect();
-                    continue;
-                };
+            let (notify_s, notify_r) = (notify_s.clone(), notify_r.clone());
+            client_id = client_id.wrapping_add(1);
 
-                let Ok(msg) = serde_json::from_str::<Command>(msg) else {
-                    _ = server.disconnect();
-                    continue;
-                };
+            thread::spawn(move || {
+                // process changed events
+                let mut notify_writer = ManuallyDrop::new(writer.clone());
+                thread::spawn(move || {
+                    while let Ok((id, data)) = notify_r.recv() {
+                        // this is the same client, so ignore it
+                        if id == client_id {
+                            continue;
+                        }
 
-                #[allow(clippy::match_wildcard_for_single_variants)]
-                match msg {
-                    // driver commands
-                    Command::Driver(cmd) => match cmd {
-                        DriverCommand::Notify(monitors) => notify(monitors),
-
-                        DriverCommand::Remove(ids) => remove(&ids),
-
-                        DriverCommand::RemoveAll => remove_all(),
-
-                        _ => continue,
-                    },
-
-                    // request commands
-                    Command::Request(RequestCommand::State) => {
-                        let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
-                        let monitors = lock.iter().map(|m| m.monitor.clone()).collect();
-                        let command = ReplyCommand::State(monitors);
-
+                        let command = EventCommand::Changed(data);
                         let Ok(serialized) = serde_json::to_string(&command) else {
                             error!("Command::Request - failed to serialize reply");
                             continue;
                         };
 
-                        _ = writer.write_all(serialized.as_bytes());
+                        _ = notify_writer.write_all(serialized.as_bytes());
                     }
+                });
 
-                    // Everything else is an invalid command
-                    _ => continue,
+                for data in reader.iter_read_full() {
+                    let Ok(msg) = std::str::from_utf8(&data) else {
+                        _ = server.disconnect();
+                        continue;
+                    };
+
+                    let Ok(msg) = serde_json::from_str::<Command>(msg) else {
+                        _ = server.disconnect();
+                        continue;
+                    };
+
+                    #[allow(clippy::match_wildcard_for_single_variants)]
+                    match msg {
+                        // driver commands
+                        Command::Driver(cmd) => match cmd {
+                            DriverCommand::Notify(monitors) => {
+                                notify(monitors.clone());
+                                _ = notify_s.send((client_id, monitors));
+                            }
+
+                            DriverCommand::Remove(ids) => {
+                                remove(&ids);
+
+                                let lock = MONITOR_MODES.lock().unwrap();
+                                let monitors = lock.iter().map(|m| m.data.clone()).collect();
+                                _ = notify_s.send((client_id, monitors));
+                            }
+
+                            DriverCommand::RemoveAll => {
+                                remove_all();
+                                _ = notify_s.send((client_id, Vec::new()));
+                            }
+
+                            _ => continue,
+                        },
+
+                        // request commands
+                        Command::Request(RequestCommand::State) => {
+                            let lock = MONITOR_MODES.lock().unwrap();
+                            let monitors = lock.iter().map(|m| m.data.clone()).collect();
+                            let command = ReplyCommand::State(monitors);
+
+                            let Ok(serialized) = serde_json::to_string(&command) else {
+                                error!("Command::Request - failed to serialize reply");
+                                continue;
+                            };
+
+                            _ = writer.write_all(serialized.as_bytes());
+                        }
+
+                        // Everything else is an invalid command
+                        _ => continue,
+                    }
                 }
-            }
+            });
         }
     });
-}
-
-fn get_data() -> Vec<Monitor> {
-    let hklm = RegKey::predef(HKEY_CURRENT_USER);
-    let key = r"SOFTWARE\VirtualDisplayDriver";
-
-    let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
-        return Vec::new();
-    };
-
-    driver_settings
-        .get_value::<String, _>("data")
-        .map(|data| serde_json::from_str(&data).unwrap_or_default())
-        .unwrap_or_default()
 }
 
 /// used to check the validity of a Vec<Monitor>
@@ -227,17 +243,17 @@ fn notify(monitors: Vec<Monitor>) {
 
     // Remove monitors from internal list which are missing from the provided list
     let removed_monitors = {
-        let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+        let mut lock = MONITOR_MODES.lock().unwrap();
 
         let mut remove = Vec::with_capacity(lock.len());
         lock.retain_mut(|mon| {
-            let id = mon.monitor.id;
+            let id = mon.data.id;
             let found = monitors.iter().any(|m| m.id == id);
 
             // if it doesn't exist, then add to removal list
             if !found {
                 // monitor not found in monitors list, so schedule to remove it
-                if let Some(obj) = mon.monitor_object.take() {
+                if let Some(obj) = mon.object.take() {
                     remove.push(obj);
                 }
             }
@@ -253,28 +269,27 @@ fn notify(monitors: Vec<Monitor>) {
 
         let should_arrive;
 
-        let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+        let mut lock = MONITOR_MODES.lock().unwrap();
 
-        let cur_mon = lock
-            .iter_mut()
-            .enumerate()
-            .find(|(_, mon)| mon.monitor.id == id);
+        let cur_mon = lock.iter_mut().find(|mon| mon.data.id == id);
 
-        if let Some((i, mon)) = cur_mon {
-            let modes_changed = mon.monitor.modes != monitor.modes;
+        if let Some(mon) = cur_mon {
+            let modes_changed = mon.data.modes != monitor.modes;
 
             #[allow(clippy::nonminimal_bool)]
             {
                 should_arrive =
                         // previously was disabled, and it was just enabled
-                        (!mon.monitor.enabled && monitor.enabled) ||
+                        (!mon.data.enabled && monitor.enabled) ||
                         // OR monitor is enabled and the display modes changed
-                        (monitor.enabled && modes_changed);
+                        (monitor.enabled && modes_changed) ||
+                        // OR monitor is enabled and the monitor was disconnected
+                        (monitor.enabled && mon.object.is_none());
             }
 
             // should only detach if modes changed, or if state is false
             if modes_changed || !monitor.enabled {
-                if let Some(mut obj) = mon.monitor_object.take() {
+                if let Some(mut obj) = mon.object.take() {
                     let obj = unsafe { obj.as_mut() };
                     if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
                         error!("Failed to remove monitor: {e:?}");
@@ -282,17 +297,14 @@ fn notify(monitors: Vec<Monitor>) {
                 }
             }
 
-            // replace existing item with new object
-            lock[i] = MonitorObject {
-                monitor_object: mon.monitor_object,
-                monitor,
-            };
+            // update monitor data
+            mon.data = monitor;
         } else {
             should_arrive = monitor.enabled;
 
             lock.push(MonitorObject {
-                monitor_object: None,
-                monitor,
+                object: None,
+                data: monitor,
             });
         }
 
@@ -324,10 +336,10 @@ fn notify(monitors: Vec<Monitor>) {
 }
 
 fn remove_all() {
-    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+    let mut lock = MONITOR_MODES.lock().unwrap();
 
     for monitor in lock.drain(..) {
-        if let Some(mut monitor_object) = monitor.monitor_object {
+        if let Some(mut monitor_object) = monitor.object {
             let obj = unsafe { monitor_object.as_mut() };
             if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
                 error!("Failed to remove monitor: {e:?}");
@@ -337,12 +349,12 @@ fn remove_all() {
 }
 
 fn remove(ids: &[u32]) {
-    let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+    let mut lock = MONITOR_MODES.lock().unwrap();
 
     for &id in ids {
         lock.retain_mut(|monitor| {
-            if id == monitor.monitor.id {
-                if let Some(mut monitor_object) = monitor.monitor_object.take() {
+            if id == monitor.data.id {
+                if let Some(mut monitor_object) = monitor.object.take() {
                     let obj = unsafe { monitor_object.as_mut() };
                     if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
                         error!("Failed to remove monitor: {e:?}");

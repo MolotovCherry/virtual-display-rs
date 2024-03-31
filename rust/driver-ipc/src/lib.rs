@@ -8,7 +8,7 @@ pub type Id = u32;
 pub type Dimen = u32;
 pub type RefreshRate = u32;
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 pub struct Monitor {
     // identifier
     pub id: Id,
@@ -17,7 +17,7 @@ pub struct Monitor {
     pub modes: Vec<Mode>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 pub struct Mode {
     pub width: Dimen,
     pub height: Dimen,
@@ -50,8 +50,16 @@ pub enum RequestCommand {
 #[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ReplyCommand {
-    // server->client
+    // Reply to previous current system monitor state request
     State(Vec<Monitor>),
+}
+
+/// An event happened
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum EventCommand {
+    // Monitor state was changed while client was connected
+    Changed(Vec<Monitor>),
 }
 
 /// An untagged enum of commands to be used with deserialization.
@@ -64,4 +72,5 @@ pub enum Command {
     Driver(DriverCommand),
     Request(RequestCommand),
     Reply(ReplyCommand),
+    Event(EventCommand),
 }
