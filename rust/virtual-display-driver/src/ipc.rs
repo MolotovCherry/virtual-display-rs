@@ -130,10 +130,11 @@ pub fn startup() {
                     // request commands
                     Command::Request(RequestCommand::State) => {
                         let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
-                        let monitors = lock.iter().map(|m| m.monitor.clone()).collect::<Vec<_>>();
+                        let monitors = lock.iter().map(|m| m.monitor.clone()).collect();
                         let command = ReplyCommand::State(monitors);
 
                         let Ok(serialized) = serde_json::to_string(&command) else {
+                            error!("Command::Request - failed to serialize reply");
                             continue;
                         };
 
