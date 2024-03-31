@@ -6,7 +6,9 @@ use std::{
     thread,
 };
 
-use driver_ipc::{Command, Dimen, Mode, Monitor, RefreshRate};
+use driver_ipc::{
+    Command, Dimen, DriverCommand, Mode, Monitor, RefreshRate, ReplyCommand, RequestCommand,
+};
 use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
@@ -114,16 +116,22 @@ pub fn startup() {
 
                 #[allow(clippy::match_wildcard_for_single_variants)]
                 match msg {
-                    Command::DriverNotify(monitors) => notify(monitors),
+                    // driver commands
+                    Command::Driver(cmd) => match cmd {
+                        DriverCommand::Notify(monitors) => notify(monitors),
 
-                    Command::DriverRemove(ids) => remove(&ids),
+                        DriverCommand::Remove(ids) => remove(&ids),
 
-                    Command::DriverRemoveAll => remove_all(),
+                        DriverCommand::RemoveAll => remove_all(),
 
-                    Command::RequestState => {
+                        _ => continue,
+                    },
+
+                    // request commands
+                    Command::Request(RequestCommand::State) => {
                         let lock = MONITOR_MODES.get().unwrap().lock().unwrap();
                         let monitors = lock.iter().map(|m| m.monitor.clone()).collect::<Vec<_>>();
-                        let command = Command::ReplyState(monitors);
+                        let command = ReplyCommand::State(monitors);
 
                         let Ok(serialized) = serde_json::to_string(&command) else {
                             continue;
@@ -150,7 +158,7 @@ fn get_data() -> Vec<Monitor> {
 
     driver_settings
         .get_value::<String, _>("data")
-        .map(|data| serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default())
+        .map(|data| serde_json::from_str(&data).unwrap_or_default())
         .unwrap_or_default()
 }
 
@@ -198,78 +206,113 @@ fn has_duplicates(monitors: &[Monitor]) -> bool {
     false
 }
 
-/// Adds if it doesn't exist,
-/// Or, if it does exist, updates it by detaching, update, and re-attaching
+/// Notifies driver of new system monitor state
 ///
-/// Only adds/detaches, if required in order to update monitor state in the OS.
+/// Adds, updates, or removes monitors as needed
+///
+/// Note that updated monitors causes a detach, update, and reattach. (Required for windows to see the changes)
+///
+/// Only detaches/reattaches if required in order to update monitor state in OS.
 /// e.g. only a name update would not detach/arrive a monitor
 fn notify(monitors: Vec<Monitor>) {
     // Duplicated id's will not cause any issue, however duplicated resolutions/refresh rates are possible
     // They should all be unique anyways. So warn + noop if the sender sent incorrect data
     if has_duplicates(&monitors) {
-        warn!(
-            "notify(): Duplicate data was detected; nothing was changed; please fix your program"
-        );
+        warn!("notify(): Duplicate data was detected; update aborted");
         return;
     }
 
     let adapter = ADAPTER.get().unwrap().0.as_ptr();
 
-    let cb = |context: &mut DeviceContext| {
-        for monitor in monitors {
-            let id = monitor.id;
+    // Remove monitors from internal list which are missing from the provided list
+    let removed_monitors = {
+        let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-            let should_arrive;
+        let mut remove = Vec::new();
+        lock.retain_mut(|mon| {
+            let id = mon.monitor.id;
+            let found = monitors.iter().any(|m| m.id == id);
 
-            {
-                let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
-
-                let cur_mon = lock
-                    .iter_mut()
-                    .enumerate()
-                    .find(|(_, mon)| mon.monitor.id == id);
-
-                if let Some((i, mon)) = cur_mon {
-                    let modes_changed = mon.monitor.modes != monitor.modes;
-
-                    #[allow(clippy::nonminimal_bool)]
-                    {
-                        should_arrive =
-                            // previously was disabled, and it was just enabled
-                            (!mon.monitor.enabled && monitor.enabled) ||
-                            // OR monitor is enabled and the display modes changed
-                            (monitor.enabled && modes_changed);
-                    }
-
-                    // should only detach if modes changed, or if state is false
-                    if modes_changed || !monitor.enabled {
-                        if let Some(mut obj) = mon.monitor_object.take() {
-                            let obj = unsafe { obj.as_mut() };
-                            unsafe {
-                                IddCxMonitorDeparture(obj).unwrap();
-                            }
-                        }
-                    }
-
-                    // replace existing item with new object
-                    lock[i] = MonitorObject {
-                        monitor_object: mon.monitor_object,
-                        monitor,
-                    };
-                } else {
-                    should_arrive = monitor.enabled;
-
-                    lock.push(MonitorObject {
-                        monitor_object: None,
-                        monitor,
-                    });
+            // if it doesn't exist, then add to removal list
+            if !found {
+                // monitor not found in monitors list, so schedule to remove it
+                if let Some(obj) = mon.monitor_object.take() {
+                    remove.push(obj);
                 }
             }
 
-            if should_arrive {
+            found
+        });
+
+        remove
+    };
+
+    let should_arrive = monitors.into_iter().map(|monitor| {
+        let id = monitor.id;
+
+        let should_arrive;
+
+        let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
+
+        let cur_mon = lock
+            .iter_mut()
+            .enumerate()
+            .find(|(_, mon)| mon.monitor.id == id);
+
+        if let Some((i, mon)) = cur_mon {
+            let modes_changed = mon.monitor.modes != monitor.modes;
+
+            #[allow(clippy::nonminimal_bool)]
+            {
+                should_arrive =
+                        // previously was disabled, and it was just enabled
+                        (!mon.monitor.enabled && monitor.enabled) ||
+                        // OR monitor is enabled and the display modes changed
+                        (monitor.enabled && modes_changed);
+            }
+
+            // should only detach if modes changed, or if state is false
+            if modes_changed || !monitor.enabled {
+                if let Some(mut obj) = mon.monitor_object.take() {
+                    let obj = unsafe { obj.as_mut() };
+                    if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
+                        error!("Failed to remove monitor: {e:?}");
+                    }
+                }
+            }
+
+            // replace existing item with new object
+            lock[i] = MonitorObject {
+                monitor_object: mon.monitor_object,
+                monitor,
+            };
+        } else {
+            should_arrive = monitor.enabled;
+
+            lock.push(MonitorObject {
+                monitor_object: None,
+                monitor,
+            });
+        }
+
+        (id, should_arrive)
+    });
+
+    let cb = |context: &mut DeviceContext| {
+        // arrive any monitors that need arriving
+        for (id, arrive) in should_arrive {
+            if arrive {
                 if let Err(e) = context.create_monitor(id) {
                     error!("Failed to create monitor: {e:?}");
-                };
+                }
+            }
+        }
+
+        // remove any monitors scheduled for removal
+        for mut obj in removed_monitors {
+            let obj = unsafe { obj.as_mut() };
+            if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
+                error!("Failed to remove monitor: {e:?}");
             }
         }
     };
@@ -285,8 +328,8 @@ fn remove_all() {
     for monitor in lock.drain(..) {
         if let Some(mut monitor_object) = monitor.monitor_object {
             let obj = unsafe { monitor_object.as_mut() };
-            unsafe {
-                IddCxMonitorDeparture(obj).unwrap();
+            if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
+                error!("Failed to remove monitor: {e:?}");
             }
         }
     }
@@ -300,8 +343,8 @@ fn remove(ids: &[u32]) {
             if id == monitor.monitor.id {
                 if let Some(mut monitor_object) = monitor.monitor_object.take() {
                     let obj = unsafe { monitor_object.as_mut() };
-                    unsafe {
-                        IddCxMonitorDeparture(obj).unwrap();
+                    if let Err(e) = unsafe { IddCxMonitorDeparture(obj) } {
+                        error!("Failed to remove monitor: {e:?}");
                     }
                 }
 

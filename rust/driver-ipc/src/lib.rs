@@ -1,4 +1,8 @@
+mod client;
+
 use serde::{Deserialize, Serialize};
+
+pub use client::Client;
 
 pub type Id = u32;
 pub type Dimen = u32;
@@ -20,23 +24,44 @@ pub struct Mode {
     pub refresh_rates: Vec<RefreshRate>,
 }
 
+#[non_exhaustive]
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum Command {
+pub enum DriverCommand {
     // Single line of communication client->server
     // Driver commands
     //
     // Notify of monitor changes (whether adding or updating)
-    DriverNotify(Vec<Monitor>),
+    Notify(Vec<Monitor>),
     // Remove a monitor from system
-    DriverRemove(Vec<Id>),
+    Remove(Vec<Id>),
     // Remove all monitors from system
-    DriverRemoveAll,
-    // Requests
-    // client->server
-    //
+    RemoveAll,
+}
+
+/// Request command sent from client->server
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RequestCommand {
     // Request information on the current system monitor state
-    RequestState,
-    // Replies to request
+    State,
+}
+
+/// Reply command sent from server->client
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ReplyCommand {
     // server->client
-    ReplyState(Vec<Monitor>),
+    State(Vec<Monitor>),
+}
+
+/// An untagged enum of commands to be used with deserialization.
+/// This makes the deserialization process much easier to handle
+/// when a received command could be of multiple types
+#[non_exhaustive]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum Command {
+    Driver(DriverCommand),
+    Request(RequestCommand),
+    Reply(ReplyCommand),
 }

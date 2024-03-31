@@ -1,12 +1,12 @@
+mod mode;
+
 use clap::Parser;
-use client::Client;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-mod client;
-mod mode;
+use driver_ipc::Client;
 
 #[derive(Debug, Parser)]
 struct Args {
