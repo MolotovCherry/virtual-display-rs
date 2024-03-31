@@ -229,7 +229,7 @@ fn notify(monitors: Vec<Monitor>) {
     let removed_monitors = {
         let mut lock = MONITOR_MODES.get().unwrap().lock().unwrap();
 
-        let mut remove = Vec::new();
+        let mut remove = Vec::with_capacity(lock.len());
         lock.retain_mut(|mon| {
             let id = mon.monitor.id;
             let found = monitors.iter().any(|m| m.id == id);
