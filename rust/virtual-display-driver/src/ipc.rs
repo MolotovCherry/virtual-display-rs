@@ -2,7 +2,7 @@ use std::{
     io::Write,
     mem::{size_of, ManuallyDrop},
     ptr::{addr_of_mut, NonNull},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Mutex, OnceLock},
     thread,
 };
 
@@ -78,20 +78,18 @@ pub fn startup() {
         let mut client_id = 0usize;
 
         loop {
-            let server = Arc::new(
-                NamedPipeServerOptions::new("virtualdisplaydriver")
-                    .reject_remote()
-                    .read_message()
-                    .write_message()
-                    .access_duplex()
-                    .unlimited_instances()
-                    .in_buffer_size(4096)
-                    .out_buffer_size(4096)
-                    .security_attributes(&sa)
-                    .wait()
-                    .create()
-                    .unwrap(),
-            );
+            let server = NamedPipeServerOptions::new("virtualdisplaydriver")
+                .reject_remote()
+                .read_message()
+                .write_message()
+                .access_duplex()
+                .unlimited_instances()
+                .in_buffer_size(4096)
+                .out_buffer_size(4096)
+                .security_attributes(&sa)
+                .wait()
+                .create()
+                .unwrap();
 
             let Ok((reader, mut writer)) = server.connect() else {
                 continue;
