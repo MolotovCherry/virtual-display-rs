@@ -292,11 +292,13 @@ dependencies = [
  "eyre",
  "joinery",
  "lazy_format",
+ "log",
  "owo-colors 4.0.0",
  "serde",
  "serde_json",
  "win-pipes",
  "windows",
+ "winreg",
 ]
 
 [[package]]
@@ -1067,8 +1069,10 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "driver-ipc",
+ "serde_json",
  "windows",
  "windows-service",
+ "winreg",
 ]
 
 [[package]]

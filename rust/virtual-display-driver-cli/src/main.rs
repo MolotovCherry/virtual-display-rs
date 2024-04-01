@@ -42,6 +42,8 @@ enum Command {
     Remove(RemoveCommand),
     /// Remove all virtual monitors.
     RemoveAll,
+    /// Persist changes to current user
+    Persist,
 }
 
 #[derive(Debug, Parser)]
@@ -133,9 +135,16 @@ fn main() -> eyre::Result<()> {
         Command::RemoveAll => {
             remove_all(&mut client, &options)?;
         }
+        Command::Persist => {
+            persist(&mut client)?;
+        }
     }
 
     Ok(())
+}
+
+fn persist(client: &mut Client) -> eyre::Result<()> {
+    client.persist()
 }
 
 fn list(client: &mut Client, opts: &GlobalOptions) -> eyre::Result<()> {

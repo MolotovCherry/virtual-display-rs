@@ -1,8 +1,13 @@
 use std::{collections::HashSet, io::Write as _};
 
-use eyre::Context as _;
+use eyre::{bail, Context as _};
+use log::error;
 use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
+use winreg::{
+    enums::{HKEY_CURRENT_USER, KEY_WRITE},
+    RegKey,
+};
 
 use crate::{DriverCommand, Id, Monitor, ReplyCommand, RequestCommand};
 
@@ -53,7 +58,7 @@ impl Client {
         eyre::bail!("virtual monitor with ID {} not found", query);
     }
 
-    /// Notifies driver of changes (additions/updates). Does not remove
+    /// Notifies driver of changes (additions/updates/removals)
     pub fn notify(&mut self, monitors: Vec<Monitor>) -> eyre::Result<()> {
         let command = DriverCommand::Notify(monitors);
 
@@ -62,18 +67,53 @@ impl Client {
         Ok(())
     }
 
+    /// Remove specific monitors by id
     pub fn remove(&mut self, ids: Vec<Id>) -> eyre::Result<()> {
-        let command = DriverCommand::Remove(ids);
+        let command = DriverCommand::Remove(ids.clone());
 
         send_command(&mut self.writer, &command)?;
+        self.state.retain(|mon| !ids.contains(&mon.id));
 
         Ok(())
     }
 
+    /// Remove all monitors
     pub fn remove_all(&mut self) -> eyre::Result<()> {
         let command = DriverCommand::RemoveAll;
 
         send_command(&mut self.writer, &command)?;
+        self.state.clear();
+
+        Ok(())
+    }
+
+    /// Persist changes to registry for current user
+    pub fn persist(&mut self) -> eyre::Result<()> {
+        let hklm = RegKey::predef(HKEY_CURRENT_USER);
+        let key = r"SOFTWARE\VirtualDisplayDriver";
+
+        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
+
+        // if open failed, try to create key and subkey
+        if let Err(e) = reg_key {
+            error!("Failed opening {key}: {e:?}");
+            reg_key = hklm.create_subkey(key).map(|(key, _)| key);
+
+            if let Err(e) = reg_key {
+                error!("Failed creating {key}: {e:?}");
+                bail!("Failed to open or create key {key}");
+            }
+        }
+
+        let reg_key = reg_key.unwrap();
+
+        let Ok(data) = serde_json::to_string(&self.state) else {
+            bail!("Failed to convert state to json");
+        };
+
+        if reg_key.set_value("data", &data).is_err() {
+            bail!("Failed to save reg key");
+        }
 
         Ok(())
     }
