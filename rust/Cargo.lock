@@ -469,7 +469,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.4",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -1171,7 +1171,7 @@ checksum = "653f141f39ec16bba3c5abe400a0c60da7468261cc2cbf36805022876bc721a8"
 [[package]]
 name = "win-pipes"
 version = "0.1.0"
-source = "git+https://github.com/MolotovCherry/WinPipes-rs#baddb233af41ee1ae6fbeb0a5374530a9c68504b"
+source = "git+https://github.com/MolotovCherry/WinPipes-rs#d8a3b9a2f1557b58611e69977ac1756f2f8ef02d"
 dependencies = [
  "log",
  "windows",
