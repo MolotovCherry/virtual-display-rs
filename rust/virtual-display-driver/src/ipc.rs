@@ -8,8 +8,8 @@ use std::{
 
 use crossbeam_channel::unbounded;
 use driver_ipc::{
-    Command, Dimen, DriverCommand, EventCommand, Mode, Monitor, RefreshRate, ReplyCommand,
-    RequestCommand,
+    Dimen, DriverCommand, EventCommand, Mode, Monitor, RefreshRate, ReplyCommand, RequestCommand,
+    ServerCommand,
 };
 use log::{error, warn};
 use wdf_umdf::IddCxMonitorDeparture;
@@ -126,7 +126,7 @@ pub fn startup() {
                         continue;
                     };
 
-                    let Ok(msg) = serde_json::from_str::<Command>(msg) else {
+                    let Ok(msg) = serde_json::from_str::<ServerCommand>(msg) else {
                         _ = server.disconnect();
                         continue;
                     };
@@ -134,7 +134,7 @@ pub fn startup() {
                     #[allow(clippy::match_wildcard_for_single_variants)]
                     match msg {
                         // driver commands
-                        Command::Driver(cmd) => match cmd {
+                        ServerCommand::Driver(cmd) => match cmd {
                             DriverCommand::Notify(monitors) => {
                                 notify(monitors.clone());
                                 _ = notify_s.send((client_id, monitors));
@@ -157,7 +157,7 @@ pub fn startup() {
                         },
 
                         // request commands
-                        Command::Request(RequestCommand::State) => {
+                        ServerCommand::Request(RequestCommand::State) => {
                             let lock = MONITOR_MODES.lock().unwrap();
                             let monitors = lock.iter().map(|m| m.data.clone()).collect();
                             let command = ReplyCommand::State(monitors);

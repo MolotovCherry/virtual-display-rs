@@ -1,24 +1,25 @@
-use std::{collections::HashSet, io::Write as _};
+use std::io::Write as _;
 
-use eyre::{bail, Context as _};
-use log::error;
+use eyre::Context as _;
 use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
-use winreg::{
-    enums::{HKEY_CURRENT_USER, KEY_WRITE},
-    RegKey,
-};
 
-use crate::{DriverCommand, Id, Monitor, ReplyCommand, RequestCommand};
+use crate::{ClientCommand, DriverCommand, Id, Monitor, RequestCommand};
 
+/// A thin api client over the driver api with all the essential api.
+/// Does not track state for you
+///
+/// This is cloneable and won't drop underlying handle until all instances
+/// are dropped
+#[derive(Debug, Clone)]
 pub struct Client {
-    writer: NamedPipeClientWriter,
-    state: Vec<Monitor>,
+    pub(crate) writer: NamedPipeClientWriter,
+    pub(crate) reader: NamedPipeClientReader,
 }
 
 impl Client {
     pub fn connect() -> eyre::Result<Self> {
-        let (mut reader, mut writer) =
+        let (reader, writer) =
             win_pipes::NamedPipeClientOptions::new("virtualdisplaydriver")
                 .wait()
                 .access_duplex()
@@ -26,119 +27,43 @@ impl Client {
                 .create()
                 .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working")?;
 
-        send_command(&mut writer, &RequestCommand::State)?;
-        let state = receive_command::<ReplyCommand>(&mut reader)?;
-        let ReplyCommand::State(state) = state;
-
-        Ok(Self { writer, state })
-    }
-
-    pub fn monitors(&self) -> &[Monitor] {
-        &self.state
-    }
-
-    /// Find a monitor by ID or name.
-    pub fn find_monitor(&self, query: &str) -> eyre::Result<Monitor> {
-        let query_id: Option<Id> = query.parse().ok();
-        if let Some(query_id) = query_id {
-            let monitor_by_id = self.state.iter().find(|monitor| monitor.id == query_id);
-            if let Some(monitor) = monitor_by_id {
-                return Ok(monitor.clone());
-            }
-        }
-
-        let monitor_by_name = self
-            .state
-            .iter()
-            .find(|monitor| monitor.name.as_deref().is_some_and(|name| name == query));
-        if let Some(monitor) = monitor_by_name {
-            return Ok(monitor.clone());
-        }
-
-        eyre::bail!("virtual monitor with ID {} not found", query);
+        Ok(Self { reader, writer })
     }
 
     /// Notifies driver of changes (additions/updates/removals)
-    pub fn notify(&mut self, monitors: Vec<Monitor>) -> eyre::Result<()> {
-        let command = DriverCommand::Notify(monitors);
+    pub fn notify(&mut self, monitors: &[Monitor]) -> eyre::Result<()> {
+        let command = DriverCommand::Notify(monitors.to_owned());
 
-        send_command(&mut self.writer, &command)?;
-
-        Ok(())
+        send_command(&mut self.writer, &command)
     }
 
     /// Remove specific monitors by id
-    pub fn remove(&mut self, ids: Vec<Id>) -> eyre::Result<()> {
-        let command = DriverCommand::Remove(ids.clone());
+    pub fn remove(&mut self, ids: &[Id]) -> eyre::Result<()> {
+        let command = DriverCommand::Remove(ids.to_owned());
 
-        send_command(&mut self.writer, &command)?;
-        self.state.retain(|mon| !ids.contains(&mon.id));
-
-        Ok(())
+        send_command(&mut self.writer, &command)
     }
 
     /// Remove all monitors
     pub fn remove_all(&mut self) -> eyre::Result<()> {
         let command = DriverCommand::RemoveAll;
 
-        send_command(&mut self.writer, &command)?;
-        self.state.clear();
-
-        Ok(())
+        send_command(&mut self.writer, &command)
     }
 
-    /// Persist changes to registry for current user
-    pub fn persist(&mut self) -> eyre::Result<()> {
-        let hklm = RegKey::predef(HKEY_CURRENT_USER);
-        let key = r"SOFTWARE\VirtualDisplayDriver";
-
-        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
-
-        // if open failed, try to create key and subkey
-        if let Err(e) = reg_key {
-            error!("Failed opening {key}: {e:?}");
-            reg_key = hklm.create_subkey(key).map(|(key, _)| key);
-
-            if let Err(e) = reg_key {
-                error!("Failed creating {key}: {e:?}");
-                bail!("Failed to open or create key {key}");
-            }
-        }
-
-        let reg_key = reg_key.unwrap();
-
-        let Ok(data) = serde_json::to_string(&self.state) else {
-            bail!("Failed to convert state to json");
-        };
-
-        if reg_key.set_value("data", &data).is_err() {
-            bail!("Failed to save reg key");
-        }
-
-        Ok(())
+    /// Receive generic reply
+    ///
+    /// This is required because a reply could be any of these at any moment
+    pub fn receive(&mut self) -> eyre::Result<ClientCommand> {
+        receive_command(&mut self.reader)
     }
 
-    pub fn new_id(&mut self, preferred_id: Option<Id>) -> eyre::Result<Id> {
-        let existing_ids = self
-            .state
-            .iter()
-            .map(|monitor| monitor.id)
-            .collect::<HashSet<_>>();
+    /// Request state update
+    /// use either `reply_state()` or `receive_reply()` to get the reply
+    pub fn request_state(&mut self) -> eyre::Result<()> {
+        let command = RequestCommand::State;
 
-        if let Some(id) = preferred_id {
-            eyre::ensure!(
-                !existing_ids.contains(&id),
-                "monitor with ID {id} already exists"
-            );
-
-            Ok(id)
-        } else {
-            #[allow(clippy::maybe_infinite_iter)]
-            let new_id = (0..)
-                .find(|id| !existing_ids.contains(id))
-                .expect("failed to get a new ID");
-            Ok(new_id)
-        }
+        send_command(&mut self.writer, &command)
     }
 }
 
