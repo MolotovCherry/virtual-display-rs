@@ -1,5 +1,5 @@
-mod set_privileges;
 mod service;
+mod set_privileges;
 
 use clap::Parser;
 use std::ffi::OsString;
@@ -61,7 +61,7 @@ fn main() -> Result<(), windows_service::Error> {
 
         let service_access =
             ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
-        let service = service_manager.open_service("ping_service", service_access)?;
+        let service = service_manager.open_service(SERVICE_NAME, service_access)?;
 
         // The service will be marked for deletion as long as this function call succeeds.
         // However, it will not be deleted from the database until it is stopped and all open handles to it are closed.
