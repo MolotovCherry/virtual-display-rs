@@ -4,7 +4,9 @@
 use std::sync::OnceLock;
 use std::{io::Write, sync::Mutex};
 
-use driver_ipc::{Command, Dimen, Id, Mode, Monitor, RefreshRate};
+use driver_ipc::{
+    Dimen, DriverCommand, Id, Mode, Monitor, RefreshRate, ReplyCommand, RequestCommand,
+};
 use eyre::{bail, eyre, Result};
 use pyo3::prelude::*;
 use pyo3::{
@@ -126,14 +128,14 @@ impl Monitors {
             .create()
             .map_err(|e| eyre!("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working. Other program using the driver must also be closed, such as the Virtual Display Driver Control app.\n\nError: {e}"))?;
 
-        let command = Command::RequestState;
+        let command = RequestCommand::State;
         let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
         writer.write_all(&command)?;
 
         let data = reader.read_full().map_err(|e| eyre!("{e}"))?;
-        let command = serde_json::from_slice::<Command>(&data).map_err(|e| eyre!("{e}"))?;
+        let command = serde_json::from_slice::<ReplyCommand>(&data).map_err(|e| eyre!("{e}"))?;
 
-        let Command::ReplyState(monitors) = command else {
+        let ReplyCommand::State(monitors) = command else {
             return Err(eyre!("invalid command reply: {command:?}").into());
         };
 
@@ -154,7 +156,7 @@ impl Monitors {
 
         let removals = queue.drain(..).collect::<Vec<_>>();
         if !removals.is_empty() {
-            let command = Command::DriverRemove(removals);
+            let command = DriverCommand::Remove(removals);
             let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
             with_writer(|writer| writer.write_all(&command))??;
         }
@@ -165,7 +167,7 @@ impl Monitors {
             .lock()
             .map_err(|e| eyre!("{e}"))?
             .clone();
-        let command = Command::DriverNotify(monitors);
+        let command = DriverCommand::Notify(monitors);
 
         let data = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
 
@@ -181,7 +183,7 @@ impl Monitors {
             remove_monitor(id)?;
         }
 
-        let command = Command::DriverRemove(list);
+        let command = DriverCommand::Remove(list);
         let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
         with_writer(|writer| writer.write_all(&command))??;
 
@@ -193,7 +195,7 @@ impl Monitors {
         // clear entire monitor list
         remove_all_monitors()?;
 
-        let command = Command::DriverRemoveAll;
+        let command = DriverCommand::RemoveAll;
         let command = serde_json::to_vec(&command).map_err(|e| eyre!("{e}"))?;
         with_writer(|writer| writer.write_all(&command))??;
 

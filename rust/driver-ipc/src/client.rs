@@ -1,8 +1,15 @@
 use std::{collections::HashSet, io::Write as _};
 
-use driver_ipc::Monitor;
-use eyre::Context as _;
+use eyre::{bail, Context as _};
+use log::error;
+use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
+use winreg::{
+    enums::{HKEY_CURRENT_USER, KEY_WRITE},
+    RegKey,
+};
+
+use crate::{DriverCommand, Id, Monitor, ReplyCommand, RequestCommand};
 
 pub struct Client {
     writer: NamedPipeClientWriter,
@@ -17,13 +24,11 @@ impl Client {
                 .access_duplex()
                 .mode_message()
                 .create()
-                .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working. Other program using the driver must also be closed, such as the Virtual Display Driver Control app.")?;
+                .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working")?;
 
-        send_command(&mut writer, &driver_ipc::Command::RequestState)?;
-        let state = receive_command(&mut reader)?;
-        let driver_ipc::Command::ReplyState(state) = state else {
-            eyre::bail!("received unexpected reply from driver pipe");
-        };
+        send_command(&mut writer, &RequestCommand::State)?;
+        let state = receive_command::<ReplyCommand>(&mut reader)?;
+        let ReplyCommand::State(state) = state;
 
         Ok(Self { writer, state })
     }
@@ -34,7 +39,7 @@ impl Client {
 
     /// Find a monitor by ID or name.
     pub fn find_monitor(&self, query: &str) -> eyre::Result<Monitor> {
-        let query_id: Option<driver_ipc::Id> = query.parse().ok();
+        let query_id: Option<Id> = query.parse().ok();
         if let Some(query_id) = query_id {
             let monitor_by_id = self.state.iter().find(|monitor| monitor.id == query_id);
             if let Some(monitor) = monitor_by_id {
@@ -53,31 +58,67 @@ impl Client {
         eyre::bail!("virtual monitor with ID {} not found", query);
     }
 
-    pub fn notify(&mut self, monitors: Vec<driver_ipc::Monitor>) -> eyre::Result<()> {
-        let command = driver_ipc::Command::DriverNotify(monitors);
+    /// Notifies driver of changes (additions/updates/removals)
+    pub fn notify(&mut self, monitors: Vec<Monitor>) -> eyre::Result<()> {
+        let command = DriverCommand::Notify(monitors);
 
         send_command(&mut self.writer, &command)?;
 
         Ok(())
     }
 
-    pub fn remove(&mut self, ids: Vec<driver_ipc::Id>) -> eyre::Result<()> {
-        let command = driver_ipc::Command::DriverRemove(ids);
+    /// Remove specific monitors by id
+    pub fn remove(&mut self, ids: Vec<Id>) -> eyre::Result<()> {
+        let command = DriverCommand::Remove(ids.clone());
 
         send_command(&mut self.writer, &command)?;
+        self.state.retain(|mon| !ids.contains(&mon.id));
 
         Ok(())
     }
 
+    /// Remove all monitors
     pub fn remove_all(&mut self) -> eyre::Result<()> {
-        let command = driver_ipc::Command::DriverRemoveAll;
+        let command = DriverCommand::RemoveAll;
 
         send_command(&mut self.writer, &command)?;
+        self.state.clear();
 
         Ok(())
     }
 
-    pub fn new_id(&mut self, preferred_id: Option<driver_ipc::Id>) -> eyre::Result<driver_ipc::Id> {
+    /// Persist changes to registry for current user
+    pub fn persist(&mut self) -> eyre::Result<()> {
+        let hklm = RegKey::predef(HKEY_CURRENT_USER);
+        let key = r"SOFTWARE\VirtualDisplayDriver";
+
+        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
+
+        // if open failed, try to create key and subkey
+        if let Err(e) = reg_key {
+            error!("Failed opening {key}: {e:?}");
+            reg_key = hklm.create_subkey(key).map(|(key, _)| key);
+
+            if let Err(e) = reg_key {
+                error!("Failed creating {key}: {e:?}");
+                bail!("Failed to open or create key {key}");
+            }
+        }
+
+        let reg_key = reg_key.unwrap();
+
+        let Ok(data) = serde_json::to_string(&self.state) else {
+            bail!("Failed to convert state to json");
+        };
+
+        if reg_key.set_value("data", &data).is_err() {
+            bail!("Failed to save reg key");
+        }
+
+        Ok(())
+    }
+
+    pub fn new_id(&mut self, preferred_id: Option<Id>) -> eyre::Result<Id> {
         let existing_ids = self
             .state
             .iter()
@@ -103,7 +144,7 @@ impl Client {
 
 fn send_command(
     ipc_writer: &mut NamedPipeClientWriter,
-    command: &driver_ipc::Command,
+    command: &impl Serialize,
 ) -> eyre::Result<()> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
@@ -116,7 +157,7 @@ fn send_command(
     Ok(())
 }
 
-fn receive_command(ipc_reader: &mut NamedPipeClientReader) -> eyre::Result<driver_ipc::Command> {
+fn receive_command<T: DeserializeOwned>(ipc_reader: &mut NamedPipeClientReader) -> eyre::Result<T> {
     let response = ipc_reader
         .read_full()
         .wrap_err("failed to read from driver pipe")?;

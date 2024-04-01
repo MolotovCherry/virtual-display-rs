@@ -192,14 +192,12 @@ impl DeviceContext {
         // store monitor object for later
         {
             let mut lock = MONITOR_MODES
-                .get()
-                .ok_or(anyhow!("Failed to get OnceLock"))?
                 .lock()
                 .map_err(|_| anyhow!("Failed to lock mutex"))?;
 
             for monitor in &mut *lock {
-                if monitor.monitor.id == index {
-                    monitor.monitor_object = Some(
+                if monitor.data.id == index {
+                    monitor.object = Some(
                         NonNull::new(monitor_create_out.MonitorObject)
                             .ok_or(anyhow!("MonitorObject was null"))?,
                     );

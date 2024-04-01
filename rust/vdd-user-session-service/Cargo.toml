@@ -1,0 +1,24 @@
+[package]
+name = "vdd-user-session-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+windows-service = "0.6.0"
+driver-ipc = { path = "../driver-ipc" }
+clap = { version = "4.5.4", features = ["derive"] }
+winreg = "0.52.0"
+serde_json = "1.0.115"
+
+[dependencies.windows]
+version = "0.54.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_RemoteDesktop",
+    "Win32_System_Services",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Threading",
+]
+
+[lints]
+workspace = true

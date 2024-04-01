@@ -8,6 +8,7 @@ members = [
     "driver-logger",
     "virtual-display-driver-cli",
     "pyvdd",
+    "vdd-user-session-service",
 ]
 
 [profile.release]

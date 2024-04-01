@@ -104,11 +104,7 @@ pub extern "C-unwind" fn parse_monitor_description(
     let in_args = unsafe { &*p_in_args };
     let out_args = unsafe { &mut *p_out_args };
 
-    let Some(monitors) = MONITOR_MODES.get() else {
-        error!("Failed to get monitor oncelock data");
-        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
-    };
-    let Ok(monitors) = monitors.lock() else {
+    let Ok(monitors) = MONITOR_MODES.lock() else {
         error!("MONITOR_MODES mutex poisoned");
         return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
     };
@@ -129,13 +125,13 @@ pub extern "C-unwind" fn parse_monitor_description(
         return NTSTATUS::STATUS_INVALID_VIEW_SIZE;
     };
 
-    let Some(monitor) = monitors.iter().find(|&m| m.monitor.id == monitor_index) else {
+    let Some(monitor) = monitors.iter().find(|&m| m.data.id == monitor_index) else {
         error!("Failed to find monitor id {monitor_index}");
         return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
     };
 
     let number_of_modes: u32 = monitor
-        .monitor
+        .data
         .modes
         .iter()
         .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX refresh rates"))
@@ -160,12 +156,7 @@ pub extern "C-unwind" fn parse_monitor_description(
         )
     };
 
-    for (mode, out_mode) in monitor
-        .monitor
-        .modes
-        .flatten()
-        .zip(monitor_modes.iter_mut())
-    {
+    for (mode, out_mode) in monitor.data.modes.flatten().zip(monitor_modes.iter_mut()) {
         out_mode.write(IDDCX_MONITOR_MODE {
             #[allow(clippy::cast_possible_truncation)]
             Size: mem::size_of::<IDDCX_MONITOR_MODE>() as u32,
@@ -236,26 +227,22 @@ pub extern "C-unwind" fn monitor_query_modes(
 ) -> NTSTATUS {
     // find out which monitor this belongs too
 
-    let Some(monitors) = MONITOR_MODES.get() else {
-        error!("Failed to get monitor oncelock data");
-        return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
-    };
-    let Ok(monitors) = monitors.lock() else {
+    let Ok(monitors) = MONITOR_MODES.lock() else {
         error!("MONITOR_MODES mutex poisoned");
         return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
     };
 
     // we have stored the monitor object per id, so we should be able to compare pointers
-    let Some(monitor) = monitors.iter().find(|&m| {
-        m.monitor_object
-            .is_some_and(|p| p.as_ptr() == monitor_object)
-    }) else {
+    let Some(monitor) = monitors
+        .iter()
+        .find(|&m| m.object.is_some_and(|p| p.as_ptr() == monitor_object))
+    else {
         error!("Failed to find monitor object in cache for {monitor_object:?}");
         return NTSTATUS::STATUS_DRIVER_INTERNAL_ERROR;
     };
 
     let number_of_modes = monitor
-        .monitor
+        .data
         .modes
         .iter()
         .map(|m| u32::try_from(m.refresh_rates.len()).expect("Cannot use > u32::MAX modes"))
@@ -281,7 +268,7 @@ pub extern "C-unwind" fn monitor_query_modes(
         };
 
         for (mode, out_target) in monitor
-            .monitor
+            .data
             .modes
             .flatten()
             .zip(out_target_modes.iter_mut())
