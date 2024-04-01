@@ -4,7 +4,7 @@ use driver_ipc::{Client, Monitor};
 use windows::Win32::{
     Foundation::{CloseHandle, HANDLE},
     Security::{ImpersonateLoggedOnUser, SE_TCB_NAME},
-    System::RemoteDesktop::WTSQueryUserToken,
+    System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken},
 };
 use windows_service::{
     define_windows_service,
@@ -67,39 +67,9 @@ fn run_service(_arguments: &[OsString]) -> windows_service::Result<()> {
 
                         latest_session = param.notification.session_id;
 
-                        let mut token = HANDLE::default();
-                        if unsafe {
-                            WTSQueryUserToken(param.notification.session_id, &mut token).is_err()
-                        } {
-                            return ServiceControlHandlerResult::Other(0x1);
+                        if let Err(e) = notify(latest_session) {
+                            return e;
                         }
-
-                        // impersonate user for current user reg call
-                        if unsafe { ImpersonateLoggedOnUser(token).is_err() } {
-                            return ServiceControlHandlerResult::Other(0x2);
-                        }
-
-                        let hklm = RegKey::predef(HKEY_CURRENT_USER);
-                        let key = r"SOFTWARE\VirtualDisplayDriver";
-
-                        let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
-                            return ServiceControlHandlerResult::NoError;
-                        };
-
-                        let monitors = driver_settings
-                            .get_value::<String, _>("data")
-                            .map(|data| {
-                                serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default()
-                            })
-                            .unwrap_or_default();
-
-                        let Ok(mut client) = Client::connect() else {
-                            return ServiceControlHandlerResult::Other(0x3);
-                        };
-
-                        _ = client.notify(monitors);
-
-                        _ = unsafe { CloseHandle(token) };
                     }
 
                     SessionChangeReason::SessionLogoff => {
@@ -135,6 +105,11 @@ fn run_service(_arguments: &[OsString]) -> windows_service::Result<()> {
         process_id: None,
     })?;
 
+    if let Ok(session) = get_current_session() {
+        latest_session = session;
+        _ = notify(latest_session);
+    }
+
     // blocking wait for shutdown signal
     _ = shutdown_rx.recv();
 
@@ -148,6 +123,61 @@ fn run_service(_arguments: &[OsString]) -> windows_service::Result<()> {
         wait_hint: Duration::default(),
         process_id: None,
     })?;
+
+    Ok(())
+}
+
+fn get_current_session() -> Result<u32, ()> {
+    let session = unsafe { WTSGetActiveConsoleSessionId() };
+
+    if session == 0xFFFF_FFFF {
+        Err(())
+    } else {
+        Ok(session)
+    }
+}
+
+fn notify(session_id: u32) -> Result<(), ServiceControlHandlerResult> {
+    impersonate_user(session_id, || {
+        let hklm = RegKey::predef(HKEY_CURRENT_USER);
+        let key = r"SOFTWARE\VirtualDisplayDriver";
+
+        let Ok(driver_settings) = hklm.open_subkey_with_flags(key, KEY_READ) else {
+            return Err(ServiceControlHandlerResult::NoError);
+        };
+
+        let monitors = driver_settings
+            .get_value::<String, _>("data")
+            .map(|data| serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default())
+            .unwrap_or_default();
+
+        let Ok(mut client) = Client::connect() else {
+            return Err(ServiceControlHandlerResult::Other(0x3));
+        };
+
+        _ = client.notify(monitors);
+
+        Ok(())
+    })
+}
+
+fn impersonate_user(
+    session_id: u32,
+    cb: impl FnOnce() -> Result<(), ServiceControlHandlerResult>,
+) -> Result<(), ServiceControlHandlerResult> {
+    let mut token = HANDLE::default();
+    if unsafe { WTSQueryUserToken(session_id, &mut token).is_err() } {
+        return Err(ServiceControlHandlerResult::Other(0x1));
+    }
+
+    // impersonate user for current user reg call
+    if unsafe { ImpersonateLoggedOnUser(token).is_err() } {
+        return Err(ServiceControlHandlerResult::Other(0x2));
+    }
+
+    cb()?;
+
+    _ = unsafe { CloseHandle(token) };
 
     Ok(())
 }
