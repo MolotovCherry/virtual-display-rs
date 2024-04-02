@@ -129,7 +129,6 @@ pub fn startup() {
                         continue;
                     };
 
-                    #[allow(clippy::match_wildcard_for_single_variants)]
                     match msg {
                         // driver commands
                         ServerCommand::Driver(cmd) => match cmd {
