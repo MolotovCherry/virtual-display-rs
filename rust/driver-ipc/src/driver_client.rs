@@ -55,7 +55,7 @@ impl DriverClient {
     /// Ex) "my-mon-name", "5"
     /// In the above example, this will search for a monitor of name "my-mon-name", "5", or
     /// an ID of 5
-    pub fn get_id(&self, query: &str) -> eyre::Result<Id> {
+    pub fn find_id(&self, query: &str) -> eyre::Result<Id> {
         let id = query.parse::<Id>();
 
         for monitor in &self.state {
@@ -143,7 +143,7 @@ impl DriverClient {
 
     /// Find a monitor by query.
     pub fn find_monitor_query(&self, query: &str) -> eyre::Result<&Monitor> {
-        let id = self.get_id(query)?;
+        let id = self.find_id(query)?;
         self.find_monitor(id)
     }
 
@@ -159,7 +159,7 @@ impl DriverClient {
 
     /// Find a monitor by query.
     pub fn find_monitor_mut_query(&mut self, query: &str) -> eyre::Result<&mut Monitor> {
-        let id = self.get_id(query)?;
+        let id = self.find_id(query)?;
         self.find_monitor_mut(id)
     }
 
@@ -228,7 +228,7 @@ impl DriverClient {
     pub fn remove_query(&mut self, queries: &[impl AsRef<str>]) -> eyre::Result<()> {
         let mut ids = Vec::new();
         for id in queries {
-            if let Ok(id) = self.get_id(id.as_ref()) {
+            if let Ok(id) = self.find_id(id.as_ref()) {
                 ids.push(id);
                 continue;
             }
@@ -278,7 +278,7 @@ impl DriverClient {
     ) -> eyre::Result<()> {
         let mut ids = Vec::new();
         for id in queries {
-            if let Ok(id) = self.get_id(id.as_ref()) {
+            if let Ok(id) = self.find_id(id.as_ref()) {
                 ids.push(id);
                 continue;
             }
@@ -319,7 +319,7 @@ impl DriverClient {
 
     /// Add a mode to monitor by query
     pub fn add_mode_query(&mut self, query: &str, mode: Mode) -> eyre::Result<()> {
-        let id = self.get_id(query)?;
+        let id = self.find_id(query)?;
         self.add_mode(id, mode)
     }
 
@@ -337,7 +337,7 @@ impl DriverClient {
 
     /// Add a mode to monitor by query
     pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> eyre::Result<()> {
-        let id = self.get_id(query)?;
+        let id = self.find_id(query)?;
         self.remove_mode(id, resolution)
     }
 }
