@@ -1,6 +1,6 @@
 use std::{
     io::Write,
-    mem::{self, size_of},
+    mem::size_of,
     ptr::{addr_of_mut, NonNull},
     sync::{Mutex, OnceLock},
     thread,
@@ -116,8 +116,6 @@ pub fn startup() {
 
                         _ = notify_writer.write_all(serialized.as_bytes());
                     }
-
-                    mem::forget(notify_writer);
                 });
 
                 for data in reader.iter_read_full() {
