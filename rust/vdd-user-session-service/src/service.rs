@@ -1,6 +1,6 @@
 use std::{ffi::OsString, io::ErrorKind, sync::mpsc, time::Duration};
 
-use driver_ipc::{Client, Monitor};
+use driver_ipc::{Client, DriverClient, Monitor};
 use windows::Win32::{
     Foundation::{CloseHandle, HANDLE},
     Security::{ImpersonateLoggedOnUser, SE_TCB_NAME},
@@ -151,11 +151,15 @@ fn notify(session_id: u32) -> Result<(), ServiceControlHandlerResult> {
             .map(|data| serde_json::from_str::<Vec<Monitor>>(&data).unwrap_or_default())
             .unwrap_or_default();
 
-        let Ok(mut client) = Client::connect() else {
-            return Err(ServiceControlHandlerResult::Other(0x3));
+        let Ok(mut client) = DriverClient::new() else {
+            return Err(ServiceControlHandlerResult::NoError);
         };
 
-        _ = client.notify(monitors);
+        if client.set_monitors(&monitors).is_err() {
+            return Err(ServiceControlHandlerResult::NoError);
+        }
+
+        _ = client.notify();
 
         Ok(())
     })
@@ -167,12 +171,12 @@ fn impersonate_user(
 ) -> Result<(), ServiceControlHandlerResult> {
     let mut token = HANDLE::default();
     if unsafe { WTSQueryUserToken(session_id, &mut token).is_err() } {
-        return Err(ServiceControlHandlerResult::Other(0x1));
+        return Err(ServiceControlHandlerResult::NoError);
     }
 
     // impersonate user for current user reg call
     if unsafe { ImpersonateLoggedOnUser(token).is_err() } {
-        return Err(ServiceControlHandlerResult::Other(0x2));
+        return Err(ServiceControlHandlerResult::NoError);
     }
 
     cb()?;

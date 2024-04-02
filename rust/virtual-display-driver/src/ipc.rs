@@ -20,7 +20,7 @@ use windows::Win32::{
         InitializeSecurityDescriptor, SetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
         SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
     },
-    System::SystemServices::SECURITY_DESCRIPTOR_REVISION,
+    System::SystemServices::SECURITY_DESCRIPTOR_REVISION1,
 };
 
 use crate::{context::DeviceContext, helpers::LazyLock};
@@ -52,7 +52,7 @@ pub fn startup() {
         unsafe {
             InitializeSecurityDescriptor(
                 PSECURITY_DESCRIPTOR(addr_of_mut!(sd).cast()),
-                SECURITY_DESCRIPTOR_REVISION,
+                SECURITY_DESCRIPTOR_REVISION1,
             )
             .unwrap();
         }

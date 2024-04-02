@@ -10,12 +10,6 @@ use winreg::{
 
 use crate::{Client, ClientCommand, Id, Mode, Monitor, ReplyCommand};
 
-#[derive(Debug, Clone)]
-pub enum Identifier {
-    Id(Id),
-    Name(String),
-}
-
 /// Extra API over Client which allows nice fancy things
 #[derive(Debug)]
 pub struct DriverClient {
@@ -28,40 +22,62 @@ impl DriverClient {
     pub fn new() -> eyre::Result<Self> {
         let mut client = ManuallyDrop::new(Client::connect()?);
 
-        client.request_state()?;
-
-        let state = 'outer: loop {
-            while let Ok(command) = client.receive() {
-                match command {
-                    ClientCommand::Reply(ReplyCommand::State(state)) => {
-                        break 'outer state;
-                    }
-
-                    _ => continue,
-                }
-            }
-        };
+        let state = Self::get_state(&mut client)?;
 
         Ok(Self { client, state })
     }
 
-    /// Manually refresh internal state with latest driver changes
-    pub fn refresh_state(&mut self) -> eyre::Result<&[Monitor]> {
-        self.client.request_state()?;
+    fn get_state(client: &mut ManuallyDrop<Client>) -> eyre::Result<Vec<Monitor>> {
+        client.request_state()?;
 
-        let state = 'outer: loop {
-            while let Ok(command) = self.client.receive() {
-                match command {
-                    ClientCommand::Reply(ReplyCommand::State(state)) => {
-                        break 'outer state;
-                    }
+        while let Ok(command) = client.receive() {
+            match command {
+                ClientCommand::Reply(ReplyCommand::State(state)) => {
+                    return Ok(state);
+                }
 
-                    _ => continue,
+                _ => continue,
+            }
+        }
+
+        bail!("Failed to get request state");
+    }
+
+    /// Get the ID of a monitor using a string. The string can be either the name
+    /// of the monitor, or the ID.
+    ///
+    /// This ID can then be used in other api calls.
+    ///
+    /// This search first searches name, then id of each monitor in consecutive order
+    /// So it's possible a name could be "5", and a monitor Id 5 next wouldn't be found
+    /// since a name matched before
+    ///
+    /// Ex) "my-mon-name", "5"
+    /// In the above example, this will search for a monitor of name "my-mon-name", "5", or
+    /// an ID of 5
+    pub fn get_id(&self, query: &str) -> eyre::Result<Id> {
+        let id = query.parse::<Id>();
+
+        for monitor in &self.state {
+            if let Some(name) = monitor.name.as_deref() {
+                if name == query {
+                    return Ok(monitor.id);
                 }
             }
-        };
 
-        self.state = state;
+            if let Ok(id) = id {
+                if monitor.id == id {
+                    return Ok(monitor.id);
+                }
+            }
+        }
+
+        bail!("Monitor matching query \"{query}\" not found");
+    }
+
+    /// Manually refresh internal state with latest driver changes
+    pub fn refresh_state(&mut self) -> eyre::Result<&[Monitor]> {
+        self.state = Self::get_state(&mut self.client)?;
 
         Ok(&self.state)
     }
@@ -94,59 +110,57 @@ impl DriverClient {
         Ok(())
     }
 
+    /// Replace a monitor
+    /// Determines which monitor to replace based on the ID
+    pub fn replace_monitor(&mut self, monitor: Monitor) -> eyre::Result<()> {
+        for state_monitor in self.state.iter_mut() {
+            if state_monitor.id == monitor.id {
+                *state_monitor = monitor;
+                return Ok(());
+            }
+        }
+
+        bail!("Monitor ID {} not found", monitor.id);
+    }
+
+    /// All changes done are in-memory only. They are only applied when you run `notify()``,
+    /// and only saved when you run `persist()``
+    ///
     /// Send current state to driver
     pub fn notify(&mut self) -> eyre::Result<()> {
         self.client.notify(&self.state)
     }
 
-    /// Find a monitor by ID or name.
-    pub fn find_monitor(&self, query: Identifier) -> eyre::Result<Monitor> {
-        let copy = query.clone();
-
-        if let Identifier::Id(id) = query {
-            let monitor_by_id = self.state.iter().find(|monitor| monitor.id == id);
-            if let Some(monitor) = monitor_by_id {
-                return Ok(monitor.clone());
-            }
+    /// Find a monitor by ID.
+    pub fn find_monitor(&self, query: Id) -> eyre::Result<&Monitor> {
+        let monitor_by_id = self.state.iter().find(|monitor| monitor.id == query);
+        if let Some(monitor) = monitor_by_id {
+            return Ok(monitor);
         }
 
-        if let Identifier::Name(query) = query {
-            let monitor_by_name = self
-                .state
-                .iter()
-                .find(|monitor| monitor.name.as_deref().is_some_and(|name| name == query));
-            if let Some(monitor) = monitor_by_name {
-                return Ok(monitor.clone());
-            }
-        }
-
-        bail!("virtual monitor with ID {copy:?} not found");
+        bail!("virtual monitor with ID {query} not found");
     }
 
-    /// Find a monitor by ID or name.
-    pub fn find_monitor_mut(&mut self, query: Identifier) -> eyre::Result<&mut Monitor> {
-        let copy = query.clone();
+    /// Find a monitor by query.
+    pub fn find_monitor_query(&self, query: &str) -> eyre::Result<&Monitor> {
+        let id = self.get_id(query)?;
+        self.find_monitor(id)
+    }
 
-        match query {
-            Identifier::Id(id) => {
-                let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
-                if let Some(monitor) = monitor_by_id {
-                    return Ok(monitor);
-                }
-            }
-
-            Identifier::Name(query) => {
-                let monitor_by_name = self
-                    .state
-                    .iter_mut()
-                    .find(|monitor| monitor.name.as_deref().is_some_and(|name| name == query));
-                if let Some(monitor) = monitor_by_name {
-                    return Ok(monitor);
-                }
-            }
+    /// Find a monitor by ID and return mutable reference to it.
+    pub fn find_monitor_mut(&mut self, query: Id) -> eyre::Result<&mut Monitor> {
+        let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == query);
+        if let Some(monitor) = monitor_by_id {
+            return Ok(monitor);
         }
 
-        bail!("virtual monitor with ID {copy:?} not found");
+        bail!("virtual monitor with ID {query:?} not found");
+    }
+
+    /// Find a monitor by query.
+    pub fn find_monitor_mut_query(&mut self, query: &str) -> eyre::Result<&mut Monitor> {
+        let id = self.get_id(query)?;
+        self.find_monitor_mut(id)
     }
 
     /// Persist changes to registry for current user
@@ -206,16 +220,24 @@ impl DriverClient {
     }
 
     /// Remove monitors by id
-    pub fn remove(&mut self, ids: &[Identifier]) {
-        for id in ids {
-            match id {
-                Identifier::Id(id) => self.state.retain(|mon| mon.id != *id),
+    pub fn remove(&mut self, ids: &[Id]) {
+        self.state.retain(|mon| !ids.contains(&mon.id));
+    }
 
-                Identifier::Name(name) => self
-                    .state
-                    .retain(|mon| mon.name.as_deref().is_some_and(|_name| _name != name)),
+    /// Remove monitors by query
+    pub fn remove_query(&mut self, queries: &[impl AsRef<str>]) -> eyre::Result<()> {
+        let mut ids = Vec::new();
+        for id in queries {
+            if let Ok(id) = self.get_id(id.as_ref()) {
+                ids.push(id);
+                continue;
             }
+
+            bail!("Monitor query \"{}\" not found", id.as_ref());
         }
+
+        self.remove(&ids);
+        Ok(())
     }
 
     /// Remove all monitors
@@ -237,37 +259,40 @@ impl DriverClient {
     /// Enable monitors by ID
     ///
     /// Silently skips incorrect IDs
-    pub fn enable(&mut self, ids: &[Identifier]) {
-        for id in ids {
-            if let Some(mon) = self.state.iter_mut().find(|mon| match id {
-                Identifier::Id(id) => mon.id == *id,
-                Identifier::Name(name) => mon.name.as_deref().is_some_and(|_name| _name == name),
-            }) {
-                mon.enabled = true;
+    ///
+    /// @return: tells you if all monitors in list were found
+    pub fn set_enabled(&mut self, ids: &[Id], enabled: bool) {
+        for mon in self.state.iter_mut() {
+            if ids.contains(&mon.id) {
+                mon.enabled = enabled;
+                continue;
             }
         }
     }
 
-    /// Disable monitors by ID
-    ///
-    /// Silently skips incorrect IDs
-    pub fn disable(&mut self, ids: &[Identifier]) {
-        for id in ids {
-            if let Some(mon) = self.state.iter_mut().find(|mon| match id {
-                Identifier::Id(id) => mon.id == *id,
-                Identifier::Name(name) => mon.name.as_deref().is_some_and(|_name| _name == name),
-            }) {
-                mon.enabled = false;
+    /// Enable monitors by query
+    pub fn set_enabled_query(
+        &mut self,
+        queries: &[impl AsRef<str>],
+        enabled: bool,
+    ) -> eyre::Result<()> {
+        let mut ids = Vec::new();
+        for id in queries {
+            if let Ok(id) = self.get_id(id.as_ref()) {
+                ids.push(id);
+                continue;
             }
+
+            bail!("Monitor query \"{}\" not found", id.as_ref());
         }
+
+        self.set_enabled(&ids, enabled);
+        Ok(())
     }
 
     /// Add a mode to monitor
-    pub fn add_mode(&mut self, id: Identifier, mode: Mode) -> eyre::Result<()> {
-        let Some(mon) = self.state.iter_mut().find(|mon| match &id {
-            Identifier::Id(id) => mon.id == *id,
-            Identifier::Name(name) => mon.name.as_deref().is_some_and(|_name| _name == name),
-        }) else {
+    pub fn add_mode(&mut self, id: Id, mode: Mode) -> eyre::Result<()> {
+        let Some(mon) = self.state.iter_mut().find(|mon| mon.id == id) else {
             bail!("Monitor id {id:?} not found");
         };
 
@@ -292,12 +317,15 @@ impl DriverClient {
         Ok(())
     }
 
+    /// Add a mode to monitor by query
+    pub fn add_mode_query(&mut self, query: &str, mode: Mode) -> eyre::Result<()> {
+        let id = self.get_id(query)?;
+        self.add_mode(id, mode)
+    }
+
     /// Remove a monitor mode
-    pub fn remove_mode(&mut self, id: Identifier, resolution: (u32, u32)) -> eyre::Result<()> {
-        let Some(mon) = self.state.iter_mut().find(|mon| match &id {
-            Identifier::Id(id) => mon.id == *id,
-            Identifier::Name(name) => mon.name.as_deref().is_some_and(|_name| _name == name),
-        }) else {
+    pub fn remove_mode(&mut self, id: Id, resolution: (u32, u32)) -> eyre::Result<()> {
+        let Some(mon) = self.state.iter_mut().find(|mon| mon.id == id) else {
             bail!("Monitor id {id:?} not found");
         };
 
@@ -305,6 +333,12 @@ impl DriverClient {
             .retain(|mode| !(mode.width == resolution.0 && mode.height == resolution.1));
 
         Ok(())
+    }
+
+    /// Add a mode to monitor by query
+    pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> eyre::Result<()> {
+        let id = self.get_id(query)?;
+        self.remove_mode(id, resolution)
     }
 }
 

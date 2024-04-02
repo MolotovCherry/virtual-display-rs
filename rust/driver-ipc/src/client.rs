@@ -59,7 +59,7 @@ impl Client {
     }
 
     /// Request state update
-    /// use either `reply_state()` or `receive_reply()` to get the reply
+    /// use `receive()` to get the reply
     pub fn request_state(&mut self) -> eyre::Result<()> {
         let command = RequestCommand::State;
 
