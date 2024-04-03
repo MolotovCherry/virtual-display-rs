@@ -713,6 +713,7 @@ dependencies = [
  "driver-ipc",
  "eyre",
  "pyo3",
+ "windows",
 ]
 
 [[package]]

@@ -88,9 +88,17 @@ impl DriverClient {
     ///       driver state IS NOT updated on its own when Event commands are received!
     ///       if you want to update internal state, call set_monitors on DriverClient in your callback
     ///       to properly handle it!
-    pub fn set_receiver(&self, cb: impl Fn(ClientCommand) + Send + 'static) {
+    pub fn set_receiver(
+        &self,
+        init: Option<impl FnOnce() + Send + 'static>,
+        cb: impl Fn(ClientCommand) + Send + 'static,
+    ) {
         let mut client = self.client.clone();
         thread::spawn(move || {
+            if let Some(init) = init {
+                init();
+            }
+
             while let Ok(command) = client.receive() {
                 cb(command);
             }

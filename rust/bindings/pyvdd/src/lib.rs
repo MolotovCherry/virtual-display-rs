@@ -3,14 +3,27 @@
 //       |                                       |-this one seems triggered by pymethods macro??
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
-use std::fmt::{Debug, Display};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::{
+    fmt::{Debug, Display},
+    sync::Mutex,
+};
 
 use driver_ipc::{
     ClientCommand, Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate,
 };
 use pyo3::exceptions::{PyIndexError, PyRuntimeError};
 use pyo3::prelude::*;
+use windows::Win32::{
+    Foundation::{DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE},
+    System::{
+        Threading::{GetCurrentProcess, GetCurrentThread},
+        IO::CancelSynchronousIo,
+    },
+};
 
 static INIT: AtomicBool = AtomicBool::new(false);
 
@@ -277,6 +290,7 @@ impl Debug for PyContainer {
 #[pyo3(name = "DriverClient")]
 struct PyDriverClient {
     client: DriverClient,
+    thread_registry: Arc<Mutex<Option<HANDLE>>>,
     #[pyo3(get, set)]
     monitors: Py<PyContainer>,
 }
@@ -296,7 +310,11 @@ impl PyDriverClient {
 
         let monitors = state_to_python(client.monitors(), py)?;
 
-        let slf = Self { client, monitors };
+        let slf = Self {
+            client,
+            monitors,
+            thread_registry: Arc::new(Mutex::new(None)),
+        };
 
         Ok(slf)
     }
@@ -337,21 +355,57 @@ impl PyDriverClient {
 
     /// Get notified of other clients changing driver configuration
     fn receive(&self, callback: PyObject) {
-        self.client.set_receiver(move |command| {
-            if let ClientCommand::Event(EventCommand::Changed(data)) = command {
-                Python::with_gil(|py| {
-                    let state = state_to_python(&data, py);
-                    let Ok(state) = state else {
-                        println!("{}", state.unwrap_err());
-                        return;
-                    };
-
-                    if let Err(e) = callback.call1(py, (state,)) {
-                        println!("{e}");
-                    }
-                });
+        // cancel the receiver internally if called again
+        {
+            let lock = self.thread_registry.lock().unwrap().take();
+            if let Some(thread) = lock {
+                unsafe {
+                    _ = CancelSynchronousIo(thread);
+                }
             }
-        });
+        }
+
+        let registry = self.thread_registry.clone();
+        self.client.set_receiver(
+            // init - store thread handle for later
+            Some(move || {
+                let mut lock = registry.lock().unwrap();
+
+                let pseudo_handle = unsafe { GetCurrentThread() };
+                let current_process = unsafe { GetCurrentProcess() };
+
+                let mut thread_handle = HANDLE::default();
+                unsafe {
+                    _ = DuplicateHandle(
+                        current_process,
+                        pseudo_handle,
+                        current_process,
+                        &mut thread_handle,
+                        0,
+                        false,
+                        DUPLICATE_SAME_ACCESS,
+                    );
+                }
+
+                *lock = Some(thread_handle);
+            }),
+            // cb
+            move |command| {
+                if let ClientCommand::Event(EventCommand::Changed(data)) = command {
+                    Python::with_gil(|py| {
+                        let state = state_to_python(&data, py);
+                        let Ok(state) = state else {
+                            println!("{}", state.unwrap_err());
+                            return;
+                        };
+
+                        if let Err(e) = callback.call1(py, (state,)) {
+                            println!("{e}");
+                        }
+                    });
+                }
+            },
+        );
     }
 
     /// Validate the monitors
