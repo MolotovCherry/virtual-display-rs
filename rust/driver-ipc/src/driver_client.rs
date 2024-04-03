@@ -196,7 +196,7 @@ impl DriverClient {
 
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
     /// which the driver will ignore when you notify it of changes
-    pub fn new_id(&mut self, preferred_id: Option<Id>) -> eyre::Result<Id> {
+    pub fn new_id(&self, preferred_id: Option<Id>) -> eyre::Result<Id> {
         let existing_ids = self
             .state
             .iter()

@@ -7,7 +7,7 @@ members = [
     "driver-ipc",
     "driver-logger",
     "virtual-display-driver-cli",
-    "pyvdd",
+    "bindings/pyvdd",
     "vdd-user-session-service",
 ]
 
