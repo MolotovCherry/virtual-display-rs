@@ -1,8 +1,9 @@
 use std::{
+    collections::HashMap,
     io::Write,
     mem::size_of,
     ptr::{addr_of_mut, NonNull},
-    sync::{Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock},
     thread,
 };
 
@@ -16,11 +17,16 @@ use wdf_umdf::IddCxMonitorDeparture;
 use wdf_umdf_sys::{IDDCX_ADAPTER__, IDDCX_MONITOR__};
 use win_pipes::NamedPipeServerOptions;
 use windows::Win32::{
+    Foundation::{DuplicateHandle, DUPLICATE_SAME_ACCESS, ERROR_OPERATION_ABORTED, HANDLE},
     Security::{
         InitializeSecurityDescriptor, SetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
         SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
     },
-    System::SystemServices::SECURITY_DESCRIPTOR_REVISION1,
+    System::{
+        SystemServices::SECURITY_DESCRIPTOR_REVISION1,
+        Threading::{GetCurrentProcess, GetCurrentThread},
+        IO::CancelSynchronousIo,
+    },
 };
 
 use crate::{context::DeviceContext, helpers::LazyLock};
@@ -74,8 +80,48 @@ pub fn startup() {
             bInheritHandle: false.into(),
         };
 
+        // track threads by holding handles to each thread
+        let thread_registry: Arc<Mutex<HashMap<usize, HANDLE>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+
         let (notify_s, notify_r) = unbounded();
         let mut client_id = 0usize;
+
+        let thread_registry_clone = thread_registry.clone();
+        let cancel_io = move |ignore_id: usize| {
+            let lock = thread_registry_clone.lock().unwrap();
+
+            for (id, handle) in &*lock {
+                if *id == ignore_id {
+                    continue;
+                }
+
+                // cancel any read operations to thread to see value in channel
+                unsafe {
+                    _ = CancelSynchronousIo(*handle);
+                }
+            }
+        };
+
+        let get_thread_handle = || {
+            let pseudo_handle = unsafe { GetCurrentThread() };
+            let current_process = unsafe { GetCurrentProcess() };
+
+            let mut thread_handle = HANDLE::default();
+            unsafe {
+                DuplicateHandle(
+                    current_process,
+                    pseudo_handle,
+                    current_process,
+                    &mut thread_handle,
+                    0,
+                    false,
+                    DUPLICATE_SAME_ACCESS,
+                )?;
+            }
+
+            windows::core::Result::Ok(thread_handle)
+        };
 
         loop {
             let server = NamedPipeServerOptions::new("virtualdisplaydriver")
@@ -98,79 +144,112 @@ pub fn startup() {
             let (notify_s, notify_r) = (notify_s.clone(), notify_r.clone());
             client_id = client_id.wrapping_add(1);
 
+            let mut writer_clone = writer.clone();
+            let thread_registry = thread_registry.clone();
+            let cancel_io = cancel_io.clone();
             thread::spawn(move || {
                 // process changed events
-                let mut notify_writer = writer.clone();
-                thread::spawn(move || {
-                    while let Ok((id, data)) = notify_r.recv() {
-                        // this is the same client, so ignore it
-                        if id == client_id {
-                            continue;
-                        }
-
+                let mut event_sender = || {
+                    if let Ok(data) = notify_r.try_recv() {
                         let command = EventCommand::Changed(data);
                         let Ok(serialized) = serde_json::to_string(&command) else {
                             error!("Command::Request - failed to serialize reply");
-                            continue;
+                            return;
                         };
 
-                        _ = notify_writer.write_all(serialized.as_bytes());
+                        _ = writer_clone.write_all(serialized.as_bytes());
                     }
-                });
+                };
 
-                for data in reader.iter_read_full() {
-                    let Ok(msg) = std::str::from_utf8(&data) else {
-                        _ = server.disconnect();
-                        continue;
-                    };
+                thread_registry
+                    .lock()
+                    .unwrap()
+                    .insert(client_id, get_thread_handle().unwrap());
 
-                    let Ok(msg) = serde_json::from_str::<ServerCommand>(msg) else {
-                        _ = server.disconnect();
-                        continue;
-                    };
+                'proc_loop: loop {
+                    let msg = reader.read_full();
 
-                    match msg {
-                        // driver commands
-                        ServerCommand::Driver(cmd) => match cmd {
-                            DriverCommand::Notify(monitors) => {
-                                notify(monitors.clone());
-                                _ = notify_s.send((client_id, monitors));
-                            }
+                    let aborted = msg
+                        .as_ref()
+                        .is_err_and(|e| e.code() == ERROR_OPERATION_ABORTED.into());
+                    let is_err = msg.is_err();
 
-                            DriverCommand::Remove(ids) => {
-                                remove(&ids);
+                    if aborted {
+                        event_sender();
+                    } else if is_err {
+                        break;
+                    }
 
-                                let lock = MONITOR_MODES.lock().unwrap();
-                                let monitors = lock.iter().map(|m| m.data.clone()).collect();
-                                _ = notify_s.send((client_id, monitors));
-                            }
-
-                            DriverCommand::RemoveAll => {
-                                remove_all();
-                                _ = notify_s.send((client_id, Vec::new()));
-                            }
-
-                            _ => continue,
-                        },
-
-                        // request commands
-                        ServerCommand::Request(RequestCommand::State) => {
-                            let lock = MONITOR_MODES.lock().unwrap();
-                            let monitors = lock.iter().map(|m| m.data.clone()).collect();
-                            let command = ReplyCommand::State(monitors);
-
-                            let Ok(serialized) = serde_json::to_string(&command) else {
-                                error!("Command::Request - failed to serialize reply");
-                                continue;
+                    'data_proc: {
+                        if let Ok(data) = msg {
+                            let Ok(msg) = std::str::from_utf8(&data) else {
+                                _ = server.disconnect();
+                                break 'proc_loop;
                             };
 
-                            _ = writer.write_all(serialized.as_bytes());
-                        }
+                            let Ok(msg) = serde_json::from_str::<ServerCommand>(msg) else {
+                                _ = server.disconnect();
+                                break 'proc_loop;
+                            };
 
-                        // Everything else is an invalid command
-                        _ => continue,
+                            match msg {
+                                // driver commands
+                                ServerCommand::Driver(cmd) => match cmd {
+                                    DriverCommand::Notify(monitors) => {
+                                        notify(monitors.clone());
+                                        _ = notify_s.send(monitors);
+                                        cancel_io(client_id);
+                                    }
+
+                                    DriverCommand::Remove(ids) => {
+                                        remove(&ids);
+
+                                        let lock = MONITOR_MODES.lock().unwrap();
+                                        let monitors =
+                                            lock.iter().map(|m| m.data.clone()).collect();
+                                        _ = notify_s.send(monitors);
+                                        cancel_io(client_id);
+                                    }
+
+                                    DriverCommand::RemoveAll => {
+                                        remove_all();
+                                        _ = notify_s.send(Vec::new());
+                                        cancel_io(client_id);
+                                    }
+
+                                    _ => (),
+                                },
+
+                                // request commands
+                                ServerCommand::Request(RequestCommand::State) => {
+                                    let lock = MONITOR_MODES.lock().unwrap();
+                                    let monitors = lock.iter().map(|m| m.data.clone()).collect();
+                                    let command = ReplyCommand::State(monitors);
+
+                                    let Ok(serialized) = serde_json::to_string(&command) else {
+                                        error!("Command::Request - failed to serialize reply");
+                                        break 'data_proc;
+                                    };
+
+                                    _ = writer.write_all(serialized.as_bytes());
+                                }
+
+                                // Everything else is an invalid command
+                                _ => (),
+                            }
+                        }
+                    }
+
+                    // end of read check, do event send if required
+                    if aborted {
+                        event_sender();
+                    } else if is_err {
+                        break;
                     }
                 }
+
+                // loop exit
+                thread_registry.lock().unwrap().remove(&client_id);
             });
         }
     });
