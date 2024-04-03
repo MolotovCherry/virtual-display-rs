@@ -3,7 +3,9 @@
 //       |                                       |-this one seems triggered by pymethods macro??
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
-use driver_ipc::{Dimen, DriverClient, Id, Mode, Monitor, RefreshRate};
+use driver_ipc::{
+    ClientCommand, Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate,
+};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 
@@ -83,6 +85,25 @@ impl PyDriverClient {
         self.client.notify()?;
 
         Ok(())
+    }
+
+    /// Get notified of other clients changing driver configuration
+    fn receive(&self, callback: PyObject) {
+        self.client.set_receiver(move |command| {
+            if let ClientCommand::Event(EventCommand::Changed(data)) = command {
+                Python::with_gil(|py| {
+                    let state = state_to_python(&data, py);
+                    let Ok(state) = state else {
+                        println!("{}", state.unwrap_err());
+                        return;
+                    };
+
+                    if let Err(e) = callback.call1(py, (state,)) {
+                        println!("{e}");
+                    }
+                });
+            }
+        });
     }
 
     /// Validate the monitors
