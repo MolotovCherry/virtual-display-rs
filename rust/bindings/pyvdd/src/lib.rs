@@ -125,25 +125,40 @@ impl PyDriverClient {
 
     /// Remove monitors by id
     #[allow(clippy::needless_pass_by_value)]
-    fn remove(&mut self, py: Python, ids: Vec<Id>) {
+    fn remove(&mut self, py: Python, ids: Vec<Id>) -> PyResult<()> {
         self.monitors
             .retain(|mon| !ids.contains(&mon.borrow(py).id));
+
+        // keep internal state of client consistent
+        let state = python_to_state(&self.monitors, py);
+        self.client.set_monitors(&state)?;
+        Ok(())
     }
 
     /// Enable monitors by id
     #[allow(clippy::needless_pass_by_value)]
-    fn set_enabled(&mut self, py: Python, ids: Vec<Id>, enabled: bool) {
+    fn set_enabled(&mut self, py: Python, ids: Vec<Id>, enabled: bool) -> PyResult<()> {
         for mon in &self.monitors {
             let mut mon = mon.borrow_mut(py);
             if ids.contains(&mon.id) {
                 mon.enabled = enabled;
             }
         }
+
+        // keep internal state of client consistent
+        let state = python_to_state(&self.monitors, py);
+        self.client.set_monitors(&state)?;
+        Ok(())
     }
 
     /// Enable monitors by id
     #[allow(clippy::needless_pass_by_value)]
-    fn set_enabled_query(&mut self, py: Python, queries: Vec<String>, enabled: bool) {
+    fn set_enabled_query(
+        &mut self,
+        py: Python,
+        queries: Vec<String>,
+        enabled: bool,
+    ) -> PyResult<()> {
         let ids = queries
             .iter()
             .map(|query| query.parse::<Id>())
@@ -172,6 +187,11 @@ impl PyDriverClient {
                 }
             }
         }
+
+        // keep internal state of client consistent
+        let state = python_to_state(&self.monitors, py);
+        self.client.set_monitors(&state)?;
+        Ok(())
     }
 }
 
