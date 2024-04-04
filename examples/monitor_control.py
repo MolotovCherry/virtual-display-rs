@@ -148,6 +148,11 @@ client.receive(lambda d: d)
 # gets latest states from driver (note: this WILL overwrite all in memory changes)
 client.refresh_state()
 
+# gets latest states from driver (returns it)
+#
+# client.get_state() -> list[Monitor]
+client.get_state()
+
 # remove monitors by id
 #
 # client.remove(list[int])

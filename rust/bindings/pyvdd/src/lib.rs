@@ -405,6 +405,15 @@ impl PyDriverClient {
         Ok(())
     }
 
+    /// Request a list of latest driver changes
+    fn get_state(&mut self, py: Python) -> PyResult<Py<PyContainer>> {
+        self.client.refresh_state()?;
+
+        let monitors = state_to_python(self.client.monitors(), py)?;
+
+        Ok(monitors)
+    }
+
     /// Send notification to driver of changes
     fn notify(&mut self, py: Python) -> PyResult<()> {
         self.validate(py)?;
