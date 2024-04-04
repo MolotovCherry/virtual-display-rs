@@ -3,9 +3,12 @@
 //       |                                       |-this one seems triggered by pymethods macro??
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    borrow::Cow,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 use std::{
     fmt::{Debug, Display},
@@ -15,8 +18,11 @@ use std::{
 use driver_ipc::{
     ClientCommand, Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate,
 };
-use pyo3::exceptions::{PyIndexError, PyRuntimeError};
 use pyo3::prelude::*;
+use pyo3::{
+    exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
+    types::PyList,
+};
 use windows::Win32::{
     Foundation::{DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE},
     System::{
@@ -136,16 +142,107 @@ impl PyContainer {
     #[allow(clippy::needless_pass_by_value)]
     fn __iadd__(&mut self, py: Python, obj: PyObject) -> PyResult<()> {
         match &mut self.0 {
-            Data::Monitors(m) => m.push(obj.extract(py)?),
-            Data::Modes(m) => m.push(obj.extract(py)?),
+            Data::Monitors(m) => {
+                let monitor = obj.extract::<Py<PyMonitor>>(py);
+
+                if let Ok(monitor) = monitor {
+                    m.push(monitor);
+                    return Ok(());
+                }
+
+                let list = obj.downcast_bound::<PyList>(py);
+
+                if let Ok(list) = list {
+                    for obj in list {
+                        let Ok(monitor) = obj.extract::<Py<PyMonitor>>() else {
+                            return Err(PyTypeError::new_err(format!(
+                                "expected Monitor, got {}",
+                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
+                            )));
+                        };
+
+                        m.push(monitor);
+                    }
+
+                    return Ok(());
+                }
+
+                Err(PyTypeError::new_err(format!(
+                    "expected Monitor or list of Monitor, got {}",
+                    obj.bind(py)
+                        .get_type()
+                        .name()
+                        .unwrap_or(Cow::Borrowed("unknown"))
+                )))
+            }
+
+            Data::Modes(m) => {
+                let mode = obj.extract::<Py<PyMode>>(py);
+
+                if let Ok(mode) = mode {
+                    m.push(mode);
+                    return Ok(());
+                }
+
+                let list = obj.downcast_bound::<PyList>(py);
+
+                if let Ok(list) = list {
+                    for obj in list {
+                        let Ok(mode) = obj.extract::<Py<PyMode>>() else {
+                            return Err(PyTypeError::new_err(format!(
+                                "expected Mode, got {}",
+                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
+                            )));
+                        };
+
+                        m.push(mode);
+                    }
+
+                    return Ok(());
+                }
+
+                Err(PyTypeError::new_err(format!(
+                    "expected Mode or list of Mode, got {}",
+                    obj.bind(py)
+                        .get_type()
+                        .name()
+                        .unwrap_or(Cow::Borrowed("unknown"))
+                )))
+            }
+
             Data::RefreshRates(r) => {
-                let int: RefreshRate = obj.extract(py)?;
-                let obj = Py::new(py, PyRefreshRate(int))?;
-                r.push(obj);
+                let int: PyResult<RefreshRate> = obj.extract(py);
+                if let Ok(int) = int {
+                    r.push(Py::new(py, PyRefreshRate(int))?);
+                    return Ok(());
+                }
+
+                let list = obj.downcast_bound::<PyList>(py);
+
+                if let Ok(list) = list {
+                    for obj in list {
+                        let Ok(rr) = obj.extract::<RefreshRate>() else {
+                            return Err(PyTypeError::new_err(format!(
+                                "expected u32, got {}",
+                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
+                            )));
+                        };
+
+                        r.push(Py::new(py, PyRefreshRate(rr))?);
+                    }
+
+                    return Ok(());
+                }
+
+                Err(PyTypeError::new_err(format!(
+                    "expected Mode or list of Mode, got {}",
+                    obj.bind(py)
+                        .get_type()
+                        .name()
+                        .unwrap_or(Cow::Borrowed("unknown"))
+                )))
             }
         }
-
-        Ok(())
     }
 
     fn __str__(&self) -> String {
