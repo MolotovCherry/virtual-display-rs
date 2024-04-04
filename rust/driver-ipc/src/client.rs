@@ -107,6 +107,12 @@ fn receive_command<T: DeserializeOwned>(ipc_reader: &mut NamedPipeClientReader) 
     // pop off EOF
     msg_buf.pop();
 
+    // interior EOF is not valid
+    assert!(
+        !msg_buf.contains(&EOF),
+        "interior eof detected, msg: {msg_buf:?}"
+    );
+
     let command = serde_json::from_slice(&msg_buf).wrap_err("failed to deserialize command")?;
 
     Ok(command)
