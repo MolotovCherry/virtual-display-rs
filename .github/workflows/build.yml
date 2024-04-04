@@ -84,7 +84,9 @@ jobs:
             "rust/target/output/*.cat", `
             "rust/target/output/*.dll", `
             "rust/target/output/*.inf", `
+            "rust/target/output/*.pyd", `
             "installer/install-cert.bat" `
+            "installer/files/*.reg" `
             | ForEach-Object { Copy-Item -Path $_.FullName -Destination "." }
 
       - name: Upload Artifacts
@@ -97,6 +99,7 @@ jobs:
             *.cat
             *.dll
             *.inf
+            *.pyd
             DriverCertificate.cer
             install-cert.bat
 
@@ -126,12 +129,12 @@ jobs:
       - name: Zip up install package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, rust/target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, install-cert.bat, rust/target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
 
       - name: Zip up portable package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, rust/target/output/*.inf, rust/target/output/*.dll, rust/target/output/*.cat, rust/target/output/*.exe, installer/files/*.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, install-cert.bat, *.inf, *.dll, *.cat, *.exe, *.pyd, *.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'
