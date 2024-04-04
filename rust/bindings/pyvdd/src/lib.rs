@@ -56,6 +56,10 @@ impl PyRefreshRate {
     fn __str__(&self) -> String {
         self.to_string()
     }
+
+    fn __int__(&self) -> RefreshRate {
+        self.0
+    }
 }
 
 impl Debug for PyRefreshRate {
