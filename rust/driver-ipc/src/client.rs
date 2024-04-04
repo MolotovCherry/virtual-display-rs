@@ -1,10 +1,13 @@
-use std::io::Write as _;
+use std::io::{prelude::Read, Write as _};
 
 use eyre::Context as _;
 use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
 
 use crate::{ClientCommand, DriverCommand, Id, Monitor, RequestCommand};
+
+// EOF byte used to separate messages
+const EOF: u8 = 0x4;
 
 /// A thin api client over the driver api with all the essential api.
 /// Does not track state for you
@@ -23,7 +26,7 @@ impl Client {
             win_pipes::NamedPipeClientOptions::new("virtualdisplaydriver")
                 .wait()
                 .access_duplex()
-                .mode_message()
+                .mode_byte()
                 .create()
                 .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working")?;
 
@@ -73,7 +76,8 @@ fn send_command(
 ) -> eyre::Result<()> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
-    let message = serde_json::to_vec(command).wrap_err("failed to serialize command")?;
+    let mut message = serde_json::to_vec(command).wrap_err("failed to serialize command")?;
+    message.push(EOF);
     ipc_writer
         .write_all(&message)
         .wrap_err("failed to write to driver pipe")?;
@@ -83,10 +87,27 @@ fn send_command(
 }
 
 fn receive_command<T: DeserializeOwned>(ipc_reader: &mut NamedPipeClientReader) -> eyre::Result<T> {
-    let response = ipc_reader
-        .read_full()
-        .wrap_err("failed to read from driver pipe")?;
-    let command = serde_json::from_slice(&response).wrap_err("failed to deserialize command")?;
+    let mut msg_buf = Vec::with_capacity(4096);
+    let mut buf = vec![0; 4096];
+
+    loop {
+        let Ok(size) = ipc_reader.read(&mut buf) else {
+            break;
+        };
+
+        msg_buf.extend_from_slice(&buf[..size]);
+
+        if msg_buf.last().is_some_and(|&byte| byte == EOF) {
+            break;
+        }
+    }
+
+    // in the following we assume we always get a fully formed message, e.g. no multiple messages
+
+    // pop off EOF
+    msg_buf.pop();
+
+    let command = serde_json::from_slice(&msg_buf).wrap_err("failed to deserialize command")?;
 
     Ok(command)
 }
