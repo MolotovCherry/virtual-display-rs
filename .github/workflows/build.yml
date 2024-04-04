@@ -85,7 +85,7 @@ jobs:
             "rust/target/output/*.dll", `
             "rust/target/output/*.inf", `
             "rust/target/output/*.pyd", `
-            "installer/install-cert.bat" `
+            "installer/install-cert.bat", `
             "installer/files/*.reg" `
             | ForEach-Object { Copy-Item -Path $_.FullName -Destination "." }
 
