@@ -43,42 +43,11 @@ fn extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass]
-#[pyo3(name = "RefreshRate")]
-struct PyRefreshRate(RefreshRate);
-
-#[pymethods]
-impl PyRefreshRate {
-    fn __repr__(&self) -> String {
-        self.__str__()
-    }
-
-    fn __str__(&self) -> String {
-        self.to_string()
-    }
-
-    fn __int__(&self) -> RefreshRate {
-        self.0
-    }
-}
-
-impl Debug for PyRefreshRate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Display for PyRefreshRate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
 // data stored in container
 enum Data {
     Monitors(Vec<Py<PyMonitor>>),
     Modes(Vec<Py<PyMode>>),
-    RefreshRates(Vec<Py<PyRefreshRate>>),
+    RefreshRates(Vec<RefreshRate>),
 }
 
 #[pyclass(sequence)]
@@ -95,13 +64,13 @@ impl PyContainer {
         }
     }
 
-    fn __getitem__(&self, index: isize) -> PyResult<PyObject> {
+    fn __getitem__(&self, py: Python, index: isize) -> PyResult<PyObject> {
         let index = self.get_index(index)?;
 
         let item = match &self.0 {
             Data::Monitors(m) => m[index].as_any().clone(),
             Data::Modes(m) => m[index].as_any().clone(),
-            Data::RefreshRates(r) => r[index].as_any().clone(),
+            Data::RefreshRates(r) => r[index].into_py(py),
         };
 
         Ok(item)
@@ -114,12 +83,7 @@ impl PyContainer {
         match &mut self.0 {
             Data::Monitors(m) => m[index] = obj.extract(py)?,
             Data::Modes(m) => m[index] = obj.extract(py)?,
-            Data::RefreshRates(r) => {
-                r[index] = {
-                    let int: RefreshRate = obj.extract(py)?;
-                    Py::new(py, PyRefreshRate(int))?
-                }
-            }
+            Data::RefreshRates(r) => r[index] = obj.extract(py)?,
         }
 
         Ok(())
@@ -217,7 +181,7 @@ impl PyContainer {
             Data::RefreshRates(r) => {
                 let int: PyResult<RefreshRate> = obj.extract(py);
                 if let Ok(int) = int {
-                    r.push(Py::new(py, PyRefreshRate(int))?);
+                    r.push(int);
                     return Ok(());
                 }
 
@@ -232,7 +196,7 @@ impl PyContainer {
                             )));
                         };
 
-                        r.push(Py::new(py, PyRefreshRate(rr))?);
+                        r.push(rr);
                     }
 
                     return Ok(());
@@ -314,7 +278,7 @@ impl PyContainer {
         }
     }
 
-    fn inner_rr(&self) -> &[Py<PyRefreshRate>] {
+    fn inner_rr(&self) -> &[RefreshRate] {
         match &self.0 {
             Data::RefreshRates(r) => r,
             _ => unreachable!(),
@@ -366,8 +330,6 @@ impl Debug for PyContainer {
                     let mut iter = r.iter().peekable();
 
                     while let Some(rr) = iter.next() {
-                        let rr = &*rr.borrow(py);
-
                         if iter.peek().is_some() {
                             write!(f, "{rr:?}, ")?;
                         } else {
@@ -665,14 +627,14 @@ impl PyDriverClient {
                 }
 
                 let refresh_iter = mode.refresh_rates.borrow(py);
-                let mut refresh_iter = refresh_iter.inner_rr().iter().map(|rr| rr.borrow(py));
+                let mut refresh_iter = refresh_iter.inner_rr().iter().copied();
                 while let Some(rr) = refresh_iter.next() {
-                    let duplicate_rr = refresh_iter.clone().any(|r| rr.0 == r.0);
+                    let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
 
                     if duplicate_rr {
                         return Err(PyRuntimeError::new_err(format!(
-                            "Found duplicate refresh rate {} on mode {}x{} for monitor {}",
-                            rr.0, mode.width, mode.height, monitor.id
+                            "Found duplicate refresh rate {rr} on mode {}x{} for monitor {}",
+                            mode.width, mode.height, monitor.id
                         )));
                     }
                 }
@@ -733,9 +695,9 @@ impl PyMonitor {
 
             // check no conflicting modes and no conflicting refresh rates
             let rr = mode.refresh_rates.borrow(py);
-            let mut rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
+            let mut rr_iter = rr.inner_rr().iter().copied();
             while let Some(rr) = rr_iter.next() {
-                if rr_iter.clone().any(|r| r.0 == rr.0) {
+                if rr_iter.clone().any(|r| r == rr) {
                     return false;
                 }
             }
@@ -817,9 +779,9 @@ impl PyMode {
     ///       This does not check the valid status in a list, for that, use valid() on a monitor instance
     fn valid(&self, py: Python) -> bool {
         let rr = self.refresh_rates.borrow(py);
-        let mut rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
+        let mut rr_iter = rr.inner_rr().iter().copied();
         while let Some(rr) = rr_iter.next() {
-            if rr_iter.clone().any(|r| r.0 == rr.0) {
+            if rr_iter.clone().any(|r| r == rr) {
                 return false;
             }
         }
@@ -839,11 +801,7 @@ fn state_to_python(monitors: &[Monitor], py: Python) -> PyResult<Py<PyContainer>
         let mut modes = Vec::new();
 
         for mode in &monitor.modes {
-            let py_refresh_rates = mode
-                .refresh_rates
-                .iter()
-                .map(|rr| Py::new(py, PyRefreshRate(*rr)))
-                .collect::<PyResult<Vec<_>>>()?;
+            let py_refresh_rates = mode.refresh_rates.clone();
 
             let container = Py::new(py, PyContainer(Data::RefreshRates(py_refresh_rates)))?;
 
@@ -894,13 +852,7 @@ fn python_to_state(monitors: &Py<PyContainer>, py: Python) -> Vec<Monitor> {
         for mode in py_modes {
             let mode = mode.borrow(py);
 
-            let refresh_rates = mode
-                .refresh_rates
-                .borrow(py)
-                .inner_rr()
-                .iter()
-                .map(|rr| rr.borrow(py).0)
-                .collect();
+            let refresh_rates = mode.refresh_rates.borrow(py).inner_rr().to_vec();
 
             modes.push(Mode {
                 width: mode.width,
