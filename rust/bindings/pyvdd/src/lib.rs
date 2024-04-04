@@ -354,6 +354,7 @@ impl Debug for PyContainer {
 struct PyDriverClient {
     client: DriverClient,
     thread_registry: Arc<Mutex<Option<HANDLE>>>,
+    // TODO: Allow setting list while allowing +=
     #[pyo3(get, set)]
     monitors: Py<PyContainer>,
 }
@@ -661,6 +662,7 @@ struct PyMonitor {
     name: Option<String>,
     #[pyo3(get, set)]
     enabled: bool,
+    // TODO: Allow setting list while allowing +=
     #[pyo3(get, set)]
     modes: Py<PyContainer>,
 }
@@ -739,6 +741,7 @@ struct PyMode {
     width: Dimen,
     #[pyo3(get, set)]
     height: Dimen,
+    // TODO: Allow setting list while allowing +=
     #[pyo3(get, set)]
     refresh_rates: Py<PyContainer>,
 }
