@@ -538,9 +538,9 @@ impl PyDriverClient {
 impl PyDriverClient {
     fn validate(&self, py: Python) -> PyResult<()> {
         let monitor_iter = self.monitors.borrow(py);
-        let monitor_iter = monitor_iter.inner_mon().iter().map(|mon| mon.borrow(py));
+        let mut monitor_iter = monitor_iter.inner_mon().iter().map(|mon| mon.borrow(py));
 
-        for monitor in monitor_iter.clone() {
+        while let Some(monitor) = monitor_iter.next() {
             let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
             if duplicate_id {
                 return Err(PyRuntimeError::new_err(format!(
@@ -550,8 +550,8 @@ impl PyDriverClient {
             }
 
             let mode_iter = monitor.modes.borrow(py);
-            let mode_iter = mode_iter.inner_mode().iter().map(|mode| mode.borrow(py));
-            for mode in mode_iter.clone() {
+            let mut mode_iter = mode_iter.inner_mode().iter().map(|mode| mode.borrow(py));
+            while let Some(mode) = mode_iter.next() {
                 let duplicate_mode = mode_iter
                     .clone()
                     .any(|m| mode.height == m.height && mode.width == m.width);
@@ -564,8 +564,8 @@ impl PyDriverClient {
                 }
 
                 let refresh_iter = mode.refresh_rates.borrow(py);
-                let refresh_iter = refresh_iter.inner_rr().iter().map(|rr| rr.borrow(py));
-                for rr in refresh_iter.clone() {
+                let mut refresh_iter = refresh_iter.inner_rr().iter().map(|rr| rr.borrow(py));
+                while let Some(rr) = refresh_iter.next() {
                     let duplicate_rr = refresh_iter.clone().any(|r| rr.0 == r.0);
 
                     if duplicate_rr {
@@ -620,9 +620,8 @@ impl PyMonitor {
     /// Note: Does not validate Id is ok. To do that, assign monitor to client and run client validate()
     fn valid(&self, py: Python) -> bool {
         let modes = self.modes.borrow(py);
-        let modes = modes.inner_mode().iter().map(|mode| mode.borrow(py));
-
-        for mode in modes.clone() {
+        let mut modes = modes.inner_mode().iter().map(|mode| mode.borrow(py));
+        while let Some(mode) = modes.next() {
             let dupes = modes
                 .clone()
                 .any(|m| m.width == mode.width && m.height == mode.height);
@@ -633,9 +632,8 @@ impl PyMonitor {
 
             // check no conflicting modes and no conflicting refresh rates
             let rr = mode.refresh_rates.borrow(py);
-            let rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
-
-            for rr in rr_iter.clone() {
+            let mut rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
+            while let Some(rr) = rr_iter.next() {
                 if rr_iter.clone().any(|r| r.0 == rr.0) {
                     return false;
                 }
@@ -718,9 +716,8 @@ impl PyMode {
     ///       This does not check the valid status in a list, for that, use valid() on a monitor instance
     fn valid(&self, py: Python) -> bool {
         let rr = self.refresh_rates.borrow(py);
-        let rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
-
-        for rr in rr_iter.clone() {
+        let mut rr_iter = rr.inner_rr().iter().map(|rr| rr.borrow(py));
+        while let Some(rr) = rr_iter.next() {
             if rr_iter.clone().any(|r| r.0 == rr.0) {
                 return false;
             }
