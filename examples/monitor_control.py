@@ -15,7 +15,8 @@ from pyvdd import *
 # Final note: It is possible to have stale data in memory, and this can cause duplicate Ids as well.
 #             However, if it is sent to the driver, the driver will simply ignore the duplicates.
 #             When notify() is done, it DOES NOT check the latest data! You must do that yourself.
-#             You can call refresh_state(), or set up a receiver() so you don't get stale data
+#             You can call get_state() and assign it to client.monitors, or set up a receiver()
+#             to get notified of new changes
 #
 
 # make the client
@@ -144,9 +145,6 @@ client.persist()
 #
 # client.receive(Callable[list[Monitor], None])
 client.receive(lambda d: d)
-
-# gets latest states from driver (note: this WILL overwrite all in memory changes)
-client.refresh_state()
 
 # gets latest states from driver (returns it)
 #

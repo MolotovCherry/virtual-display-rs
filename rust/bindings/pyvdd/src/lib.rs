@@ -395,16 +395,6 @@ impl PyDriverClient {
         Ok(())
     }
 
-    /// Manually refresh internal state with latest driver changes
-    /// This will overwrite `monitors`
-    fn refresh_state(&mut self, py: Python) -> PyResult<()> {
-        self.client.refresh_state()?;
-
-        self.monitors = state_to_python(self.client.monitors(), py)?;
-
-        Ok(())
-    }
-
     /// Request a list of latest driver changes
     fn get_state(&mut self, py: Python) -> PyResult<Py<PyContainer>> {
         self.client.refresh_state()?;
