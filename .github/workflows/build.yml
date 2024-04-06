@@ -68,6 +68,11 @@ jobs:
         run: |
           Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ env.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
 
+      - name: Setup python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Build
         env:
           PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
