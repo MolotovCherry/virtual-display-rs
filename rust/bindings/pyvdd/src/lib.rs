@@ -616,15 +616,19 @@ impl Drop for PyDriverClient {
 #[pyo3(name = "Monitor")]
 struct PyMonitor {
     /// The monitor's id. Must be unique from all other monitors
+    /// Sig: id: int
     #[pyo3(get, set)]
     id: Id,
     /// The monitor's name. May be empty or specified
+    /// Sig: name: Optional[str]
     #[pyo3(get, set)]
     name: Option<String>,
     /// Whether the monitor is enabled or not
+    /// Sig: enabled: bool
     #[pyo3(get, set)]
     enabled: bool,
     /// The monitor modes (resolution and refresh rates)
+    /// Sig: modes: list[Mode]
     #[pyo3(get)]
     modes: Py<PyTypedList>,
 }
@@ -725,12 +729,15 @@ impl Debug for PyMonitor {
 #[pyo3(name = "Mode")]
 struct PyMode {
     /// The mode width
+    /// Sig: width: int
     #[pyo3(get, set)]
     width: Dimen,
     /// The mode height
+    /// Sig: height: int
     #[pyo3(get, set)]
     height: Dimen,
     /// The mode's refresh rates. Each refresh rate must be unique. No duplicates allowed
+    /// Sig: refresh_rates: list[int]
     #[pyo3(get)]
     refresh_rates: Py<PyTypedList>,
 }
