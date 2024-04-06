@@ -401,7 +401,7 @@ impl PyDriverClient {
                         };
 
                         if let Err(e) = callback.call1(py, (state,)) {
-                            e.restore(py);
+                            e.print(py);
                         }
                     });
                 }
