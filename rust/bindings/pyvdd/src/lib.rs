@@ -272,11 +272,15 @@ impl IntoPyListIter for Py<PyTypedList> {
     }
 }
 
+/// The main driver client. As long as this is open, it will remain connected to the monitor.
+/// Only one instance is allowed
 #[pyclass]
 #[pyo3(name = "DriverClient")]
 struct PyDriverClient {
     client: DriverClient,
     thread_registry: Arc<Mutex<Option<HANDLE>>>,
+    /// The list of monitors
+    /// Sig: list[Monitor]
     #[pyo3(get)]
     monitors: Py<PyTypedList>,
 }
@@ -323,6 +327,7 @@ impl PyDriverClient {
     }
 
     /// Persist monitor configuration for user
+    /// Sig: perist()
     fn persist(&mut self, py: Python) -> PyResult<()> {
         if !self.validate(py)? {
             return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
@@ -337,6 +342,7 @@ impl PyDriverClient {
     }
 
     /// Request a list of latest driver changes
+    /// Sig: get_state() -> list[Monitor]
     fn get_state(&mut self, py: Python) -> PyResult<Py<PyList>> {
         self.client.refresh_state()?;
 
@@ -346,6 +352,7 @@ impl PyDriverClient {
     }
 
     /// Send notification to driver of changes
+    /// Sig: notify()
     fn notify(&mut self, py: Python) -> PyResult<()> {
         if !self.validate(py)? {
             return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
@@ -360,6 +367,7 @@ impl PyDriverClient {
     }
 
     /// Get notified of other clients changing driver configuration
+    /// Sig: receive(Callable[list[Monitor], None])
     fn receive(&self, callback: PyObject) {
         // cancel the receiver internally if called again
         {
@@ -415,16 +423,19 @@ impl PyDriverClient {
 
     /// Validate the monitors
     /// Note: if data is stale and driver has a monitor id that already exists, this may erroneously return true,
+    /// Sig: valid() -> bool
     fn valid(&self, py: Python) -> PyResult<bool> {
         self.validate(py)
     }
 
-    /// Find id of monitor based on string
+    /// Find id of monitor based on query. Query is a string containing monitor's name or id
+    /// Sig: find_id(query: str) -> Optional[int]
     fn find_id(&self, query: &str) -> Option<Id> {
         self.client.find_id(query).ok()
     }
 
     /// Find a monitor by Id
+    /// Sig: find_monitor(query: int) -> Optional[Monitor]
     fn find_monitor(&self, py: Python, query: Id) -> PyResult<Option<Py<PyMonitor>>> {
         let iter = self.monitors.iter_ref::<PyMonitor>(py);
 
@@ -439,7 +450,8 @@ impl PyDriverClient {
         Ok(None)
     }
 
-    /// Find a monitor by name
+    /// Find a monitor by query. The query is a string which may be name or id
+    /// Sig: find_monitor_query(query: str) -> Optional[Monitor]
     fn find_monitor_query(&self, py: Python, query: &str) -> PyResult<Option<Py<PyMonitor>>> {
         let num = query.parse::<Id>();
         let iter = self.monitors.iter_ref::<PyMonitor>(py);
@@ -460,6 +472,7 @@ impl PyDriverClient {
 
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
     /// which the driver will ignore when you notify it of changes
+    /// Sig: new_id(preferred_id: Optional[int] = None) -> Optional[int]
     fn new_id(&mut self, py: Python, preferred_id: Option<Id>) -> PyResult<Option<Id>> {
         let state = pytypedlist_to_state(py, &self.monitors)?;
         // by setting this, we can ensure it's up to date before trying to get the new id
@@ -470,6 +483,7 @@ impl PyDriverClient {
     }
 
     /// Remove monitors by id
+    /// Sig: remove(list[int])
     #[allow(clippy::needless_pass_by_value)]
     fn remove(&mut self, py: Python, ids: Vec<Id>) -> PyResult<()> {
         let monitors = self.monitors.iter_ref::<PyMonitor>(py);
@@ -494,6 +508,7 @@ impl PyDriverClient {
     }
 
     /// Enable monitors by id
+    /// Sig: set_enabled(ids: list[int], enabled: bool)
     #[allow(clippy::needless_pass_by_value)]
     fn set_enabled(&mut self, py: Python, ids: Vec<Id>, enabled: bool) -> PyResult<()> {
         let monitors = self.monitors.iter_ref_mut::<PyMonitor>(py);
@@ -511,7 +526,8 @@ impl PyDriverClient {
         Ok(())
     }
 
-    /// Enable monitors by id
+    /// Enable monitors by query. Query is a string containing a name or id
+    /// Sig: set_enabled_query(queries: list[str], enabled: bool)
     #[allow(clippy::needless_pass_by_value)]
     fn set_enabled_query(
         &mut self,
@@ -594,16 +610,21 @@ impl Drop for PyDriverClient {
     }
 }
 
+/// A Monitor. Each monitor's id must be unique from the others.
 #[derive(Clone)]
 #[pyclass]
 #[pyo3(name = "Monitor")]
 struct PyMonitor {
+    /// The monitor's id. Must be unique from all other monitors
     #[pyo3(get, set)]
     id: Id,
+    /// The monitor's name. May be empty or specified
     #[pyo3(get, set)]
     name: Option<String>,
+    /// Whether the monitor is enabled or not
     #[pyo3(get, set)]
     enabled: bool,
+    /// The monitor modes (resolution and refresh rates)
     #[pyo3(get)]
     modes: Py<PyTypedList>,
 }
@@ -642,6 +663,7 @@ impl PyMonitor {
     ///
     /// A valid Monitor is one where each Mode's width/height is unique from the others,
     /// and each Mode's refresh rate values are unique
+    /// Sig: valid() -> bool
     fn valid(&self, py: Python) -> PyResult<bool> {
         let mut used = HashSet::new();
 
@@ -695,14 +717,20 @@ impl Debug for PyMonitor {
     }
 }
 
+/// A monitor mode which represents a resolution and associated refresh rates.
+/// Each mode must be unique from other modes (a unique width x height),
+/// and the refresh rates must also be unique per mode
 #[derive(Clone)]
 #[pyclass]
 #[pyo3(name = "Mode")]
 struct PyMode {
+    /// The mode width
     #[pyo3(get, set)]
     width: Dimen,
+    /// The mode height
     #[pyo3(get, set)]
     height: Dimen,
+    /// The mode's refresh rates. Each refresh rate must be unique. No duplicates allowed
     #[pyo3(get)]
     refresh_rates: Py<PyTypedList>,
 }
@@ -772,6 +800,7 @@ impl PyMode {
     /// Checks whether this mode is valid as a mode by itself
     ///
     /// A valid mode is one where there are no duplicate refresh rates
+    /// Sig: valid() -> bool
     fn valid(&self, py: Python) -> PyResult<bool> {
         let mut used = HashSet::new();
 

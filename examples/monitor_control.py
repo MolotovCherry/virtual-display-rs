@@ -12,6 +12,9 @@ from pyvdd import *
 # 3. All Modes under a Monitor must be unique! Unique means a unique width/height.
 # 4. All refresh rates under a Mode must be unique! You cannot have duplicate refresh rates
 #
+# Every class, attribute, and function is annotated with a __doc__, which also shows the type's
+# type signature.
+#
 # Final note: It is possible to have stale data in memory, and this can cause duplicate Ids as well.
 #             However, if it is sent to the driver, the driver will simply ignore the duplicates.
 #             When notify() is done, it DOES NOT check the latest data! You must do that yourself.
@@ -107,7 +110,6 @@ client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
 
 #
 # DriverClient functions
-# You CAN call `client.function.__doc__` to get built-in docs on them too
 #
 
 # get the id of Monitor belonging to name or id
