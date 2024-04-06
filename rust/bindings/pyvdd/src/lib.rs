@@ -324,7 +324,9 @@ impl PyDriverClient {
 
     /// Persist monitor configuration for user
     fn persist(&mut self, py: Python) -> PyResult<()> {
-        self.validate(py)?;
+        if !self.validate(py)? {
+            return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
+        }
 
         let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
@@ -345,7 +347,9 @@ impl PyDriverClient {
 
     /// Send notification to driver of changes
     fn notify(&mut self, py: Python) -> PyResult<()> {
-        self.validate(py)?;
+        if !self.validate(py)? {
+            return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
+        }
 
         let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
@@ -411,8 +415,8 @@ impl PyDriverClient {
 
     /// Validate the monitors
     /// Note: if data is stale and driver has a monitor id that already exists, this may erroneously return true,
-    fn valid(&self, py: Python) -> bool {
-        self.validate(py).is_ok()
+    fn valid(&self, py: Python) -> PyResult<bool> {
+        self.validate(py)
     }
 
     /// Find id of monitor based on string
