@@ -128,9 +128,10 @@ client.find_monitor_query("name")
 # Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
 # which the driver will ignore when you notify it of changes
 #
-# client.new_id(id: Optional[int] = None) -> int
+# client.new_id(id: Optional[int] = None) -> Optional[int]
 client.new_id()
-# you can ask for a preferred id, and it'll give it to you if available
+# you can ask for a preferred id, and it'll give it to you if available.
+# if the id you asked for is a duplicate, None gets returned
 client.new_id(5)
 
 # send changes to driver. all changes are done in-memory until you notify
