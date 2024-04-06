@@ -141,12 +141,66 @@ impl PyTypedList {
 
     fn __setitem__(&self, py: Python, index: isize, item: PyObject) -> PyResult<()> {
         let index = self.get_index(py, index)?;
+
+        let item_b = item.bind(py);
         let ty = item.bind(py).get_type();
 
+        let inner = self.list.bind(py);
+
         let is_valid = match self.ty {
-            ListType::Monitor => ty.is_instance_of::<PyMonitor>(),
-            ListType::Mode => ty.is_instance_of::<PyMode>(),
-            ListType::RefreshRate => ty.extract::<u32>().is_ok(),
+            ListType::Monitor => {
+                if let Ok(mon) = item_b.downcast_exact::<PyMonitor>().map(Bound::borrow) {
+                    for (i, item) in inner.iter().enumerate() {
+                        let item = item.downcast_exact::<PyMonitor>()?.borrow();
+                        if item.id == mon.id && i != index {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "monitors list already contains a Monitor with id {}",
+                                item.id,
+                            )));
+                        }
+                    }
+
+                    true
+                } else {
+                    false
+                }
+            }
+
+            ListType::Mode => {
+                if let Ok(mode) = item_b.downcast_exact::<PyMode>().map(Bound::borrow) {
+                    for (i, item) in inner.iter().enumerate() {
+                        let item = item.downcast_exact::<PyMode>()?.borrow();
+                        if item.width == mode.width && item.height == mode.height && i != index {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "modes list already contains a Mode {}x{}",
+                                item.width, item.height,
+                            )));
+                        }
+                    }
+
+                    true
+                } else {
+                    false
+                }
+            }
+
+            ListType::RefreshRate => {
+                if let Ok(rr) = item_b.extract::<u32>() {
+                    for (i, item) in inner.iter().enumerate() {
+                        let item = item.extract::<RefreshRate>()?;
+
+                        if item == rr && index != i {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "refresh_rates list already contains refresh rate {rr}"
+                            )));
+                        }
+                    }
+
+                    true
+                } else {
+                    false
+                }
+            }
         };
 
         if !is_valid {
@@ -318,7 +372,7 @@ impl PyDriverClient {
             inner.iadd_flag = false;
         } else {
             let list = PyList::empty_bound(py);
-            pylist_append_pyobject(py, &list, obj, ListType::Monitor)?;
+            pylist_append_pyobject(py, list.as_borrowed(), obj, ListType::Monitor)?;
             self.monitors =
                 PyTypedList::new_from_list(list.into(), ListType::Monitor).try_into()?;
         }
@@ -329,10 +383,6 @@ impl PyDriverClient {
     /// Persist monitor configuration for user
     /// Sig: perist()
     fn persist(&mut self, py: Python) -> PyResult<()> {
-        if !self.validate(py)? {
-            return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
-        }
-
         let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
 
@@ -354,10 +404,6 @@ impl PyDriverClient {
     /// Send notification to driver of changes
     /// Sig: notify()
     fn notify(&mut self, py: Python) -> PyResult<()> {
-        if !self.validate(py)? {
-            return Err(PyRuntimeError::new_err("validation failed. ensure you have no duplicate monitor ids, modes, or refresh rates"));
-        }
-
         let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
 
@@ -419,13 +465,6 @@ impl PyDriverClient {
                 }
             },
         );
-    }
-
-    /// Validate the monitors
-    /// Note: if data is stale and driver has a monitor id that already exists, this may erroneously return true,
-    /// Sig: valid() -> bool
-    fn valid(&self, py: Python) -> PyResult<bool> {
-        self.validate(py)
     }
 
     /// Find id of monitor based on query. Query is a string containing monitor's name or id
@@ -577,24 +616,6 @@ impl PyDriverClient {
     }
 }
 
-impl PyDriverClient {
-    fn validate(&self, py: Python) -> PyResult<bool> {
-        let mut used = HashSet::new();
-
-        let monitor_iter = self.monitors.iter_ref::<PyMonitor>(py);
-
-        for monitor in monitor_iter {
-            let monitor = monitor?;
-
-            if !used.insert(monitor.id) || !monitor.valid(py)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-}
-
 impl Debug for PyDriverClient {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let PyDriverClient { monitors, .. } = self;
@@ -656,31 +677,11 @@ impl PyMonitor {
             inner.iadd_flag = false;
         } else {
             let list = PyList::empty_bound(py);
-            pylist_append_pyobject(py, &list, obj, ListType::Mode)?;
+            pylist_append_pyobject(py, list.as_borrowed(), obj, ListType::Mode)?;
             self.modes = PyTypedList::new_from_list(list.into(), ListType::Mode).try_into()?;
         }
 
         Ok(())
-    }
-
-    /// Validate that Monitor settings are OK
-    ///
-    /// A valid Monitor is one where each Mode's width/height is unique from the others,
-    /// and each Mode's refresh rate values are unique
-    /// Sig: valid() -> bool
-    fn valid(&self, py: Python) -> PyResult<bool> {
-        let mut used = HashSet::new();
-
-        let mode_iter = self.modes.iter_ref::<PyMode>(py);
-
-        for mode in mode_iter {
-            let mode = mode?;
-            if !used.insert((mode.width, mode.height)) || !mode.valid(py)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
     }
 
     fn __repr__(&self) -> String {
@@ -796,33 +797,12 @@ impl PyMode {
             inner.iadd_flag = false;
         } else {
             let list = PyList::empty_bound(py);
-            pylist_append_pyobject(py, &list, obj, ListType::RefreshRate)?;
+            pylist_append_pyobject(py, list.as_borrowed(), obj, ListType::RefreshRate)?;
             self.refresh_rates =
                 PyTypedList::new_from_list(list.into(), ListType::RefreshRate).try_into()?;
         }
 
         Ok(())
-    }
-
-    /// Checks whether this mode is valid as a mode by itself
-    ///
-    /// A valid mode is one where there are no duplicate refresh rates
-    /// Sig: valid() -> bool
-    fn valid(&self, py: Python) -> PyResult<bool> {
-        let mut used = HashSet::new();
-
-        let rr_iter = self
-            .refresh_rates
-            .iter_py_extract::<PyLong, RefreshRate>(py);
-
-        for rr in rr_iter {
-            let rr = rr??;
-            if !used.insert(rr) {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
     }
 
     fn __repr__(&self) -> String {
@@ -916,19 +896,17 @@ fn pytypedlist_to_state(py: Python, monitors: &Py<PyTypedList>) -> PyResult<Vec<
     Ok(state)
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 fn pylist_append_pyobject(
     py: Python,
-    pylist: &Bound<'_, PyList>,
+    inner: Borrowed<'_, '_, PyList>,
     obj: PyObject,
     list_ty: ListType,
 ) -> PyResult<()> {
     let obj = obj.bind(py);
 
-    let inner = pylist;
-
     let mut ty = obj.get_type();
-    let pylist = obj.downcast_exact::<PyList>();
+    let user_pylist = obj.downcast_exact::<PyList>();
     let py_monitor = obj.downcast_exact::<PyMonitor>();
     let py_mode = obj.downcast_exact::<PyMode>();
     let py_long = obj.extract::<u32>();
@@ -937,12 +915,46 @@ fn pylist_append_pyobject(
     match list_ty {
         ListType::Monitor => {
             if let Ok(mon) = py_monitor {
+                let b = mon.borrow();
+
+                for item in inner.iter() {
+                    let item = item.downcast_exact::<PyMonitor>()?.borrow();
+                    if item.id == b.id {
+                        return Err(PyRuntimeError::new_err(format!(
+                            "monitors list already contains a Monitor with id {}",
+                            b.id,
+                        )));
+                    }
+                }
+
                 inner.append(mon)?;
                 return Ok(());
-            } else if let Ok(list) = pylist {
-                for item in list.iter() {
-                    if let Ok(mon) = item.downcast_exact::<PyMonitor>() {
-                        inner.append(mon)?;
+            } else if let Ok(user_list) = user_pylist {
+                let mut used = HashSet::new();
+                let mut buf = Vec::new();
+
+                for item in user_list.iter() {
+                    if let Ok(mon) = item.clone().downcast_into_exact::<PyMonitor>() {
+                        let b = mon.downcast_exact::<PyMonitor>()?.borrow();
+
+                        if !used.insert(b.id) {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "list of Monitor already contains a Monitor with id {}",
+                                b.id
+                            )));
+                        }
+
+                        for item in inner.iter() {
+                            let item = item.downcast_exact::<PyMonitor>()?.borrow();
+                            if item.id == b.id {
+                                return Err(PyRuntimeError::new_err(format!(
+                                    "monitors list already contains a Monitor with id {}",
+                                    b.id,
+                                )));
+                            }
+                        }
+
+                        buf.push(mon);
                         continue;
                     }
 
@@ -950,19 +962,59 @@ fn pylist_append_pyobject(
                     ty = item.get_type();
                     break;
                 }
-            } else {
-                is_ok = false;
+
+                if is_ok {
+                    for rr in buf {
+                        inner.append(rr)?;
+                    }
+                }
             }
         }
 
         ListType::Mode => {
             if let Ok(mode) = py_mode {
+                // you can't enter duplicate refresh rates since we already checked that
+                // but inner might have it still
+
+                let m = mode.borrow();
+                for item in inner.iter() {
+                    let item = item.downcast_exact::<PyMode>().unwrap().borrow();
+                    if item.width == m.width && item.height == m.height {
+                        return Err(PyRuntimeError::new_err(format!(
+                            "modes list already contains a Mode {}x{}",
+                            m.width, m.height,
+                        )));
+                    }
+                }
+
                 inner.append(mode)?;
                 return Ok(());
-            } else if let Ok(list) = pylist {
-                for item in list.iter() {
+            } else if let Ok(user_list) = user_pylist {
+                let mut used = HashSet::new();
+                let mut buf = Vec::new();
+
+                for item in user_list.iter() {
                     if let Ok(mode) = item.downcast_exact::<PyMode>() {
-                        inner.append(mode)?;
+                        let b = mode.borrow();
+
+                        if !used.insert((b.width, b.height)) {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "list of Mode already contains a Mode {}x{}",
+                                b.width, b.height
+                            )));
+                        }
+
+                        for item in inner.iter() {
+                            let item = item.downcast_exact::<PyMode>().unwrap().borrow();
+                            if item.width == b.width && item.height == b.height {
+                                return Err(PyRuntimeError::new_err(format!(
+                                    "modes list already contains a Mode {}x{}",
+                                    b.width, b.height,
+                                )));
+                            }
+                        }
+
+                        buf.push(mode.clone());
                         continue;
                     }
 
@@ -970,19 +1022,49 @@ fn pylist_append_pyobject(
                     ty = item.get_type();
                     break;
                 }
-            } else {
-                is_ok = false;
+
+                if is_ok {
+                    for rr in buf {
+                        inner.append(rr)?;
+                    }
+                }
             }
         }
 
         ListType::RefreshRate => {
             if let Ok(rr) = py_long {
+                for item in inner.iter() {
+                    let item = item.extract::<RefreshRate>().unwrap();
+                    if item == rr {
+                        return Err(PyRuntimeError::new_err(format!(
+                            "refresh_rates list already contains refresh rate {item}"
+                        )));
+                    }
+                }
+
                 inner.append(rr)?;
                 return Ok(());
-            } else if let Ok(list) = pylist {
-                for item in list.iter() {
-                    if let Ok(mon) = item.extract::<u32>() {
-                        inner.append(mon)?;
+            } else if let Ok(user_list) = user_pylist {
+                let mut buf = Vec::new();
+
+                for item in user_list.iter() {
+                    if let Ok(rr) = item.extract::<RefreshRate>() {
+                        if buf.contains(&rr) {
+                            return Err(PyRuntimeError::new_err(format!(
+                                "list of refresh rates already contains refresh rate {rr}"
+                            )));
+                        }
+
+                        for item in inner.iter() {
+                            let item = item.extract::<RefreshRate>().unwrap();
+                            if item == rr {
+                                return Err(PyRuntimeError::new_err(format!(
+                                    "refresh_rates list already contains refresh rate {rr}"
+                                )));
+                            }
+                        }
+
+                        buf.push(rr);
                         continue;
                     }
 
@@ -990,8 +1072,12 @@ fn pylist_append_pyobject(
                     ty = item.get_type();
                     break;
                 }
-            } else {
-                is_ok = false;
+
+                if is_ok {
+                    for rr in buf {
+                        inner.append(rr)?;
+                    }
+                }
             }
         }
     }
@@ -1013,5 +1099,10 @@ fn pytypedlist_append_pyobject(
     py_typed_list: &PyTypedList,
     obj: PyObject,
 ) -> PyResult<()> {
-    pylist_append_pyobject(py, py_typed_list.list.bind(py), obj, py_typed_list.ty)
+    pylist_append_pyobject(
+        py,
+        py_typed_list.list.bind_borrowed(py),
+        obj,
+        py_typed_list.ty,
+    )
 }

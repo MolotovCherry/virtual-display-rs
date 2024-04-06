@@ -2,24 +2,18 @@ from pyvdd import *
 
 #
 # Before you begin, please note the following:
-# 1. When you add modes, refresh rates, monitors, no validity checks are done!
-#    You can call validate() function on DriverClient, Monitor, and Mode to check individual validity
-#    However, often validity is only known in context of the larger whole. For example, a Mode may be valid,
-#    but if it has the same width/height as another Mode under a Monitor, that is a conflict.
-#    A Monitor may be valid, but if two monitors have the same Id, it is in conflict
 #
-# 2. All Monitors must have a unique Id. All Ids must be unique! Same names are allowed however
-# 3. All Modes under a Monitor must be unique! Unique means a unique width/height.
-# 4. All refresh rates under a Mode must be unique! You cannot have duplicate refresh rates
+# 1. All Monitors must have a unique Id
+# 2. All Modes under a Monitor must have a unique width/height
+# 3. All refresh rates under a Mode must be unique
 #
 # Every class, attribute, and function is annotated with a __doc__, which also shows the type's
 # type signature.
 #
-# Final note: It is possible to have stale data in memory, and this can cause duplicate Ids as well.
+# Final note: It is possible to have stale data in memory, and this can cause duplicate Ids.
 #             However, if it is sent to the driver, the driver will simply ignore the duplicates.
-#             When notify() is done, it DOES NOT check the latest data! You must do that yourself.
-#             You can call get_state() and assign it to client.monitors, or set up a receiver()
-#             to get notified of new changes
+#             When notify() is done, it DOES NOT check the latest data! You must reconcile differences via
+#             either get_state(), or set up a receiver() to be notified of new changes
 #
 
 # make the client
@@ -173,28 +167,3 @@ client.set_enabled([1,2,3], true)
 #
 # client.set_enabled_query(list[str], bool)
 client.set_enabled_query(["name1", "name2", "name3"], true)
-
-# check if monitor state is a valid state
-#
-# client.valid() -> bool
-client.valid()
-
-#
-# Monitor functions
-#
-
-# check if this monitor is valid
-# note: does not check of Id validity
-#
-# monitor.valid() -> bool
-monitor.valid()
-
-#
-# Mode functions
-#
-
-# check for mode validity
-# note: does not validate if mode is duplicate of another anywhere else
-#
-# mode.valid() -> bool
-mode.valid()
