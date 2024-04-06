@@ -85,7 +85,7 @@ new_mode = Mode()
 # add mode to list
 client.monitors[0].modes += new_mode
 # or add multiple
-client.monitors[0].modes += [Monitor(), Monitor()]
+client.monitors[0].modes += [Mode(), Mode()]
 # delete a mode we don't want
 del client.monitors[0].modes[0]
 
@@ -144,7 +144,12 @@ client.persist()
 # this represents the complete current state of the driver
 #
 # client.receive(Callable[list[Monitor], None])
-client.receive(lambda d: d)
+client.receive(lambda d: print(d))
+# one way to use this might be to auto update your instance every time it changes:
+def set_monitors(data):
+    client.monitors = data
+client.receive(set_monitors)
+# and now you always have client.monitors set to the latest data!
 
 # gets latest states from driver (returns it)
 #
@@ -156,15 +161,15 @@ client.get_state()
 # client.remove(list[int])
 client.remove([1,2,3])
 
-# enable monitors by id
+# set enable status on monitors by id
 #
-# client.set_enabled(list[int])
-client.set_enabled([1,2,3])
+# client.set_enabled(list[int], bool)
+client.set_enabled([1,2,3], true)
 
-# enable monitors by query
+# set enable status on monitors by query
 #
-# client.set_enabled_query(list[str])
-client.set_enabled_query(["name1", "name2", "name3"])
+# client.set_enabled_query(list[str], bool)
+client.set_enabled_query(["name1", "name2", "name3"], true)
 
 # check if monitor state is a valid state
 #

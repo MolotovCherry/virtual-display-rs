@@ -4,24 +4,25 @@
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
 use std::{
-    borrow::Cow,
+    borrow::Borrow,
+    collections::HashSet,
+    fmt::Display,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
 };
-use std::{
-    fmt::{Debug, Display},
-    sync::Mutex,
-};
+use std::{fmt::Debug, sync::Mutex};
 
 use driver_ipc::{
     ClientCommand, Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate,
 };
 use pyo3::prelude::*;
 use pyo3::{
-    exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
-    types::PyList,
+    exceptions::{PyRuntimeError, PyTypeError},
+    pyclass::boolean_struct::False,
+    types::{DerefToPyAny, PyList, PyLong},
+    DowncastIntoError, PyClass, PyTypeCheck,
 };
 use windows::Win32::{
     Foundation::{DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE},
@@ -43,320 +44,208 @@ fn extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// data stored in container
-enum Data {
-    Monitors(Vec<Py<PyMonitor>>),
-    Modes(Vec<Py<PyMode>>),
-    RefreshRates(Vec<RefreshRate>),
+#[derive(Copy, Clone)]
+enum ListType {
+    Monitor,
+    Mode,
+    RefreshRate,
 }
 
+impl Display for ListType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ListType::Monitor => write!(f, "Monitor"),
+            ListType::Mode => write!(f, "Mode"),
+            ListType::RefreshRate => write!(f, "u32"),
+        }
+    }
+}
+
+#[derive(Clone)]
 #[pyclass(sequence)]
-#[pyo3(name = "Container")]
-struct PyContainer(Data);
+#[pyo3(name = "TypedList")]
+struct PyTypedList {
+    list: Py<PyList>,
+    ty: ListType,
+    iadd_flag: bool,
+}
+
+impl PyTypedList {
+    fn new(py: Python, ty: ListType) -> Self {
+        Self {
+            list: PyList::empty_bound(py).into(),
+            ty,
+            iadd_flag: false,
+        }
+    }
+
+    fn new_from_list(list: Py<PyList>, ty: ListType) -> Self {
+        Self {
+            list,
+            ty,
+            iadd_flag: false,
+        }
+    }
+}
 
 #[pymethods]
-impl PyContainer {
-    fn __len__(&self) -> usize {
-        match &self.0 {
-            Data::Monitors(m) => m.len(),
-            Data::Modes(m) => m.len(),
-            Data::RefreshRates(r) => r.len(),
-        }
+impl PyTypedList {
+    fn __len__(&self, py: Python) -> usize {
+        self.list.bind(py).len()
     }
 
-    fn __getitem__(&self, py: Python, index: isize) -> PyResult<PyObject> {
-        let index = self.get_index(index)?;
-
-        let item = match &self.0 {
-            Data::Monitors(m) => m[index].as_any().clone(),
-            Data::Modes(m) => m[index].as_any().clone(),
-            Data::RefreshRates(r) => r[index].into_py(py),
-        };
-
-        Ok(item)
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        self.list.bind(py).repr().map(|s| s.to_string())
     }
 
-    #[allow(clippy::needless_pass_by_value)]
-    fn __setitem__(&mut self, py: Python, index: isize, obj: PyObject) -> PyResult<()> {
-        let index = self.get_index(index)?;
-
-        match &mut self.0 {
-            Data::Monitors(m) => m[index] = obj.extract(py)?,
-            Data::Modes(m) => m[index] = obj.extract(py)?,
-            Data::RefreshRates(r) => r[index] = obj.extract(py)?,
-        }
-
-        Ok(())
-    }
-
-    fn __delitem__(&mut self, index: isize) -> PyResult<()> {
-        let index = self.get_index(index)?;
-
-        match &mut self.0 {
-            Data::Monitors(m) => {
-                m.remove(index);
-            }
-            Data::Modes(m) => {
-                m.remove(index);
-            }
-            Data::RefreshRates(r) => {
-                r.remove(index);
-            }
-        }
-
-        Ok(())
+    fn __str__(&self, py: Python) -> PyResult<String> {
+        self.list.bind(py).str().map(|s| s.to_string())
     }
 
     #[allow(clippy::needless_pass_by_value)]
     fn __iadd__(&mut self, py: Python, obj: PyObject) -> PyResult<()> {
-        match &mut self.0 {
-            Data::Monitors(m) => {
-                let monitor = obj.extract::<Py<PyMonitor>>(py);
-
-                if let Ok(monitor) = monitor {
-                    m.push(monitor);
-                    return Ok(());
-                }
-
-                let list = obj.downcast_bound::<PyList>(py);
-
-                if let Ok(list) = list {
-                    for obj in list {
-                        let Ok(monitor) = obj.extract::<Py<PyMonitor>>() else {
-                            return Err(PyTypeError::new_err(format!(
-                                "expected Monitor, got {}",
-                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
-                            )));
-                        };
-
-                        m.push(monitor);
-                    }
-
-                    return Ok(());
-                }
-
-                Err(PyTypeError::new_err(format!(
-                    "expected Monitor or list of Monitor, got {}",
-                    obj.bind(py)
-                        .get_type()
-                        .name()
-                        .unwrap_or(Cow::Borrowed("unknown"))
-                )))
-            }
-
-            Data::Modes(m) => {
-                let mode = obj.extract::<Py<PyMode>>(py);
-
-                if let Ok(mode) = mode {
-                    m.push(mode);
-                    return Ok(());
-                }
-
-                let list = obj.downcast_bound::<PyList>(py);
-
-                if let Ok(list) = list {
-                    for obj in list {
-                        let Ok(mode) = obj.extract::<Py<PyMode>>() else {
-                            return Err(PyTypeError::new_err(format!(
-                                "expected Mode, got {}",
-                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
-                            )));
-                        };
-
-                        m.push(mode);
-                    }
-
-                    return Ok(());
-                }
-
-                Err(PyTypeError::new_err(format!(
-                    "expected Mode or list of Mode, got {}",
-                    obj.bind(py)
-                        .get_type()
-                        .name()
-                        .unwrap_or(Cow::Borrowed("unknown"))
-                )))
-            }
-
-            Data::RefreshRates(r) => {
-                let int: PyResult<RefreshRate> = obj.extract(py);
-                if let Ok(int) = int {
-                    r.push(int);
-                    return Ok(());
-                }
-
-                let list = obj.downcast_bound::<PyList>(py);
-
-                if let Ok(list) = list {
-                    for obj in list {
-                        let Ok(rr) = obj.extract::<RefreshRate>() else {
-                            return Err(PyTypeError::new_err(format!(
-                                "expected u32, got {}",
-                                obj.get_type().name().unwrap_or(Cow::Borrowed("unknown"))
-                            )));
-                        };
-
-                        r.push(rr);
-                    }
-
-                    return Ok(());
-                }
-
-                Err(PyTypeError::new_err(format!(
-                    "expected Mode or list of Mode, got {}",
-                    obj.bind(py)
-                        .get_type()
-                        .name()
-                        .unwrap_or(Cow::Borrowed("unknown"))
-                )))
-            }
-        }
-    }
-
-    fn __str__(&self) -> String {
-        self.to_string()
-    }
-
-    fn __repr__(&self) -> String {
-        self.__str__()
-    }
-}
-
-impl PyContainer {
-    fn get_index(&self, index: isize) -> PyResult<usize> {
-        let len = match &self.0 {
-            Data::Monitors(m) => m.len(),
-            Data::Modes(m) => m.len(),
-            Data::RefreshRates(r) => r.len(),
-        };
-
-        let Some(abs_index) = index.checked_abs() else {
-            return Err(PyIndexError::new_err("Index out of bounds"));
-        };
-        let abs_index: usize = abs_index.try_into()?;
-        let abs_index = abs_index.saturating_sub(1);
-
-        // convert index to appropriate index
-        let index = if index >= 0 {
-            let len: isize = len.try_into()?;
-            if index >= len {
-                return Err(PyIndexError::new_err("Index out of bounds"));
-            }
-
-            // this is > 0, no signs are lost
-            #[allow(clippy::cast_sign_loss)]
-            {
-                index as usize
-            }
-        } else if let Some(index) = (len.saturating_sub(1)).checked_sub(abs_index) {
-            index
-        } else {
-            return Err(PyIndexError::new_err("Index out of bounds"));
-        };
-
-        Ok(index)
-    }
-
-    fn inner_mon(&self) -> &[Py<PyMonitor>] {
-        match &self.0 {
-            Data::Monitors(m) => m,
-            _ => unreachable!(),
-        }
-    }
-
-    fn inner_mon_mut(&mut self) -> &mut Vec<Py<PyMonitor>> {
-        match &mut self.0 {
-            Data::Monitors(m) => m,
-            _ => unreachable!(),
-        }
-    }
-
-    fn inner_mode(&self) -> &[Py<PyMode>] {
-        match &self.0 {
-            Data::Modes(m) => m,
-            _ => unreachable!(),
-        }
-    }
-
-    fn inner_rr(&self) -> &[RefreshRate] {
-        match &self.0 {
-            Data::RefreshRates(r) => r,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl Display for PyContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as Debug>::fmt(self, f)
-    }
-}
-
-impl Debug for PyContainer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Python::with_gil(|py| {
-            write!(f, "[")?;
-
-            match &self.0 {
-                Data::Monitors(m) => {
-                    let mut iter = m.iter().peekable();
-
-                    while let Some(m) = iter.next() {
-                        let m = &*m.borrow(py);
-
-                        if iter.peek().is_some() {
-                            write!(f, "{m:?}, ")?;
-                        } else {
-                            write!(f, "{m:?}")?;
-                        }
-                    }
-                }
-
-                Data::Modes(m) => {
-                    let mut iter = m.iter().peekable();
-
-                    while let Some(m) = iter.next() {
-                        let m = &*m.borrow(py);
-
-                        if iter.peek().is_some() {
-                            write!(f, "{m:?}, ")?;
-                        } else {
-                            write!(f, "{m:?}")?;
-                        }
-                    }
-                }
-
-                Data::RefreshRates(r) => {
-                    let mut iter = r.iter().peekable();
-
-                    while let Some(rr) = iter.next() {
-                        if iter.peek().is_some() {
-                            write!(f, "{rr:?}, ")?;
-                        } else {
-                            write!(f, "{rr:?}")?;
-                        }
-                    }
-                }
-            }
-
-            write!(f, "]")?;
-
-            Ok(())
-        })?;
-
+        pytypedlist_append_pyobject(py, self, obj)?;
+        self.iadd_flag = true;
         Ok(())
     }
+
+    fn __setitem__(&self, py: Python, index: usize, item: PyObject) -> PyResult<()> {
+        let ty = item.bind(py).get_type();
+
+        let is_valid = match self.ty {
+            ListType::Monitor => ty.is_instance_of::<PyMonitor>(),
+            ListType::Mode => ty.is_instance_of::<PyMode>(),
+            ListType::RefreshRate => ty.extract::<u32>().is_ok(),
+        };
+
+        if !is_valid {
+            return Err(PyTypeError::new_err(format!(
+                "expected {}, got {}",
+                self.ty,
+                ty.name()?,
+            )));
+        }
+
+        self.list.bind(py).set_item(index, item)
+    }
+
+    fn __getitem__(&self, py: Python, index: usize) -> PyResult<PyObject> {
+        self.list.bind(py).get_item(index).map(Into::into)
+    }
+
+    fn __contains__(&self, py: Python, obj: PyObject) -> PyResult<bool> {
+        self.list.bind(py).contains(obj)
+    }
+
+    fn __delitem__(&self, py: Python, index: usize) -> PyResult<()> {
+        self.list.bind(py).del_item(index)
+    }
 }
 
-#[derive(Debug)]
+impl TryFrom<PyTypedList> for Py<PyTypedList> {
+    type Error = PyErr;
+
+    fn try_from(value: PyTypedList) -> Result<Self, Self::Error> {
+        Python::with_gil(|py| Py::new(py, value))
+    }
+}
+
+trait IntoPyListIter {
+    fn iter_ref<'py, T: PyClass + Clone>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<PyRef<'py, T>, DowncastIntoError<'py>>>;
+
+    fn iter_ref_mut<'py, T: PyClass<Frozen = False> + Clone>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<PyRefMut<'py, T>, DowncastIntoError<'py>>>;
+
+    // fn iter_bound<'py, T: PyClass + Clone>(
+    //     &self,
+    //     py: Python<'py>,
+    // ) -> impl Iterator<Item = Result<Bound<'py, T>, DowncastIntoError<'py>>>;
+
+    // fn iter_extract<'py, P: PyTypeCheck + DerefToPyAny + FromPyObject<'py>>(
+    //     &self,
+    //     py: Python<'py>,
+    // ) -> impl Iterator<Item = Result<Result<P, PyErr>, DowncastIntoError<'py>>>;
+
+    fn iter_py_extract<'py, P: PyTypeCheck + DerefToPyAny, E: FromPyObject<'py>>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<Result<E, PyErr>, DowncastIntoError<'py>>>;
+}
+
+impl IntoPyListIter for Py<PyTypedList> {
+    fn iter_ref<'py, T: PyClass + Clone>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<PyRef<'py, T>, DowncastIntoError<'py>>> {
+        self.bind(py)
+            .borrow()
+            .list
+            .bind(py)
+            .iter()
+            .map(|i| i.downcast_into().map(|b| b.borrow()))
+    }
+
+    fn iter_ref_mut<'py, T: PyClass<Frozen = False> + Clone>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<PyRefMut<'py, T>, DowncastIntoError<'py>>> {
+        self.bind(py)
+            .borrow()
+            .list
+            .bind(py)
+            .iter()
+            .map(|i| i.downcast_into().map(|b| b.borrow_mut()))
+    }
+
+    // fn iter_bound<'py, T: PyClass + Clone>(
+    //     &self,
+    //     py: Python<'py>,
+    // ) -> impl Iterator<Item = Result<Bound<'py, T>, DowncastIntoError<'py>>> {
+    //     self.bind(py)
+    //         .borrow()
+    //         .list
+    //         .bind(py)
+    //         .iter()
+    //         .map(PyAnyMethods::downcast_into)
+    // }
+
+    // fn iter_extract<'py, P: PyTypeCheck + DerefToPyAny + FromPyObject<'py>>(
+    //     &self,
+    //     py: Python<'py>,
+    // ) -> impl Iterator<Item = Result<Result<P, PyErr>, DowncastIntoError<'py>>> {
+    //     self.bind(py)
+    //         .borrow()
+    //         .list
+    //         .bind(py)
+    //         .iter()
+    //         .map(|i| i.downcast_into::<P>().map(|i| i.extract::<P>()))
+    // }
+
+    fn iter_py_extract<'py, P: PyTypeCheck + DerefToPyAny, E: FromPyObject<'py>>(
+        &self,
+        py: Python<'py>,
+    ) -> impl Iterator<Item = Result<Result<E, PyErr>, DowncastIntoError<'py>>> {
+        self.bind(py)
+            .borrow()
+            .list
+            .bind(py)
+            .iter()
+            .map(|i| i.downcast_into::<P>().map(|i| i.extract::<E>()))
+    }
+}
+
 #[pyclass]
 #[pyo3(name = "DriverClient")]
 struct PyDriverClient {
     client: DriverClient,
     thread_registry: Arc<Mutex<Option<HANDLE>>>,
-    // TODO: Allow setting list while allowing +=
-    #[pyo3(get, set)]
-    monitors: Py<PyContainer>,
+    #[pyo3(get)]
+    monitors: Py<PyTypedList>,
 }
 
 #[pymethods]
@@ -372,7 +261,7 @@ impl PyDriverClient {
         let mut client = DriverClient::new()?;
         client.refresh_state()?;
 
-        let monitors = state_to_python(client.monitors(), py)?;
+        let monitors = state_to_pytypedlist(py, client.monitors())?;
 
         let slf = Self {
             client,
@@ -383,11 +272,28 @@ impl PyDriverClient {
         Ok(slf)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    #[setter]
+    fn set_monitors(&mut self, py: Python, obj: PyObject) -> PyResult<()> {
+        let mut inner = self.monitors.bind(py).borrow_mut();
+
+        if inner.iadd_flag {
+            inner.iadd_flag = false;
+        } else {
+            let list = PyList::empty_bound(py);
+            pylist_append_pyobject(py, &list, obj, ListType::Monitor)?;
+            self.monitors =
+                PyTypedList::new_from_list(list.into(), ListType::Monitor).try_into()?;
+        }
+
+        Ok(())
+    }
+
     /// Persist monitor configuration for user
     fn persist(&mut self, py: Python) -> PyResult<()> {
         self.validate(py)?;
 
-        let state = python_to_state(&self.monitors, py);
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
 
         self.client.persist()?;
@@ -396,10 +302,10 @@ impl PyDriverClient {
     }
 
     /// Request a list of latest driver changes
-    fn get_state(&mut self, py: Python) -> PyResult<Py<PyContainer>> {
+    fn get_state(&mut self, py: Python) -> PyResult<Py<PyList>> {
         self.client.refresh_state()?;
 
-        let monitors = state_to_python(self.client.monitors(), py)?;
+        let monitors = state_to_pylist(py, self.client.monitors())?;
 
         Ok(monitors)
     }
@@ -408,7 +314,7 @@ impl PyDriverClient {
     fn notify(&mut self, py: Python) -> PyResult<()> {
         self.validate(py)?;
 
-        let state = python_to_state(&self.monitors, py);
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
 
         self.client.notify()?;
@@ -456,14 +362,13 @@ impl PyDriverClient {
             move |command| {
                 if let ClientCommand::Event(EventCommand::Changed(data)) = command {
                     Python::with_gil(|py| {
-                        let state = state_to_python(&data, py);
+                        let state = state_to_pylist(py, &data);
                         let Ok(state) = state else {
-                            println!("{}", state.unwrap_err());
                             return;
                         };
 
                         if let Err(e) = callback.call1(py, (state,)) {
-                            println!("{e}");
+                            e.restore(py);
                         }
                     });
                 }
@@ -483,50 +388,70 @@ impl PyDriverClient {
     }
 
     /// Find a monitor by Id
-    fn find_monitor(&self, py: Python, query: Id) -> Option<Py<PyMonitor>> {
-        self.monitors
-            .borrow(py)
-            .inner_mon()
-            .iter()
-            .find(|mon| mon.borrow(py).id == query)
-            .cloned()
+    fn find_monitor(&self, py: Python, query: Id) -> PyResult<Option<Py<PyMonitor>>> {
+        let iter = self.monitors.iter_ref::<PyMonitor>(py);
+
+        for monitor in iter {
+            let monitor = monitor?;
+            let id = monitor.borrow().id;
+            if id == query {
+                return Ok(Some(monitor.into()));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Find a monitor by name
-    fn find_monitor_query(&self, py: Python, query: &str) -> Option<Py<PyMonitor>> {
+    fn find_monitor_query(&self, py: Python, query: &str) -> PyResult<Option<Py<PyMonitor>>> {
         let num = query.parse::<Id>();
+        let iter = self.monitors.iter_ref::<PyMonitor>(py);
 
-        self.monitors
-            .borrow(py)
-            .inner_mon()
-            .iter()
-            .find(|mon| {
-                let mon = mon.borrow(py);
-                mon.name.as_deref().is_some_and(|name| name == query)
-                    || num.as_ref().is_ok_and(|&id| id == mon.id)
-            })
-            .cloned()
+        for monitor in iter {
+            let mon = monitor?;
+            let monitor = mon.borrow();
+
+            if monitor.name.as_deref().is_some_and(|name| name == query)
+                || num.as_ref().is_ok_and(|&id| id == monitor.id)
+            {
+                return Ok(Some(mon.into()));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
     /// which the driver will ignore when you notify it of changes
-    fn new_id(&mut self, py: Python, preferred_id: Option<Id>) -> Option<Id> {
-        let state = python_to_state(&self.monitors, py);
+    fn new_id(&mut self, py: Python, preferred_id: Option<Id>) -> PyResult<Option<Id>> {
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         // by setting this, we can ensure it's up to date before trying to get the new id
-        self.client.set_monitors(&state).ok()?;
-        self.client.new_id(preferred_id).ok()
+        if self.client.set_monitors(&state).is_err() {
+            return Ok(None);
+        }
+        Ok(self.client.new_id(preferred_id).ok())
     }
 
     /// Remove monitors by id
     #[allow(clippy::needless_pass_by_value)]
     fn remove(&mut self, py: Python, ids: Vec<Id>) -> PyResult<()> {
-        self.monitors
-            .borrow_mut(py)
-            .inner_mon_mut()
-            .retain(|mon| !ids.contains(&mon.borrow(py).id));
+        let monitors = self.monitors.iter_ref::<PyMonitor>(py);
+
+        let mut remove_pos = Vec::new();
+        for (i, monitor) in monitors.enumerate() {
+            let monitor = monitor?;
+            if ids.contains(&monitor.id) {
+                remove_pos.push(i);
+            }
+        }
+
+        let monitors = self.monitors.bind(py);
+        for (i, pos) in remove_pos.iter().enumerate() {
+            monitors.del_item(pos - i)?;
+        }
 
         // keep internal state of client consistent
-        let state = python_to_state(&self.monitors, py);
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
         Ok(())
     }
@@ -534,15 +459,17 @@ impl PyDriverClient {
     /// Enable monitors by id
     #[allow(clippy::needless_pass_by_value)]
     fn set_enabled(&mut self, py: Python, ids: Vec<Id>, enabled: bool) -> PyResult<()> {
-        for mon in self.monitors.borrow(py).inner_mon() {
-            let mut mon = mon.borrow_mut(py);
+        let monitors = self.monitors.iter_ref_mut::<PyMonitor>(py);
+
+        for mon in monitors {
+            let mut mon = mon?;
             if ids.contains(&mon.id) {
                 mon.enabled = enabled;
             }
         }
 
         // keep internal state of client consistent
-        let state = python_to_state(&self.monitors, py);
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
         Ok(())
     }
@@ -570,8 +497,10 @@ impl PyDriverClient {
             false
         };
 
-        for mon in self.monitors.borrow(py).inner_mon() {
-            let mut mon = mon.borrow_mut(py);
+        let monitors = self.monitors.iter_ref_mut::<PyMonitor>(py);
+
+        for mon in monitors {
+            let mut mon = mon?;
 
             if contains_id(mon.id) {
                 mon.enabled = enabled;
@@ -585,63 +514,40 @@ impl PyDriverClient {
         }
 
         // keep internal state of client consistent
-        let state = python_to_state(&self.monitors, py);
+        let state = pytypedlist_to_state(py, &self.monitors)?;
         self.client.set_monitors(&state)?;
         Ok(())
     }
 
     fn __repr__(&self, py: Python) -> String {
-        format!(
-            "DriverClient {{ monitors: {:?} }}",
-            self.monitors.borrow(py)
-        )
+        format!("DriverClient {{ monitors: {:?} }}", self.monitors.bind(py))
     }
 }
 
 impl PyDriverClient {
-    fn validate(&self, py: Python) -> PyResult<()> {
-        let monitor_iter = self.monitors.borrow(py);
-        let mut monitor_iter = monitor_iter.inner_mon().iter().map(|mon| mon.borrow(py));
+    fn validate(&self, py: Python) -> PyResult<bool> {
+        let mut used = HashSet::new();
 
-        while let Some(monitor) = monitor_iter.next() {
-            let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
-            if duplicate_id {
-                return Err(PyRuntimeError::new_err(format!(
-                    "Found duplicate monitor id {}",
-                    monitor.id
-                )));
-            }
+        let monitor_iter = self.monitors.iter_ref::<PyMonitor>(py);
 
-            let mode_iter = monitor.modes.borrow(py);
-            let mut mode_iter = mode_iter.inner_mode().iter().map(|mode| mode.borrow(py));
-            while let Some(mode) = mode_iter.next() {
-                let duplicate_mode = mode_iter
-                    .clone()
-                    .any(|m| mode.height == m.height && mode.width == m.width);
+        for monitor in monitor_iter {
+            let monitor = monitor?;
 
-                if duplicate_mode {
-                    return Err(PyRuntimeError::new_err(format!(
-                        "Found duplicate mode {}x{} on monitor {}",
-                        mode.width, mode.height, monitor.id
-                    )));
-                }
-
-                let refresh_iter = mode.refresh_rates.borrow(py);
-                let mut refresh_iter = refresh_iter.inner_rr().iter().copied();
-                while let Some(rr) = refresh_iter.next() {
-                    let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
-
-                    if duplicate_rr {
-                        return Err(PyRuntimeError::new_err(format!(
-                            "Found duplicate refresh rate {rr} on mode {}x{} for monitor {}",
-                            mode.width, mode.height, monitor.id
-                        )));
-                    }
-                }
+            if !used.insert(monitor.id) || !monitor.valid(py)? {
+                return Ok(false);
             }
         }
 
-        Ok(())
+        Ok(true)
+    }
+}
+
+impl Debug for PyDriverClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let PyDriverClient { monitors, .. } = self;
+        f.debug_struct("DriverClient")
+            .field("monitors", &monitors)
+            .finish()
     }
 }
 
@@ -661,50 +567,57 @@ struct PyMonitor {
     name: Option<String>,
     #[pyo3(get, set)]
     enabled: bool,
-    // TODO: Allow setting list while allowing +=
-    #[pyo3(get, set)]
-    modes: Py<PyContainer>,
+    #[pyo3(get)]
+    modes: Py<PyTypedList>,
 }
 
 #[pymethods]
 impl PyMonitor {
     #[new]
-    fn new(py: Python) -> PyResult<Self> {
+    fn new(py: Python) -> PyResult<PyMonitor> {
         let inst = Self {
             id: 0,
             name: None,
             enabled: false,
-            modes: Py::new(py, PyContainer(Data::Modes(Vec::new())))?,
+            modes: PyTypedList::new(py, ListType::Mode).try_into()?,
         };
 
         Ok(inst)
     }
 
+    #[allow(clippy::needless_pass_by_value)]
+    #[setter]
+    fn set_modes(&mut self, py: Python, obj: PyObject) -> PyResult<()> {
+        let mut inner = self.modes.bind(py).borrow_mut();
+
+        if inner.iadd_flag {
+            inner.iadd_flag = false;
+        } else {
+            let list = PyList::empty_bound(py);
+            pylist_append_pyobject(py, &list, obj, ListType::Mode)?;
+            self.modes = PyTypedList::new_from_list(list.into(), ListType::Mode).try_into()?;
+        }
+
+        Ok(())
+    }
+
     /// Validate that Monitor settings are OK
-    /// Note: Does not validate Id is ok. To do that, assign monitor to client and run client validate()
-    fn valid(&self, py: Python) -> bool {
-        let modes = self.modes.borrow(py);
-        let mut modes = modes.inner_mode().iter().map(|mode| mode.borrow(py));
-        while let Some(mode) = modes.next() {
-            let dupes = modes
-                .clone()
-                .any(|m| m.width == mode.width && m.height == mode.height);
+    ///
+    /// A valid Monitor is one where each Mode's width/height is unique from the others,
+    /// and each Mode's refresh rate values are unique
+    fn valid(&self, py: Python) -> PyResult<bool> {
+        let mut used = HashSet::new();
 
-            if dupes {
-                return false;
-            }
+        let mode_iter = self.modes.iter_ref::<PyMode>(py);
 
-            // check no conflicting modes and no conflicting refresh rates
-            let rr = mode.refresh_rates.borrow(py);
-            let mut rr_iter = rr.inner_rr().iter().copied();
-            while let Some(rr) = rr_iter.next() {
-                if rr_iter.clone().any(|r| r == rr) {
-                    return false;
-                }
+        for mode in mode_iter {
+            let mode = mode?;
+            if !used.insert((mode.width, mode.height)) || !mode.valid(py)? {
+                return Ok(false);
             }
         }
 
-        true
+        Ok(true)
     }
 
     fn __repr__(&self) -> String {
@@ -712,7 +625,15 @@ impl PyMonitor {
     }
 }
 
-impl std::fmt::Debug for PyMonitor {
+impl TryFrom<PyMonitor> for Py<PyMonitor> {
+    type Error = PyErr;
+
+    fn try_from(value: PyMonitor) -> Result<Self, Self::Error> {
+        Python::with_gil(|py| Py::new(py, value))
+    }
+}
+
+impl Debug for PyMonitor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         Python::with_gil(|py| {
             let PyMonitor {
@@ -722,11 +643,16 @@ impl std::fmt::Debug for PyMonitor {
                 modes,
             } = self;
 
+            let modes = modes
+                .iter_ref::<PyMode>(py)
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| std::fmt::Error)?;
+
             f.debug_struct("Monitor")
                 .field("id", &id)
                 .field("name", &name)
                 .field("enabled", &enabled)
-                .field("modes", &modes.borrow(py))
+                .field("modes", &modes)
                 .finish()
         })
     }
@@ -740,9 +666,16 @@ struct PyMode {
     width: Dimen,
     #[pyo3(get, set)]
     height: Dimen,
-    // TODO: Allow setting list while allowing +=
-    #[pyo3(get, set)]
-    refresh_rates: Py<PyContainer>,
+    #[pyo3(get)]
+    refresh_rates: Py<PyTypedList>,
+}
+
+impl TryFrom<PyMode> for Py<PyMode> {
+    type Error = PyErr;
+
+    fn try_from(value: PyMode) -> Result<Self, Self::Error> {
+        Python::with_gil(|py| Py::new(py, value))
+    }
 }
 
 impl Debug for PyMode {
@@ -754,10 +687,16 @@ impl Debug for PyMode {
                 refresh_rates,
             } = self;
 
+            let refresh_rates = refresh_rates
+                .iter_py_extract::<PyLong, RefreshRate>(py)
+                .collect::<Result<Result<Vec<_>, _>, _>>()
+                .map_err(|_| std::fmt::Error)?
+                .map_err(|_| std::fmt::Error)?;
+
             f.debug_struct("Mode")
                 .field("width", &width)
                 .field("height", &height)
-                .field("refresh_rates", &refresh_rates.borrow(py))
+                .field("refresh_rates", &refresh_rates)
                 .finish()
         })
     }
@@ -766,95 +705,125 @@ impl Debug for PyMode {
 #[pymethods]
 impl PyMode {
     #[new]
-    fn new(py: Python) -> PyResult<Self> {
+    fn new(py: Python) -> PyResult<PyMode> {
         let inst = Self {
             width: 0,
             height: 0,
-            refresh_rates: Py::new(py, PyContainer(Data::RefreshRates(Vec::new())))?,
+            refresh_rates: PyTypedList::new(py, ListType::RefreshRate).try_into()?,
         };
 
         Ok(inst)
     }
 
-    /// Checks whether this mode is valid as a mode in and of itself
-    /// Note: If this is a duplicate mode in a list of modes, that would make this mode invalid
-    ///       This does not check the valid status in a list, for that, use valid() on a monitor instance
-    fn valid(&self, py: Python) -> bool {
-        let rr = self.refresh_rates.borrow(py);
-        let mut rr_iter = rr.inner_rr().iter().copied();
-        while let Some(rr) = rr_iter.next() {
-            if rr_iter.clone().any(|r| r == rr) {
-                return false;
+    #[allow(clippy::needless_pass_by_value)]
+    #[setter]
+    fn set_refresh_rates(&mut self, py: Python, obj: PyObject) -> PyResult<()> {
+        let mut inner = self.refresh_rates.bind(py).borrow_mut();
+
+        if inner.iadd_flag {
+            inner.iadd_flag = false;
+        } else {
+            let list = PyList::empty_bound(py);
+            pylist_append_pyobject(py, &list, obj, ListType::RefreshRate)?;
+            self.refresh_rates =
+                PyTypedList::new_from_list(list.into(), ListType::RefreshRate).try_into()?;
+        }
+
+        Ok(())
+    }
+
+    /// Checks whether this mode is valid as a mode by itself
+    ///
+    /// A valid mode is one where there are no duplicate refresh rates
+    fn valid(&self, py: Python) -> PyResult<bool> {
+        let mut used = HashSet::new();
+
+        let rr_iter = self
+            .refresh_rates
+            .iter_py_extract::<PyLong, RefreshRate>(py);
+
+        for rr in rr_iter {
+            let rr = rr??;
+            if !used.insert(rr) {
+                return Ok(false);
             }
         }
 
-        true
+        Ok(true)
     }
 
     fn __repr__(&self) -> String {
+        self.__str__()
+    }
+
+    fn __str__(&self) -> String {
         format!("{self:?}")
     }
 }
 
-fn state_to_python(monitors: &[Monitor], py: Python) -> PyResult<Py<PyContainer>> {
-    let mut py_state = Vec::new();
+fn state_to_pylist(py: Python, monitors: &[Monitor]) -> PyResult<Py<PyList>> {
+    let py_state = PyList::empty_bound(py);
 
     for monitor in monitors {
-        let mut modes = Vec::new();
+        let modes = PyList::empty_bound(py);
 
         for mode in &monitor.modes {
-            let py_refresh_rates = mode.refresh_rates.clone();
+            let py_refresh_rates = PyList::new_bound(py, &mode.refresh_rates);
 
-            let container = Py::new(py, PyContainer(Data::RefreshRates(py_refresh_rates)))?;
+            let mode: Py<PyMode> = PyMode {
+                width: mode.width,
+                height: mode.height,
+                refresh_rates: PyTypedList::new_from_list(
+                    py_refresh_rates.into(),
+                    ListType::RefreshRate,
+                )
+                .try_into()?,
+            }
+            .try_into()?;
 
-            let mode = Py::new(
-                py,
-                PyMode {
-                    width: mode.width,
-                    height: mode.height,
-                    refresh_rates: container,
-                },
-            )?;
-
-            modes.push(mode);
+            modes.append(mode)?;
         }
 
-        let modes = Py::new(py, PyContainer(Data::Modes(modes)))?;
+        let monitor: Py<PyMonitor> = PyMonitor {
+            id: monitor.id,
+            name: monitor.name.clone(),
+            enabled: monitor.enabled,
+            modes: PyTypedList::new_from_list(modes.into(), ListType::Mode).try_into()?,
+        }
+        .try_into()?;
 
-        let monitor = Py::new(
-            py,
-            PyMonitor {
-                id: monitor.id,
-                name: monitor.name.clone(),
-                enabled: monitor.enabled,
-                modes,
-            },
-        )?;
-
-        py_state.push(monitor);
+        py_state.append(monitor)?;
     }
 
-    let py_state = Py::new(py, PyContainer(Data::Monitors(py_state)))?;
-
-    Ok(py_state)
+    Ok(py_state.into())
 }
 
-fn python_to_state(monitors: &Py<PyContainer>, py: Python) -> Vec<Monitor> {
+fn state_to_pytypedlist(py: Python, monitors: &[Monitor]) -> PyResult<Py<PyTypedList>> {
+    let py_state = state_to_pylist(py, monitors)?;
+
+    let typed_list = PyTypedList::new_from_list(py_state, ListType::Monitor).try_into()?;
+
+    Ok(typed_list)
+}
+
+fn pytypedlist_to_state(py: Python, monitors: &Py<PyTypedList>) -> PyResult<Vec<Monitor>> {
     let mut state = Vec::new();
 
-    let monitors = monitors.borrow(py);
-    let monitors = monitors.inner_mon();
+    let monitors = monitors.iter_ref::<PyMonitor>(py);
 
-    for monitor in monitors.iter().map(|mon| mon.borrow(py)) {
+    for py_monitor in monitors {
         let mut modes = Vec::new();
 
-        let py_modes = monitor.modes.borrow(py);
-        let py_modes = py_modes.inner_mode();
+        let py_monitor = py_monitor?;
+        let py_modes = py_monitor.modes.iter_ref::<PyMode>(py);
 
         for mode in py_modes {
-            let mode = mode.borrow(py);
+            let mode = mode?;
 
-            let refresh_rates = mode.refresh_rates.borrow(py).inner_rr().to_vec();
+            let refresh_rates = mode
+                .refresh_rates
+                .iter_py_extract::<PyLong, RefreshRate>(py)
+                .collect::<Result<Result<Vec<_>, _>, _>>()??;
 
             modes.push(Mode {
                 width: mode.width,
@@ -864,12 +833,112 @@ fn python_to_state(monitors: &Py<PyContainer>, py: Python) -> Vec<Monitor> {
         }
 
         state.push(Monitor {
-            id: monitor.id,
-            name: monitor.name.clone(),
-            enabled: monitor.enabled,
+            id: py_monitor.id,
+            name: py_monitor.name.clone(),
+            enabled: py_monitor.enabled,
             modes,
         });
     }
 
-    state
+    Ok(state)
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn pylist_append_pyobject(
+    py: Python,
+    pylist: &Bound<'_, PyList>,
+    obj: PyObject,
+    list_ty: ListType,
+) -> PyResult<()> {
+    let obj = obj.bind(py);
+
+    let inner = pylist;
+
+    let mut ty = obj.get_type();
+    let pylist = obj.downcast_exact::<PyList>();
+    let py_monitor = obj.downcast_exact::<PyMonitor>();
+    let py_mode = obj.downcast_exact::<PyMode>();
+    let py_long = obj.extract::<u32>();
+
+    let mut is_ok = true;
+    match list_ty {
+        ListType::Monitor => {
+            if let Ok(mon) = py_monitor {
+                inner.append(mon)?;
+                return Ok(());
+            } else if let Ok(list) = pylist {
+                for item in list.iter() {
+                    if let Ok(mon) = item.downcast_exact::<PyMonitor>() {
+                        inner.append(mon)?;
+                        continue;
+                    }
+
+                    is_ok = false;
+                    ty = item.get_type();
+                    break;
+                }
+            } else {
+                is_ok = false;
+            }
+        }
+
+        ListType::Mode => {
+            if let Ok(mode) = py_mode {
+                inner.append(mode)?;
+                return Ok(());
+            } else if let Ok(list) = pylist {
+                for item in list.iter() {
+                    if let Ok(mode) = item.downcast_exact::<PyMode>() {
+                        inner.append(mode)?;
+                        continue;
+                    }
+
+                    is_ok = false;
+                    ty = item.get_type();
+                    break;
+                }
+            } else {
+                is_ok = false;
+            }
+        }
+
+        ListType::RefreshRate => {
+            if let Ok(rr) = py_long {
+                inner.append(rr)?;
+                return Ok(());
+            } else if let Ok(list) = pylist {
+                for item in list.iter() {
+                    if let Ok(mon) = item.extract::<u32>() {
+                        inner.append(mon)?;
+                        continue;
+                    }
+
+                    is_ok = false;
+                    ty = item.get_type();
+                    break;
+                }
+            } else {
+                is_ok = false;
+            }
+        }
+    }
+
+    if is_ok {
+        Ok(())
+    } else {
+        Err(PyTypeError::new_err(format!(
+            "expected {}, got {}",
+            list_ty,
+            ty.name()?,
+        )))
+    }
+}
+
+#[allow(clippy::needless_pass_by_value)]
+fn pytypedlist_append_pyobject(
+    py: Python,
+    py_typed_list: &PyTypedList,
+    obj: PyObject,
+) -> PyResult<()> {
+    pylist_append_pyobject(py, py_typed_list.list.bind(py), obj, py_typed_list.ty)
 }
