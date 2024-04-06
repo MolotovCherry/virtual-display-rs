@@ -1,8 +1,13 @@
 use std::io::{prelude::Read, Write as _};
 
-use eyre::Context as _;
+use eyre::{bail, Context as _};
+use log::error;
 use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
+use winreg::{
+    enums::{HKEY_CURRENT_USER, KEY_WRITE},
+    RegKey,
+};
 
 use crate::{ClientCommand, DriverCommand, Id, Monitor, RequestCommand};
 
@@ -67,6 +72,37 @@ impl Client {
         let command = RequestCommand::State;
 
         send_command(&mut self.writer, &command)
+    }
+
+    /// Persist changes to registry for current user
+    pub fn persist(monitors: &[Monitor]) -> eyre::Result<()> {
+        let hklm = RegKey::predef(HKEY_CURRENT_USER);
+        let key = r"SOFTWARE\VirtualDisplayDriver";
+
+        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
+
+        // if open failed, try to create key and subkey
+        if let Err(e) = reg_key {
+            error!("Failed opening {key}: {e:?}");
+            reg_key = hklm.create_subkey(key).map(|(key, _)| key);
+
+            if let Err(e) = reg_key {
+                error!("Failed creating {key}: {e:?}");
+                bail!("Failed to open or create key {key}");
+            }
+        }
+
+        let reg_key = reg_key.unwrap();
+
+        let Ok(data) = serde_json::to_string(monitors) else {
+            bail!("Failed to convert state to json");
+        };
+
+        if reg_key.set_value("data", &data).is_err() {
+            bail!("Failed to save reg key");
+        }
+
+        Ok(())
     }
 }
 

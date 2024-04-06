@@ -1,12 +1,7 @@
 use std::{collections::HashSet, mem::ManuallyDrop, thread};
 
 use eyre::bail;
-use log::error;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
-use winreg::{
-    enums::{HKEY_CURRENT_USER, KEY_WRITE},
-    RegKey,
-};
 
 use crate::{Client, ClientCommand, Id, Mode, Monitor, ReplyCommand};
 
@@ -172,34 +167,8 @@ impl DriverClient {
     }
 
     /// Persist changes to registry for current user
-    pub fn persist(&mut self) -> eyre::Result<()> {
-        let hklm = RegKey::predef(HKEY_CURRENT_USER);
-        let key = r"SOFTWARE\VirtualDisplayDriver";
-
-        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
-
-        // if open failed, try to create key and subkey
-        if let Err(e) = reg_key {
-            error!("Failed opening {key}: {e:?}");
-            reg_key = hklm.create_subkey(key).map(|(key, _)| key);
-
-            if let Err(e) = reg_key {
-                error!("Failed creating {key}: {e:?}");
-                bail!("Failed to open or create key {key}");
-            }
-        }
-
-        let reg_key = reg_key.unwrap();
-
-        let Ok(data) = serde_json::to_string(&self.state) else {
-            bail!("Failed to convert state to json");
-        };
-
-        if reg_key.set_value("data", &data).is_err() {
-            bail!("Failed to save reg key");
-        }
-
-        Ok(())
+    pub fn persist(&self) -> eyre::Result<()> {
+        Client::persist(&self.state)
     }
 
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
