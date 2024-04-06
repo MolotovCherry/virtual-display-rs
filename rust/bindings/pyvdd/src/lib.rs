@@ -19,7 +19,7 @@ use driver_ipc::{
 };
 use pyo3::prelude::*;
 use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError},
+    exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
     pyclass::boolean_struct::False,
     types::{DerefToPyAny, PyList, PyLong},
     DowncastIntoError, PyClass, PyTypeCheck,
@@ -86,6 +86,36 @@ impl PyTypedList {
             iadd_flag: false,
         }
     }
+
+    fn get_index(&self, py: Python, index: isize) -> PyResult<usize> {
+        let len = self.__len__(py);
+
+        let Some(abs_index) = index.checked_abs() else {
+            return Err(PyIndexError::new_err("list index out of bounds"));
+        };
+        let abs_index: usize = abs_index.try_into()?;
+        let abs_index = abs_index.saturating_sub(1);
+
+        // convert index to appropriate index
+        let index = if index >= 0 {
+            let len: isize = len.try_into()?;
+            if index >= len {
+                return Err(PyIndexError::new_err("list index out of bounds"));
+            }
+
+            // this is > 0, no signs are lost
+            #[allow(clippy::cast_sign_loss)]
+            {
+                index as usize
+            }
+        } else if let Some(index) = (len.saturating_sub(1)).checked_sub(abs_index) {
+            index
+        } else {
+            return Err(PyIndexError::new_err("list index out of bounds"));
+        };
+
+        Ok(index)
+    }
 }
 
 #[pymethods]
@@ -109,7 +139,8 @@ impl PyTypedList {
         Ok(())
     }
 
-    fn __setitem__(&self, py: Python, index: usize, item: PyObject) -> PyResult<()> {
+    fn __setitem__(&self, py: Python, index: isize, item: PyObject) -> PyResult<()> {
+        let index = self.get_index(py, index)?;
         let ty = item.bind(py).get_type();
 
         let is_valid = match self.ty {
@@ -129,7 +160,8 @@ impl PyTypedList {
         self.list.bind(py).set_item(index, item)
     }
 
-    fn __getitem__(&self, py: Python, index: usize) -> PyResult<PyObject> {
+    fn __getitem__(&self, py: Python, index: isize) -> PyResult<PyObject> {
+        let index = self.get_index(py, index)?;
         self.list.bind(py).get_item(index).map(Into::into)
     }
 
@@ -137,7 +169,8 @@ impl PyTypedList {
         self.list.bind(py).contains(obj)
     }
 
-    fn __delitem__(&self, py: Python, index: usize) -> PyResult<()> {
+    fn __delitem__(&self, py: Python, index: isize) -> PyResult<()> {
+        let index = self.get_index(py, index)?;
         self.list.bind(py).del_item(index)
     }
 }
