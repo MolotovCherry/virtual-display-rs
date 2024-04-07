@@ -108,23 +108,23 @@ client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
 
 # get the id of Monitor belonging to name or id
 #
-# client.find_id(query: str) -> Optional[int]
+# DriverClient.find_id(query: str) -> Optional[int]
 client.find_id("myname")
 
 # get a Monitor by id
 #
-# client.find_monitor(int) -> Optional[Monitor]
+# DriverClient.find_monitor(int) -> Optional[Monitor]
 client.find_monitor(5)
 
 # get a Monitor by name or id
 #
-# client.find_monitor_query(query: str) -> Optional[Monitor]
+# DriverClient.find_monitor_query(query: str) -> Optional[Monitor]
 client.find_monitor_query("name")
 
 # Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
 # which the driver will ignore when you notify it of changes
 #
-# client.new_id(id: Optional[int] = None) -> Optional[int]
+# DriverClient.new_id(id: Optional[int] = None) -> Optional[int]
 client.new_id()
 # you can ask for a preferred id, and it'll give it to you if available.
 # if the id you asked for is a duplicate, None gets returned
@@ -140,30 +140,29 @@ client.persist()
 # you can ask to be notified.
 # this represents the complete current state of the driver
 #
-# client.receive(Callable[list[Monitor], None])
+# DriverClient.receive(Callable[list[Monitor], None])
 client.receive(lambda d: print(d))
-# one way to use this might be to auto update your instance every time it changes:
+# one way to use this might be to auto update your driver instance
 def set_monitors(data):
     client.monitors = data
 client.receive(set_monitors)
-# and now you always have client.monitors set to the latest data!
 
-# gets latest states from driver (returns it)
+# gets latest states from driver
 #
-# client.get_state() -> list[Monitor]
+# DriverClient.get_state() -> list[Monitor]
 client.get_state()
 
 # remove monitors by id
 #
-# client.remove(list[int])
+# DriverClient.remove(list[int])
 client.remove([1,2,3])
 
 # set enable status on monitors by id
 #
-# client.set_enabled(list[int], bool)
+# DriverClient.set_enabled(list[int], bool)
 client.set_enabled([1,2,3], true)
 
 # set enable status on monitors by query
 #
-# client.set_enabled_query(list[str], bool)
+# DriverClient.set_enabled_query(list[str], bool)
 client.set_enabled_query(["name1", "name2", "name3"], true)
