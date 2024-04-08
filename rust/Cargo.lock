@@ -280,13 +280,13 @@ dependencies = [
 name = "driver-ipc"
 version = "0.1.0"
 dependencies = [
- "eyre",
  "joinery",
  "lazy_format",
  "log",
  "owo-colors 4.0.0",
  "serde",
  "serde_json",
+ "thiserror",
  "win-pipes",
  "windows",
  "winreg",

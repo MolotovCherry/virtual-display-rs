@@ -1,6 +1,5 @@
 use std::io::{prelude::Read, Write as _};
 
-use eyre::{bail, Context as _};
 use log::error;
 use serde::{de::DeserializeOwned, Serialize};
 use win_pipes::{NamedPipeClientReader, NamedPipeClientWriter};
@@ -9,7 +8,7 @@ use winreg::{
     RegKey,
 };
 
-use crate::{ClientCommand, DriverCommand, Id, Monitor, RequestCommand};
+use crate::{ClientCommand, DriverCommand, Id, Monitor, RequestCommand, Result};
 
 // EOF byte used to separate messages
 const EOF: u8 = 0x4;
@@ -26,34 +25,32 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn connect() -> eyre::Result<Self> {
-        let (reader, writer) =
-            win_pipes::NamedPipeClientOptions::new("virtualdisplaydriver")
-                .wait()
-                .access_duplex()
-                .mode_byte()
-                .create()
-                .context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working")?;
+    pub fn connect() -> Result<Self> {
+        let (reader, writer) = win_pipes::NamedPipeClientOptions::new("virtualdisplaydriver")
+            .wait()
+            .access_duplex()
+            .mode_byte()
+            .create()?;
 
         Ok(Self { reader, writer })
     }
 
     /// Notifies driver of changes (additions/updates/removals)
-    pub fn notify(&mut self, monitors: &[Monitor]) -> eyre::Result<()> {
+    pub fn notify(&mut self, monitors: &[Monitor]) -> Result<()> {
         let command = DriverCommand::Notify(monitors.to_owned());
 
         send_command(&mut self.writer, &command)
     }
 
     /// Remove specific monitors by id
-    pub fn remove(&mut self, ids: &[Id]) -> eyre::Result<()> {
+    pub fn remove(&mut self, ids: &[Id]) -> Result<()> {
         let command = DriverCommand::Remove(ids.to_owned());
 
         send_command(&mut self.writer, &command)
     }
 
     /// Remove all monitors
-    pub fn remove_all(&mut self) -> eyre::Result<()> {
+    pub fn remove_all(&mut self) -> Result<()> {
         let command = DriverCommand::RemoveAll;
 
         send_command(&mut self.writer, &command)
@@ -62,20 +59,20 @@ impl Client {
     /// Receive generic reply
     ///
     /// This is required because a reply could be any of these at any moment
-    pub fn receive(&mut self) -> eyre::Result<ClientCommand> {
+    pub fn receive(&mut self) -> Result<ClientCommand> {
         receive_command(&mut self.reader)
     }
 
     /// Request state update
     /// use `receive()` to get the reply
-    pub fn request_state(&mut self) -> eyre::Result<()> {
+    pub fn request_state(&mut self) -> Result<()> {
         let command = RequestCommand::State;
 
         send_command(&mut self.writer, &command)
     }
 
     /// Persist changes to registry for current user
-    pub fn persist(monitors: &[Monitor]) -> eyre::Result<()> {
+    pub fn persist(monitors: &[Monitor]) -> Result<()> {
         let hklm = RegKey::predef(HKEY_CURRENT_USER);
         let key = r"SOFTWARE\VirtualDisplayDriver";
 
@@ -88,68 +85,59 @@ impl Client {
 
             if let Err(e) = reg_key {
                 error!("Failed creating {key}: {e:?}");
-                bail!("Failed to open or create key {key}");
+                return Err(e)?;
             }
         }
 
         let reg_key = reg_key.unwrap();
 
-        let Ok(data) = serde_json::to_string(monitors) else {
-            bail!("Failed to convert state to json");
-        };
+        let data = serde_json::to_string(monitors)?;
 
-        if reg_key.set_value("data", &data).is_err() {
-            bail!("Failed to save reg key");
-        }
+        reg_key.set_value("data", &data)?;
 
         Ok(())
     }
 }
 
-fn send_command(
-    ipc_writer: &mut NamedPipeClientWriter,
-    command: &impl Serialize,
-) -> eyre::Result<()> {
+fn send_command(writer: &mut NamedPipeClientWriter, command: &impl Serialize) -> Result<()> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
-    let mut message = serde_json::to_vec(command).wrap_err("failed to serialize command")?;
+    let mut message = serde_json::to_vec(command)?;
     message.push(EOF);
-    ipc_writer
-        .write_all(&message)
-        .wrap_err("failed to write to driver pipe")?;
-    ipc_writer.flush().wrap_err("failed to flush driver pipe")?;
+    writer.write_all(&message)?;
+    writer.flush()?;
 
     Ok(())
 }
 
-fn receive_command<T: DeserializeOwned>(ipc_reader: &mut NamedPipeClientReader) -> eyre::Result<T> {
+fn receive_command<T: DeserializeOwned>(reader: &mut NamedPipeClientReader) -> Result<T> {
     let mut msg_buf = Vec::with_capacity(4096);
     let mut buf = vec![0; 4096];
 
     loop {
-        let Ok(size) = ipc_reader.read(&mut buf) else {
+        let Ok(size) = reader.read(&mut buf) else {
             break;
         };
 
         msg_buf.extend_from_slice(&buf[..size]);
 
         if msg_buf.last().is_some_and(|&byte| byte == EOF) {
+            // pop off EOF
+            msg_buf.pop();
+
             break;
         }
     }
 
     // in the following we assume we always get a fully formed message, e.g. no multiple messages
 
-    // pop off EOF
-    msg_buf.pop();
-
     // interior EOF is not valid
     assert!(
         !msg_buf.contains(&EOF),
-        "interior eof detected, msg: {msg_buf:?}"
+        "interior eof detected, this is a bug; msg: {msg_buf:?}"
     );
 
-    let command = serde_json::from_slice(&msg_buf).wrap_err("failed to deserialize command")?;
+    let command = serde_json::from_slice(&msg_buf)?;
 
     Ok(command)
 }

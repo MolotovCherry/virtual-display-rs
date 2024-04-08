@@ -1,6 +1,7 @@
 mod mode;
 
 use clap::Parser;
+use eyre::Context as _;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
@@ -108,7 +109,7 @@ struct RemoveCommand {
 
 fn main() -> eyre::Result<()> {
     let Args { options, command } = Args::parse();
-    let mut client = DriverClient::new()?;
+    let mut client = DriverClient::new().context("Failed to connect to Virtual Display Driver; please ensure the driver is installed and working")?;
 
     match command {
         Command::List => {
@@ -144,7 +145,8 @@ fn main() -> eyre::Result<()> {
 }
 
 fn persist(client: &mut DriverClient) -> eyre::Result<()> {
-    client.persist()
+    client.persist()?;
+    Ok(())
 }
 
 fn list(client: &mut DriverClient, opts: &GlobalOptions) -> eyre::Result<()> {
