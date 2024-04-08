@@ -10,17 +10,22 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-thiserror = "1.0.57"
-anyhow = "1.0.80"
+thiserror = "1.0.58"
+anyhow = "1.0.81"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.21"
-bytemuck = { version = "1.14.3", features = ["derive"] }
+bytemuck = { version = "1.15.0", features = ["derive"] }
 serde_json = "1.0.114"
 driver-ipc = { path = "../driver-ipc" }
-winreg = "0.52.0"
 driver-logger = { path = "../driver-logger" }
-win-pipes = { git = "https://github.com/MolotovCherry/WinPipes-rs" }
+tokio = { version = "1.37.0", features = [
+    "macros",
+    "net",
+    "rt-multi-thread",
+    "io-util",
+    "sync",
+] }
 
 [dependencies.windows]
 version = "0.54.0"

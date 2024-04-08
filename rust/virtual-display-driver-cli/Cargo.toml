@@ -7,8 +7,8 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-clap = { version = "4.5.1", features = ["derive"] }
-color-eyre = "0.6.2"
+clap = { version = "4.5.3", features = ["derive"] }
+color-eyre = "0.6.3"
 driver-ipc = { path = "../driver-ipc" }
 eyre = "0.6.12"
 owo-colors = "4.0.0"

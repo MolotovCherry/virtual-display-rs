@@ -7,8 +7,9 @@ members = [
     "driver-ipc",
     "driver-logger",
     "virtual-display-driver-cli",
-    "pyvdd",
-    "dart_vdd/rust",
+    "bindings/pyvdd",
+    "vdd-user-session-service",
+    "bindings/dart_vdd/rust",
 ]
 
 [profile.release]

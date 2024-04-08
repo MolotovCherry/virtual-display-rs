@@ -25,27 +25,28 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
+          workspaces: "rust -> target"
           key: ${{ (github.event_name == 'release' || inputs.release) && 'prod' || 'dev' }}
 
       - name: Install cargo-make
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-make
 
       - name: Install cargo-target-dir
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-target-dir
           git: https://github.com/MolotovCherry/cargo-target-dir
 
       - name: Install cargo-wix
         if: github.event_name == 'release'
-        uses: baptiste0928/cargo-install@v2
+        uses: baptiste0928/cargo-install@v3
         with:
           crate: cargo-wix
 
@@ -67,6 +68,11 @@ jobs:
         run: |
           Get-PfxCertificate -FilePath private.pfx -Password (ConvertTo-SecureString -String "${{ env.PRIVATE_KEY_PASSWORD }}" -AsPlainText -Force) | Export-Certificate -FilePath DriverCertificate.cer -type CERT
 
+      - name: Setup python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Build
         env:
           PRIVATE_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '1234' || secrets.PRIVATE_KEY_PASSWORD }}
@@ -74,34 +80,33 @@ jobs:
         working-directory: rust
         run: cargo make -p $env:RELEASE build
 
-      - name: Upload Artifacts
+      - name: Prepare Artifact Upload
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
-        with:
-          name: driver
-          path: |
-            rust/target/output/*.exe
-            rust/target/output/*.cat
-            rust/target/output/*.dll
-            rust/target/output/*.inf
+        run: |
+          # copy any required files to . so artifact upload files are in top level
+          Get-ChildItem -Path `
+            "rust/target/output/*.exe", `
+            "rust/target/output/*.cat", `
+            "rust/target/output/*.dll", `
+            "rust/target/output/*.inf", `
+            "rust/target/output/*.pyd", `
+            "installer/install-cert.bat", `
+            "installer/files/*.reg" `
+            | ForEach-Object { Copy-Item -Path $_.FullName -Destination "." }
 
-      # this is split from the top in order to allow the files to all be at the top level of the archive
       - name: Upload Artifacts
         if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: driver
           path: |
+            *.exe
+            *.cat
+            *.dll
+            *.inf
+            *.pyd
             DriverCertificate.cer
-
-      # this is split from the top in order to allow the files to all be at the top level of the archive
-      - name: Upload Artifacts
-        if: github.event_name != 'release'
-        uses: actions/upload-artifact@v3
-        with:
-          name: driver
-          path: |
-            installer/install-cert.bat
+            install-cert.bat
 
       - name: Set release version
         if: github.event_name == 'release'
@@ -129,12 +134,12 @@ jobs:
       - name: Zip up install package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, rust/target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, install-cert.bat, rust/target/output/*.msi | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-installer-x64.zip"
 
       - name: Zip up portable package
         if: github.event_name == 'release'
         run: |
-          Get-ChildItem -Path DriverCertificate.cer, installer/install-cert.bat, rust/target/output/*.inf, rust/target/output/*.dll, rust/target/output/*.cat, rust/target/output/*.exe, installer/files/*.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
+          Get-ChildItem -Path DriverCertificate.cer, install-cert.bat, *.inf, *.dll, *.cat, *.exe, *.pyd, *.reg | Compress-Archive -CompressionLevel Optimal -DestinationPath "virtual-desktop-driver-portable-x64.zip"
 
       - name: Attach assets to release
         if: github.event_name == 'release'

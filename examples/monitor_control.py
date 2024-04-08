@@ -1,99 +1,159 @@
-from pyvdd import Monitors
+from pyvdd import *
+
+#
+# Before you begin, please note the following:
+#
+# 1. All Monitors must have a unique Id
+# 2. All Modes under a Monitor must have a unique width/height
+# 3. All refresh rates under a Mode must be unique
+#
+# Every class, attribute, and function is annotated with a __doc__, which also shows the type's
+# type signature.
+#
+# Final note: It is possible to have stale data in memory, and this can cause duplicate Ids.
+#             However, if it is sent to the driver, the driver will simply ignore the duplicates.
+#             When notify() is done, it DOES NOT check the latest data! You must reconcile differences via
+#             either get_state(), or set up a receiver() to be notified of new changes
+#
+
+# make the client
+client = DriverClient()
+# you can see what's in it
+print(client)
+# DriverClient { monitors: [Monitor { id: 0, name: None, enabled: true, modes: [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }] }] }
+
+# monitors are stored at
+print(client.monitors)
+# [Monitor { id: 0, name: None, enabled: true, modes: [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }] }]
 
 #
 # Monitor functionality
 #
-mons = Monitors()
-print(mons)
-# [Monitor { id: 1, name: Some("bar"), enabled: true, modes: [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }] }]
 
-# you can get any monitor by the monitors specific ID
-mon1 = mons[1]
-print(mon1)
-# Monitor { id: 1, name: Some("bar"), enabled: true, modes: [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }] }
+# to get a monitor, just index
+client.monitors[0]
+# set id
+client.monitors[0].id = 0
+# set name
+client.monitors[0].name = "MyName"
+# you can unset the name
+client.monitors[0].name = None
+# enable or disable monitor
+client.monitors[0].enabled = False
 
-# get/set properties on the monitor
-mon1.id = 0
-# get/set name
-mon1.name = "Foo"
-mon1.name = None
-# set enabled status
-mon1.enabled = False
+# delete a monitor we don't want
+del client.monitors[0]
 
-print(mon1.modes)
-# node, this can be set with a dict
-# [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }]
+# create new monitor (set it up as you want)
+new_mon = Monitor()
+client.monitors[0] = new_mon
 
-# set the whole modes in one go
-mon1.modes = [{
-    "width": 2000,
-    "height": 1000,
-    "refresh_rates": [120, 90, 60]
-}]
+# add a new monitor to list
+client.monitors += Monitor()
+# or add multiple
+client.monitors += [Monitor(), Monitor()]
 
-# you can iterate
-for mon in mons:
+# you can iterate over them
+for mon in client.monitors:
     print(mon)
-
-# set a new monitor by id, or overwrite existing monitor id if it exists
-mons[1] = {
-    "name": "foo",
-    "enabled": True,
-    "modes": [{
-        "width": 2000,
-        "height": 1000,
-        "refresh_rates": [120, 90, 60]
-    }]
-}
-
-# remove monitor
-del mons[1]
-
-# whenever any changes are made, you can notify the driver to update
-mons.notify()
-
-# you can remove specific monitors by id; this will immediately notify the driver
-mons.remove([1,2,3])
-
-# remove all monitors; this will immediately notify the driver
-mons.remove_all()
+    # Monitor { id: 0, name: None, enabled: true, modes: [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }] }
+    print(mon.modes)
+    # [Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }]
 
 #
 # Modes
 #
-mode = mons1.modes[0]
-# getter/setter prop
-mode.width = 2000
-# getter/setter prop
-mode.height = 1000
-# getter/setter prop
-mode.refresh_rates = [120, 90, 60]
 
-# set mode to new data from dict
-# can only overwrite already existing elems
-mon1.modes[0] = {
-    "width": 2000,
-    "height": 1000,
-    "refresh_rates": [120, 90, 60]
-}
+# access a mode by index
+print(client.monitors[0].modes[0])
+# Mode { width: 1920, height: 1080, refresh_rates: [90, 120] }
 
-# remove mode
-del mon1.modes[0]
+# set width
+client.monitors[0].modes[0].width = 1000
+# set height
+client.monitors[0].modes[0].height = 1000
+# check out refresh rates
+print(client.monitors[0].modes[0].refresh_rates)
+# [90, 120]
 
-# you can iterate
-for mode in mon1.modes:
-    print(mode)
+# add a new mode
+new_mode = Mode()
+# set up properties like normal
+# add mode to list
+client.monitors[0].modes += new_mode
+# or add multiple
+client.monitors[0].modes += [Mode(), Mode()]
+# delete a mode we don't want
+del client.monitors[0].modes[0]
 
-# you can add another mode
-mon1.modes + {
-    "width": 2000,
-    "height": 1000,
-    "refresh_rates": [120, 90, 60]
-}
+#
+# Refresh Rates
+#
 
-# or you can add a list of modes
-mon1.modes + [{
-    "width": 2000,
-    "height": 1000,
-    "refresh_rates": [120, 90, 60]
-}]
+# add a refresh rate
+client.monitors[0].modes[0].modes[0].refresh_rates += 90
+
+# add multiple refresh rates
+client.monitors[0].modes[0].modes[0].refresh_rates += [90, 120, 240]
+
+# delete a refresh rate
+del client.monitors[0].modes[0].modes[0].refresh_rates[0]
+
+# set a refresh rate
+client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
+
+#
+# DriverClient functions
+#
+
+# get the id of Monitor belonging to name
+#
+# DriverClient.find_id(query: str) -> Optional[int]
+client.find_id("myname")
+
+# get a Monitor by id or name
+#
+# DriverClient.find_monitor(int | str) -> Optional[Monitor]
+client.find_monitor(5)
+client.find_monitor("name")
+
+# Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
+# which the driver will ignore when you notify it of changes
+#
+# DriverClient.new_id(id: Optional[int] = None) -> Optional[int]
+client.new_id()
+# you can ask for a preferred id, and it'll give it to you if available.
+# if the id you asked for is a duplicate, None gets returned
+client.new_id(5)
+
+# send changes to driver. all changes are done in-memory until you notify
+client.notify()
+
+# save (persist) current in-memory changes to user across reboots
+client.persist()
+
+# if any other clients elsewhere modify client while your script is running
+# you can ask to be notified.
+# this represents the complete current state of the driver
+#
+# DriverClient.receive(Callable[list[Monitor], None])
+client.receive(lambda d: print(d))
+# one way to use this might be to auto update your driver instance
+def set_monitors(data):
+    client.monitors = data
+client.receive(set_monitors)
+
+# gets latest states from driver
+#
+# DriverClient.get_state() -> list[Monitor]
+client.get_state()
+
+# remove monitors by id
+#
+# DriverClient.remove(list[int])
+client.remove([1,2,3])
+
+# set enable status on monitors by id or name
+#
+# DriverClient.set_enabled(list[int | str], bool)
+client.set_enabled([1,2,3,"name"], true)

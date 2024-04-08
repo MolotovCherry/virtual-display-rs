@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-driver-ipc = { path = "../../driver-ipc" }
-flutter_rust_bridge = "=2.0.0-dev.28"
+driver-ipc = { path = "../../../driver-ipc" }
+flutter_rust_bridge = "=2.0.0-dev.30"
 
 [lints]
 # May not work, because package might be compiled outside this workspace

@@ -2,6 +2,7 @@
 #![allow(clippy::missing_errors_doc)]
 
 use std::ffi::c_void;
+use std::sync::OnceLock;
 
 use wdf_umdf_sys::{
     DEVPROPTYPE, NTSTATUS, PCUNICODE_STRING, PCWDF_OBJECT_CONTEXT_TYPE_INFO, PDRIVER_OBJECT,
@@ -10,7 +11,7 @@ use wdf_umdf_sys::{
     WDF_OBJECT_ATTRIBUTES, _WDF_DEVICE_PROPERTY_DATA, _WDF_PNPPOWER_EVENT_CALLBACKS,
 };
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum WdfError {
     #[error("{0}")]
     WdfFunctionNotAvailable(&'static str),
@@ -66,7 +67,17 @@ macro_rules! WdfCall {
     };
 
     ($other_is_error:expr, $name:ident ( $($args:expr),* )) => {{
-        let fn_handle = {
+        static CACHED_FN: OnceLock<
+            Result<
+                ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+                WdfError
+            >
+        > = OnceLock::new();
+
+        let fn_handle: &Result<
+            ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+            WdfError
+        > = CACHED_FN.get_or_init(|| {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::WDFFUNCENUM::[<$name TableIndex>].0 as usize;
 
@@ -86,15 +97,16 @@ macro_rules! WdfCall {
 
                     // SAFETY: Ensured that this is present by if condition from `WdfIsFunctionAvailable!`
                     let fn_handle = unsafe { fn_handle.read() };
-                    // SAFETY: All available function handles are not null
-                    let fn_handle = unsafe { fn_handle.unwrap_unchecked() };
 
                     Ok(fn_handle)
                 } else {
                     Err($crate::WdfError::WdfFunctionNotAvailable(concat!(stringify!($name), " is not available")))
                 }
             }
-        };
+        });
+
+        // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
+        let fn_handle = fn_handle.map(|f| unsafe { f.unwrap_unchecked() });
 
         if let Ok(fn_handle) = fn_handle {
             // SAFETY: Pointer to globals is always immutable
@@ -453,7 +465,7 @@ pub unsafe fn WdfDriverCreate(
             DriverAttributes.unwrap_or(WDF_NO_OBJECT_ATTRIBUTES!()),
             DriverConfig,
             Driver
-                .map(|d| d as *mut _)
+                .map(std::ptr::from_mut)
                 .unwrap_or(WDF_NO_HANDLE!())
         )
     }
@@ -473,7 +485,7 @@ pub unsafe fn WdfDeviceCreate(
     WdfCall! {
         WdfDeviceCreate(
             DeviceInit,
-            DeviceAttributes.map_or(WDF_NO_OBJECT_ATTRIBUTES!(), |d| d as *mut _),
+            DeviceAttributes.map_or(WDF_NO_OBJECT_ATTRIBUTES!(), std::ptr::from_mut),
             Device
         )
     }
@@ -585,7 +597,7 @@ pub unsafe fn WdfMemoryGetBuffer(
     WdfCall! {
         WdfMemoryGetBuffer(
             Memory,
-            BufferSize.map_or(std::ptr::null_mut(), |s| s as *mut _)
+            BufferSize.map_or(std::ptr::null_mut(), std::ptr::from_mut)
         )
     }
 }

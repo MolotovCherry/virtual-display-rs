@@ -1,14 +1,17 @@
 #![allow(non_snake_case)]
 #![allow(clippy::missing_errors_doc)]
 
+use std::sync::OnceLock;
+
 use wdf_umdf_sys::{
-    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_SWAPCHAINSETDEVICE,
-    IDARG_OUT_ADAPTER_INIT, IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE,
+    IDARG_IN_ADAPTER_INIT, IDARG_IN_MONITORCREATE, IDARG_IN_QUERY_HWCURSOR,
+    IDARG_IN_SETUP_HWCURSOR, IDARG_IN_SWAPCHAINSETDEVICE, IDARG_OUT_ADAPTER_INIT,
+    IDARG_OUT_MONITORARRIVAL, IDARG_OUT_MONITORCREATE, IDARG_OUT_QUERY_HWCURSOR,
     IDARG_OUT_RELEASEANDACQUIREBUFFER, IDDCX_ADAPTER, IDDCX_MONITOR, IDDCX_SWAPCHAIN,
     IDD_CX_CLIENT_CONFIG, NTSTATUS, WDFDEVICE, WDFDEVICE_INIT,
 };
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Copy, Clone, Debug, thiserror::Error)]
 pub enum IddCxError {
     #[error("{0}")]
     IddCxFunctionNotAvailable(&'static str),
@@ -48,7 +51,17 @@ macro_rules! IddCxCall {
     };
 
     ($other_is_error:expr, $name:ident ( $($args:expr),* )) => {{
-        let fn_handle = {
+        static CACHED_FN: OnceLock<
+            Result<
+                ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+                IddCxError
+            >
+        > = OnceLock::new();
+
+        let fn_handle: &Result<
+            ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
+            IddCxError
+        > = CACHED_FN.get_or_init(|| {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::IDDFUNCENUM::[<$name TableIndex>].0 as usize;
 
@@ -68,15 +81,16 @@ macro_rules! IddCxCall {
 
                     // SAFETY: Ensured that this is present by if condition from `IddIsFunctionAvailable!`
                     let fn_handle = unsafe { fn_handle.read() };
-                    // SAFETY: All available function handles are not null
-                    let fn_handle = unsafe { fn_handle.unwrap_unchecked() };
 
                     Ok(fn_handle)
                 } else {
                     Err($crate::IddCxError::IddCxFunctionNotAvailable(concat!(stringify!($name), " is not available")))
                 }
             }
-        };
+        });
+
+        // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
+        let fn_handle = fn_handle.map(|f| unsafe { f.unwrap_unchecked() });
 
         if let Ok(fn_handle) = fn_handle {
             // SAFETY: Pointer to globals is always immutable
@@ -135,9 +149,9 @@ pub unsafe fn IddCxDeviceInitialize(
 /// None. User is responsible for safety.
 pub unsafe fn IddCxAdapterInitAsync(
     // in
-    pInArgs: *const IDARG_IN_ADAPTER_INIT,
+    pInArgs: &IDARG_IN_ADAPTER_INIT,
     // out
-    pOutArgs: *mut IDARG_OUT_ADAPTER_INIT,
+    pOutArgs: &mut IDARG_OUT_ADAPTER_INIT,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall! {
         IddCxAdapterInitAsync(
@@ -155,9 +169,9 @@ pub unsafe fn IddCxMonitorCreate(
     // in
     AdapterObject: IDDCX_ADAPTER,
     // in
-    pInArgs: *const IDARG_IN_MONITORCREATE,
+    pInArgs: &IDARG_IN_MONITORCREATE,
     // out
-    pOutArgs: *mut IDARG_OUT_MONITORCREATE,
+    pOutArgs: &mut IDARG_OUT_MONITORCREATE,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
         IddCxMonitorCreate(
@@ -176,7 +190,7 @@ pub unsafe fn IddCxMonitorArrival(
     // in
     MonitorObject: IDDCX_MONITOR,
     // out
-    pOutArgs: *mut IDARG_OUT_MONITORARRIVAL,
+    pOutArgs: &mut IDARG_OUT_MONITORARRIVAL,
 ) -> Result<NTSTATUS, IddCxError> {
     IddCxCall!(
         IddCxMonitorArrival(
@@ -251,6 +265,45 @@ pub unsafe fn IddCxMonitorDeparture(
     IddCxCall!(
         IddCxMonitorDeparture(
             MonitorObject
+        )
+    )
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorSetupHardwareCursor(
+    // in
+    MonitorObject: IDDCX_MONITOR,
+    // in
+    pInArgs: &IDARG_IN_SETUP_HWCURSOR
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorSetupHardwareCursor(
+            MonitorObject,
+            pInArgs
+        )
+    )
+}
+
+/// # Safety
+///
+/// None. User is responsible for safety.
+#[rustfmt::skip]
+pub unsafe fn IddCxMonitorQueryHardwareCursor(
+    // in
+    MonitorObject: IDDCX_MONITOR,
+    // in
+    pInArgs: &IDARG_IN_QUERY_HWCURSOR,
+    // out
+    pOutArgs: &mut IDARG_OUT_QUERY_HWCURSOR
+) -> Result<NTSTATUS, IddCxError> {
+    IddCxCall!(
+        IddCxMonitorQueryHardwareCursor(
+            MonitorObject,
+            pInArgs,
+            pOutArgs
         )
     )
 }

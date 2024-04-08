@@ -16,14 +16,17 @@ env = { "BUILD_TARGET_PATH" = { script = ['''
 dependencies = ["set-build-path"]
 script = [
     '''
-    if not exist "..\\target\\output" (
+    if not exist "..\\..\\target\\output" (
         echo Directory not found, creating it...
-        mkdir ..\\target\\output
+        mkdir ..\\..\\target\\output
     )
+    ''',
+    '''
+        ren %BUILD_TARGET_PATH%\pyvdd.dll pyvdd.pyd
     ''',
     # copy output files to it
     '''
-        copy %BUILD_TARGET_PATH%\*.exe ..\target\output
+        copy %BUILD_TARGET_PATH%\*.pyd ..\..\target\output
     ''',
 ]
 
