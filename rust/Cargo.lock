@@ -667,7 +667,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a8b1990bd018761768d5e608a13df8bd1ac5f678456e0f301bb93e5f3ea16b"
 dependencies = [
  "cfg-if",
- "eyre",
  "indoc",
  "libc",
  "memoffset",
@@ -729,7 +728,6 @@ name = "pyvdd"
 version = "0.1.0"
 dependencies = [
  "driver-ipc",
- "eyre",
  "pyo3",
  "windows",
 ]
