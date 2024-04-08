@@ -153,7 +153,7 @@ client.get_state()
 # DriverClient.remove(list[int])
 client.remove([1,2,3])
 
-# set enable status on monitors by id or namne
+# set enable status on monitors by id or name
 #
 # DriverClient.set_enabled(list[int | str], bool)
 client.set_enabled([1,2,3,"name"], true)
