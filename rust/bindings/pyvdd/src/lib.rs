@@ -4,7 +4,7 @@
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     collections::HashSet,
     fmt::Display,
     sync::{
@@ -474,35 +474,37 @@ impl PyDriverClient {
     }
 
     /// Find a monitor by Id
-    /// Sig: find_monitor(query: int) -> Optional[Monitor]
-    fn find_monitor(&self, py: Python, query: Id) -> PyResult<Option<Py<PyMonitor>>> {
+    /// Sig: find_monitor(query: int | str) -> Optional[Monitor]
+    #[allow(clippy::needless_pass_by_value)]
+    fn find_monitor(&self, py: Python, query: PyObject) -> PyResult<Option<Py<PyMonitor>>> {
         let iter = self.monitors.iter_ref::<PyMonitor>(py);
+
+        let query_b = query.bind(py);
+        let id = query_b.extract::<u32>();
+        let query = query_b.extract::<String>();
+
+        if id.is_err() && query.is_err() {
+            let ty = query_b.get_type();
+            return Err(PyTypeError::new_err(format!(
+                "expected u32|str, got {}",
+                ty.name()?,
+            )));
+        }
 
         for monitor in iter {
             let monitor = monitor?;
-            let id = monitor.borrow().id;
-            if id == query {
-                return Ok(Some(monitor.into()));
+            let b = monitor.borrow();
+
+            if let Ok(id) = id {
+                if b.id == id {
+                    return Ok(Some(monitor.into()));
+                }
             }
-        }
 
-        Ok(None)
-    }
-
-    /// Find a monitor by query. The query is a string which may be name or id
-    /// Sig: find_monitor_query(query: str) -> Optional[Monitor]
-    fn find_monitor_query(&self, py: Python, query: &str) -> PyResult<Option<Py<PyMonitor>>> {
-        let num = query.parse::<Id>();
-        let iter = self.monitors.iter_ref::<PyMonitor>(py);
-
-        for monitor in iter {
-            let mon = monitor?;
-            let monitor = mon.borrow();
-
-            if monitor.name.as_deref().is_some_and(|name| name == query)
-                || num.as_ref().is_ok_and(|&id| id == monitor.id)
-            {
-                return Ok(Some(mon.into()));
+            if let Ok(query) = query.as_deref() {
+                if b.name.as_deref().is_some_and(|name| name == query) {
+                    return Ok(Some(monitor.into()));
+                }
             }
         }
 
@@ -546,61 +548,45 @@ impl PyDriverClient {
         Ok(())
     }
 
-    /// Enable monitors by id
-    /// Sig: set_enabled(ids: list[int], enabled: bool)
+    /// Enable monitors by id or query. Query is a string containing an id or name
+    /// Sig: set_enabled(queries: list[int | str], enabled: bool)
     #[allow(clippy::needless_pass_by_value)]
-    fn set_enabled(&mut self, py: Python, ids: Vec<Id>, enabled: bool) -> PyResult<()> {
-        let monitors = self.monitors.iter_ref_mut::<PyMonitor>(py);
+    fn set_enabled(&mut self, py: Python, queries: Vec<PyObject>, enabled: bool) -> PyResult<()> {
+        let queries = queries
+            .into_iter()
+            .map(|query| {
+                let query = query.bind(py);
 
-        for mon in monitors {
-            let mut mon = mon?;
-            if ids.contains(&mon.id) {
-                mon.enabled = enabled;
-            }
-        }
-
-        // keep internal state of client consistent
-        let state = pytypedlist_to_state(py, &self.monitors)?;
-        self.client.set_monitors(&state)?;
-        Ok(())
-    }
-
-    /// Enable monitors by query. Query is a string containing a name or id
-    /// Sig: set_enabled_query(queries: list[str], enabled: bool)
-    #[allow(clippy::needless_pass_by_value)]
-    fn set_enabled_query(
-        &mut self,
-        py: Python,
-        queries: Vec<String>,
-        enabled: bool,
-    ) -> PyResult<()> {
-        let ids = queries
-            .iter()
-            .map(|query| query.parse::<Id>())
+                (
+                    query.extract::<Id>(),
+                    query.extract::<String>(),
+                    query.get_type().name().map(Cow::into_owned),
+                )
+            })
             .collect::<Vec<_>>();
 
-        let contains_id = |id| {
-            for pid in &ids {
-                if pid.as_ref().is_ok_and(|&pid| pid == id) {
-                    return true;
-                }
-            }
-
-            false
-        };
-
         let monitors = self.monitors.iter_ref_mut::<PyMonitor>(py);
 
         for mon in monitors {
             let mut mon = mon?;
 
-            if contains_id(mon.id) {
-                mon.enabled = enabled;
-            }
+            for (id, query, name) in &queries {
+                if id.is_err() && query.is_err() {
+                    let name = name.as_deref().map_err(|e| e.clone_ref(py))?;
 
-            if let Some(name) = mon.name.as_ref() {
-                if queries.contains(name) {
-                    mon.enabled = enabled;
+                    return Err(PyTypeError::new_err(format!(
+                        "expected u32|str, got {name}",
+                    )));
+                }
+
+                if let &Ok(id) = id {
+                    if mon.id == id {
+                        mon.enabled = enabled;
+                    }
+                } else if let Ok(query) = query.as_deref() {
+                    if mon.name.as_deref().is_some_and(|name| name == query) {
+                        mon.enabled = enabled;
+                    }
                 }
             }
         }

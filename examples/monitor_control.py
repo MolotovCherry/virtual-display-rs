@@ -106,20 +106,16 @@ client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
 # DriverClient functions
 #
 
-# get the id of Monitor belonging to name or id
+# get the id of Monitor belonging to name
 #
 # DriverClient.find_id(query: str) -> Optional[int]
 client.find_id("myname")
 
-# get a Monitor by id
+# get a Monitor by id or name
 #
-# DriverClient.find_monitor(int) -> Optional[Monitor]
+# DriverClient.find_monitor(int | str) -> Optional[Monitor]
 client.find_monitor(5)
-
-# get a Monitor by name or id
-#
-# DriverClient.find_monitor_query(query: str) -> Optional[Monitor]
-client.find_monitor_query("name")
+client.find_monitor("name")
 
 # Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
 # which the driver will ignore when you notify it of changes
@@ -157,12 +153,7 @@ client.get_state()
 # DriverClient.remove(list[int])
 client.remove([1,2,3])
 
-# set enable status on monitors by id
+# set enable status on monitors by id or namne
 #
-# DriverClient.set_enabled(list[int], bool)
-client.set_enabled([1,2,3], true)
-
-# set enable status on monitors by query
-#
-# DriverClient.set_enabled_query(list[str], bool)
-client.set_enabled_query(["name1", "name2", "name3"], true)
+# DriverClient.set_enabled(list[int | str], bool)
+client.set_enabled([1,2,3,"name"], true)
