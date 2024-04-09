@@ -18,12 +18,12 @@ impl DriverClient {
     pub fn new() -> Result<Self> {
         let mut client = ManuallyDrop::new(Client::connect()?);
 
-        let state = Self::get_state(&mut client)?;
+        let state = Self::_get_state(&mut client)?;
 
         Ok(Self { client, state })
     }
 
-    fn get_state(client: &mut ManuallyDrop<Client>) -> Result<Vec<Monitor>> {
+    fn _get_state(client: &mut ManuallyDrop<Client>) -> Result<Vec<Monitor>> {
         client.request_state()?;
 
         while let Ok(command) = client.receive() {
@@ -37,6 +37,10 @@ impl DriverClient {
         }
 
         Err(IpcError::RequestState)
+    }
+
+    fn get_state(&mut self) -> Result<Vec<Monitor>> {
+        Self::_get_state(&mut self.client)
     }
 
     /// Get the ID of a monitor using a string. The string can be either the name
@@ -73,7 +77,7 @@ impl DriverClient {
 
     /// Manually refresh internal state with latest driver changes
     pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
-        self.state = Self::get_state(&mut self.client)?;
+        self.state = self.get_state()?;
 
         Ok(&self.state)
     }
@@ -108,7 +112,7 @@ impl DriverClient {
 
     /// Set the internal monitor state
     pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<()> {
-        has_duplicates(monitors)?;
+        mons_have_duplicates(monitors)?;
 
         self.state = monitors.to_owned();
         Ok(())
@@ -224,9 +228,7 @@ impl DriverClient {
 
     /// Add new monitor
     pub fn add(&mut self, monitor: Monitor) -> Result<()> {
-        if self.state.iter().any(|mon| mon.id == monitor.id) {
-            return Err(ClientError::MonExists(monitor.id).into());
-        }
+        mon_has_duplicates(&monitor)?;
 
         self.state.push(monitor);
 
@@ -269,6 +271,8 @@ impl DriverClient {
             return Err(ClientError::MonNotFound(id).into());
         };
 
+        mode_has_duplicates(&mode, id)?;
+
         if mon
             .modes
             .iter()
@@ -308,7 +312,7 @@ impl DriverClient {
         Ok(())
     }
 
-    /// Add a mode to monitor by query
+    /// Remove monitor mode by query
     pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> Result<()> {
         let id = self.find_id(query)?;
         self.remove_mode(id, resolution)
@@ -328,7 +332,7 @@ impl Drop for DriverClient {
     }
 }
 
-fn has_duplicates(monitors: &[Monitor]) -> Result<()> {
+fn mons_have_duplicates(monitors: &[Monitor]) -> Result<()> {
     let mut monitor_iter = monitors.iter();
     while let Some(monitor) = monitor_iter.next() {
         let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
@@ -336,28 +340,34 @@ fn has_duplicates(monitors: &[Monitor]) -> Result<()> {
             return Err(ClientError::DupMon(monitor.id).into());
         }
 
-        let mut mode_iter = monitor.modes.iter();
-        while let Some(mode) = mode_iter.next() {
-            let duplicate_mode = mode_iter
-                .clone()
-                .any(|m| mode.height == m.height && mode.width == m.width);
-            if duplicate_mode {
-                return Err(ClientError::DupMode(mode.width, mode.height, monitor.id).into());
-            }
+        mon_has_duplicates(monitor)?;
+    }
 
-            let mut refresh_iter = mode.refresh_rates.iter().copied();
-            while let Some(rr) = refresh_iter.next() {
-                let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
-                if duplicate_rr {
-                    return Err(ClientError::DupRefreshRate(
-                        rr,
-                        mode.width,
-                        mode.height,
-                        monitor.id,
-                    )
-                    .into());
-                }
-            }
+    Ok(())
+}
+
+fn mon_has_duplicates(monitor: &Monitor) -> Result<()> {
+    let mut mode_iter = monitor.modes.iter();
+    while let Some(mode) = mode_iter.next() {
+        let duplicate_mode = mode_iter
+            .clone()
+            .any(|m| mode.height == m.height && mode.width == m.width);
+        if duplicate_mode {
+            return Err(ClientError::DupMode(mode.width, mode.height, monitor.id).into());
+        }
+
+        mode_has_duplicates(mode, monitor.id)?;
+    }
+
+    Ok(())
+}
+
+fn mode_has_duplicates(mode: &Mode, id: Id) -> Result<()> {
+    let mut refresh_iter = mode.refresh_rates.iter().copied();
+    while let Some(rr) = refresh_iter.next() {
+        let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
+        if duplicate_rr {
+            return Err(ClientError::DupRefreshRate(rr, mode.width, mode.height, id).into());
         }
     }
 
