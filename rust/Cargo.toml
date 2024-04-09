@@ -1,14 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "virtual-display-driver",
     "wdf-umdf-sys",
     "wdf-umdf",
     "driver-ipc",
     "driver-logger",
+    "virtual-display-driver",
     "virtual-display-driver-cli",
-    "bindings/pyvdd",
     "vdd-user-session-service",
+    "bindings/pyvdd",
     "bindings/dart_vdd/rust",
 ]
 
