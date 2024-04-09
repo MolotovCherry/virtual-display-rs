@@ -156,19 +156,27 @@ impl DriverClient {
     }
 
     /// Find a monitor by ID and return mutable reference to it.
-    pub fn find_monitor_mut(&mut self, id: Id) -> Result<&mut Monitor> {
+    pub fn find_monitor_mut<R>(&mut self, id: Id, cb: impl FnOnce(&mut Monitor) -> R) -> Result<R> {
         let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
-        if let Some(monitor) = monitor_by_id {
-            return Ok(monitor);
-        }
+        let Some(monitor) = monitor_by_id else {
+            return Err(ClientError::MonNotFound(id).into());
+        };
 
-        Err(ClientError::MonNotFound(id).into())
+        let r = cb(monitor);
+
+        mons_have_duplicates(&self.state)?;
+
+        Ok(r)
     }
 
     /// Find a monitor by query.
-    pub fn find_monitor_mut_query(&mut self, query: &str) -> Result<&mut Monitor> {
+    pub fn find_monitor_mut_query<R>(
+        &mut self,
+        query: &str,
+        cb: impl FnOnce(&mut Monitor) -> R,
+    ) -> Result<R> {
         let id = self.find_id(query)?;
-        self.find_monitor_mut(id)
+        self.find_monitor_mut(id, cb)
     }
 
     /// Persist changes to registry for current user
