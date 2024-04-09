@@ -169,6 +169,20 @@ impl DriverClient {
         Ok(r)
     }
 
+    /// Find a monitor by ID and return mutable reference to it.
+    /// Does not do checking to validate there are no duplicates (since this is not easy when returning a mut reference)
+    /// Caller agrees they will make sure there are no duplicates
+    ///
+    /// Despite the "unchecked" part of this name, this is a safe method
+    pub fn find_monitor_mut_unchecked(&mut self, id: Id) -> Result<&mut Monitor> {
+        let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
+        let Some(monitor) = monitor_by_id else {
+            return Err(ClientError::MonNotFound(id).into());
+        };
+
+        Ok(monitor)
+    }
+
     /// Find a monitor by query.
     pub fn find_monitor_mut_query<R>(
         &mut self,
