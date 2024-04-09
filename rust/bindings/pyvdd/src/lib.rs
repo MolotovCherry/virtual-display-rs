@@ -518,7 +518,8 @@ impl PyDriverClient {
         if self.client.set_monitors(&state).is_err() {
             return Ok(None);
         }
-        Ok(self.client.new_id(preferred_id).ok())
+
+        Ok(self.client.new_id(preferred_id))
     }
 
     /// Remove monitors by id
