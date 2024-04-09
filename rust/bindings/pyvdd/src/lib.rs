@@ -471,16 +471,10 @@ impl PyDriverClient {
         );
     }
 
-    /// Find id of monitor based on query. Query is a string containing monitor's name or id
-    /// Sig: find_id(query: str) -> Optional[int]
-    fn find_id(&self, query: &str) -> Option<Id> {
-        self.client.find_id(query).ok()
-    }
-
     /// Find a monitor by Id
     /// Sig: find_monitor(query: int | str) -> Optional[Monitor]
     #[allow(clippy::needless_pass_by_value)]
-    fn find_monitor(&self, py: Python, query: PyObject) -> PyResult<Option<Py<PyMonitor>>> {
+    fn find(&self, py: Python, query: PyObject) -> PyResult<Option<Py<PyMonitor>>> {
         let iter = self.monitors.iter_ref::<PyMonitor>(py);
 
         let query_b = query.bind(py);

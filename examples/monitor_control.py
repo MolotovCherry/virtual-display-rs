@@ -106,16 +106,11 @@ client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
 # DriverClient functions
 #
 
-# get the id of Monitor belonging to name
+# find a Monitor by id or name
 #
-# DriverClient.find_id(query: str) -> Optional[int]
-client.find_id("myname")
-
-# get a Monitor by id or name
-#
-# DriverClient.find_monitor(int | str) -> Optional[Monitor]
-client.find_monitor(5)
-client.find_monitor("name")
+# DriverClient.find(int | str) -> Optional[Monitor]
+client.find(5)
+client.find("name")
 
 # Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
 # which the driver will ignore when you notify it of changes
