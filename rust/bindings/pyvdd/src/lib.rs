@@ -3,6 +3,8 @@
 //       |                                       |-this one seems triggered by pymethods macro??
 //       |-this module triggers this lint unfortunately, so it must be set to allow
 
+mod utils;
+
 use std::{
     borrow::{Borrow, Cow},
     collections::HashSet,
@@ -31,6 +33,8 @@ use windows::Win32::{
         IO::CancelSynchronousIo,
     },
 };
+
+use self::utils::IntoPyErr as _;
 
 static INIT: AtomicBool = AtomicBool::new(false);
 
@@ -349,8 +353,8 @@ impl PyDriverClient {
             ));
         }
 
-        let mut client = DriverClient::new()?;
-        client.refresh_state()?;
+        let mut client = DriverClient::new().into_py_err()?;
+        client.refresh_state().into_py_err()?;
 
         let monitors = state_to_pytypedlist(py, client.monitors())?;
 
@@ -384,9 +388,9 @@ impl PyDriverClient {
     /// Sig: perist()
     fn persist(&mut self, py: Python) -> PyResult<()> {
         let state = pytypedlist_to_state(py, &self.monitors)?;
-        self.client.set_monitors(&state)?;
+        self.client.set_monitors(&state).into_py_err()?;
 
-        self.client.persist()?;
+        self.client.persist().into_py_err()?;
 
         Ok(())
     }
@@ -394,7 +398,7 @@ impl PyDriverClient {
     /// Request a list of latest driver changes
     /// Sig: get_state() -> list[Monitor]
     fn get_state(&mut self, py: Python) -> PyResult<Py<PyList>> {
-        self.client.refresh_state()?;
+        self.client.refresh_state().into_py_err()?;
 
         let monitors = state_to_pylist(py, self.client.monitors())?;
 
@@ -405,9 +409,9 @@ impl PyDriverClient {
     /// Sig: notify()
     fn notify(&mut self, py: Python) -> PyResult<()> {
         let state = pytypedlist_to_state(py, &self.monitors)?;
-        self.client.set_monitors(&state)?;
+        self.client.set_monitors(&state).into_py_err()?;
 
-        self.client.notify()?;
+        self.client.notify().into_py_err()?;
 
         Ok(())
     }
@@ -544,7 +548,7 @@ impl PyDriverClient {
 
         // keep internal state of client consistent
         let state = pytypedlist_to_state(py, &self.monitors)?;
-        self.client.set_monitors(&state)?;
+        self.client.set_monitors(&state).into_py_err()?;
         Ok(())
     }
 
@@ -593,7 +597,7 @@ impl PyDriverClient {
 
         // keep internal state of client consistent
         let state = pytypedlist_to_state(py, &self.monitors)?;
-        self.client.set_monitors(&state)?;
+        self.client.set_monitors(&state).into_py_err()?;
         Ok(())
     }
 
