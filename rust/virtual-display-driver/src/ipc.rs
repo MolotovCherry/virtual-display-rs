@@ -145,10 +145,12 @@ pub fn startup() {
                                 let mut start = 0;
                                 for pos in eof_iter.clone() {
                                     let Ok(msg) = std::str::from_utf8(&msg_buf[start..pos]) else {
+                                        start = pos + 1;
                                         continue;
                                     };
 
                                     let Ok(command) = serde_json::from_str::<ServerCommand>(msg) else {
+                                        start = pos + 1;
                                         continue;
                                     };
 
