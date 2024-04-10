@@ -12,8 +12,8 @@ use driver_ipc::{
 use log::{error, warn};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt as _},
-    net::windows::named_pipe::ServerOptions,
-    sync::broadcast::{self, error::RecvError},
+    net::windows::named_pipe::{NamedPipeServer, ServerOptions},
+    sync::broadcast::{self, error::RecvError, Sender},
     task,
 };
 use wdf_umdf::IddCxMonitorDeparture;
@@ -44,6 +44,87 @@ pub struct MonitorObject {
 }
 unsafe impl Sync for MonitorObject {}
 unsafe impl Send for MonitorObject {}
+
+const BUFFER_SIZE: u32 = 4096;
+// EOT
+const EOF: char = '\x04';
+
+// message processor
+async fn process_message(
+    id: usize,
+    server: &mut NamedPipeServer,
+    tx: &Sender<(usize, Vec<Monitor>)>,
+    buf: &[u8],
+    iter: impl Iterator<Item = usize>,
+) -> Result<(), ()> {
+    // process each message in the buffer
+    let mut start = 0;
+    for eidx in iter {
+        let sidx = start;
+        start = eidx + 1;
+
+        let Ok(msg) = std::str::from_utf8(&buf[sidx..eidx]) else {
+            continue;
+        };
+
+        let Ok(command) = serde_json::from_str::<ServerCommand>(msg) else {
+            continue;
+        };
+
+        match command {
+            // driver commands
+            ServerCommand::Driver(cmd) => match cmd {
+                DriverCommand::Notify(monitors) => {
+                    notify(monitors.clone());
+                    _ = tx.send((id, monitors));
+                }
+
+                DriverCommand::Remove(ids) => {
+                    remove(&ids);
+
+                    let lock = MONITOR_MODES.lock().unwrap();
+                    let monitors = lock.iter().map(|m| m.data.clone()).collect();
+                    _ = tx.send((id, monitors));
+                }
+
+                DriverCommand::RemoveAll => {
+                    remove_all();
+                    _ = tx.send((id, Vec::new()));
+                }
+
+                _ => (),
+            },
+
+            // request commands
+            ServerCommand::Request(RequestCommand::State) => {
+                let mut data = {
+                    let lock = MONITOR_MODES.lock().unwrap();
+                    let monitors = lock.iter().map(|m| m.data.clone()).collect();
+                    let command = ReplyCommand::State(monitors);
+
+                    let Ok(serialized) = serde_json::to_string(&command) else {
+                        error!("Command::Request - failed to serialize reply");
+                        break;
+                    };
+
+                    serialized
+                };
+
+                data.push(EOF);
+
+                if server.write_all(data.as_bytes()).await.is_err() {
+                    // a server error means we should completely stop trying
+                    return Err(());
+                }
+            }
+
+            // Everything else is an invalid command
+            _ => (),
+        }
+    }
+
+    Ok(())
+}
 
 #[allow(clippy::too_many_lines)]
 pub fn startup() {
@@ -76,12 +157,6 @@ pub fn startup() {
             lpSecurityDescriptor: addr_of_mut!(sd).cast(),
             bInheritHandle: false.into(),
         };
-
-        #[allow(clippy::items_after_statements)]
-        const BUFFER_SIZE: u32 = 4096;
-        // EOT
-        #[allow(clippy::items_after_statements)]
-        const EOF: char = '\x04';
 
         // async time!
         let pipe_server = async {
@@ -141,69 +216,8 @@ pub fn startup() {
                                     }
                                 });
 
-                                // process each message in the buffer
-                                let mut start = 0;
-                                for pos in eof_iter.clone() {
-                                    let current = start;
-                                    start = pos + 1;
-
-                                    let Ok(msg) = std::str::from_utf8(&msg_buf[current..pos]) else {
-                                        continue;
-                                    };
-
-                                    let Ok(command) = serde_json::from_str::<ServerCommand>(msg) else {
-                                        continue;
-                                    };
-
-                                    match command {
-                                        // driver commands
-                                        ServerCommand::Driver(cmd) => match cmd {
-                                            DriverCommand::Notify(monitors) => {
-                                                notify(monitors.clone());
-                                                _ = tx.send((id, monitors));
-                                            }
-
-                                            DriverCommand::Remove(ids) => {
-                                                remove(&ids);
-
-                                                let lock = MONITOR_MODES.lock().unwrap();
-                                                let monitors = lock.iter().map(|m| m.data.clone()).collect();
-                                                _ = tx.send((id, monitors));
-                                            }
-
-                                            DriverCommand::RemoveAll => {
-                                                remove_all();
-                                                _ = tx.send((id, Vec::new()));
-                                            }
-
-                                            _ => (),
-                                        },
-
-                                        // request commands
-                                        ServerCommand::Request(RequestCommand::State) => {
-                                            let mut data = {
-                                                let lock = MONITOR_MODES.lock().unwrap();
-                                                let monitors = lock.iter().map(|m| m.data.clone()).collect();
-                                                let command = ReplyCommand::State(monitors);
-
-                                                let Ok(serialized) = serde_json::to_string(&command) else {
-                                                    error!("Command::Request - failed to serialize reply");
-                                                    break;
-                                                };
-
-                                                serialized
-                                            };
-
-                                            data.push(EOF);
-
-                                            if server.write_all(data.as_bytes()).await.is_err() {
-                                                break;
-                                            }
-                                        }
-
-                                        // Everything else is an invalid command
-                                        _ => (),
-                                    }
+                                if process_message(id, &mut server, &tx, &msg_buf, eof_iter.clone()).await.is_err() {
+                                    break;
                                 }
 
                                 // remove processed messages from buffer
