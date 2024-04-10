@@ -144,13 +144,14 @@ pub fn startup() {
                                 // process each message in the buffer
                                 let mut start = 0;
                                 for pos in eof_iter.clone() {
-                                    let Ok(msg) = std::str::from_utf8(&msg_buf[start..pos]) else {
-                                        start = pos + 1;
+                                    let current = start;
+                                    start = pos + 1;
+
+                                    let Ok(msg) = std::str::from_utf8(&msg_buf[current..pos]) else {
                                         continue;
                                     };
 
                                     let Ok(command) = serde_json::from_str::<ServerCommand>(msg) else {
-                                        start = pos + 1;
                                         continue;
                                     };
 
@@ -203,8 +204,6 @@ pub fn startup() {
                                         // Everything else is an invalid command
                                         _ => (),
                                     }
-
-                                    start = pos + 1;
                                 }
 
                                 // remove processed messages from buffer
