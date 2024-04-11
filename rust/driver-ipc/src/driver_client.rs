@@ -1,42 +1,59 @@
-use std::{collections::HashSet, mem::ManuallyDrop, thread};
+use std::{
+    collections::HashSet,
+    sync::{Mutex, OnceLock},
+    thread,
+};
 
-use windows::Win32::Foundation::{CloseHandle, HANDLE};
+use tokio::sync::mpsc::{channel, Sender};
 
 use crate::{
-    Client, ClientCommand, ClientError, Id, IpcError, Mode, Monitor, ReplyCommand, Result,
+    client::RUNTIME, Client, ClientError, EventCommand, Id, IpcError, Mode, Monitor, ReplyCommand,
+    Result,
 };
+
+// used to terminate existing receivers
+static RECEIVER_SHUTDOWN_TOKEN: Mutex<OnceLock<Sender<()>>> = Mutex::new(OnceLock::new());
 
 /// Extra API over Client which allows nice fancy things
 #[derive(Debug)]
 pub struct DriverClient {
-    // I'll handle dropping of this field manually
-    client: ManuallyDrop<Client>,
+    client: Client,
     state: Vec<Monitor>,
 }
 
 impl DriverClient {
+    /// connect to default driver name
     pub fn new() -> Result<Self> {
-        let mut client = ManuallyDrop::new(Client::connect()?);
+        let mut client = Client::connect()?;
 
         let state = Self::_get_state(&mut client)?;
 
         Ok(Self { client, state })
     }
 
-    fn _get_state(client: &mut ManuallyDrop<Client>) -> Result<Vec<Monitor>> {
+    /// specify pipe name to connect to
+    pub fn new_with(name: &str) -> Result<Self> {
+        let mut client = Client::connect_to(name)?;
+
+        let state = Self::_get_state(&mut client)?;
+
+        Ok(Self { client, state })
+    }
+
+    fn _get_state(client: &mut Client) -> Result<Vec<Monitor>> {
         client.request_state()?;
 
-        while let Ok(command) = client.receive() {
-            match command {
-                ClientCommand::Reply(ReplyCommand::State(state)) => {
+        loop {
+            match client.receive_reply(true) {
+                Some(ReplyCommand::State(state)) => {
                     return Ok(state);
                 }
 
-                _ => continue,
+                _ => {
+                    continue;
+                }
             }
         }
-
-        Err(IpcError::RequestState)
     }
 
     fn get_state(&mut self) -> Result<Vec<Monitor>> {
@@ -84,25 +101,48 @@ impl DriverClient {
 
     /// Supply a callback used to receive commands from the driver
     ///
+    /// This only allows one receiver at a time. Setting a new cb will also terminate existing reciever
+    ///
     /// Note: DriverClient DOES NOT do any hidden state changes! Only calling proper api will change internal state.
     ///       driver state IS NOT updated on its own when Event commands are received!
     ///       if you want to update internal state, call set_monitors on DriverClient in your callback
     ///       to properly handle it!
-    pub fn set_receiver(
-        &self,
-        init: Option<impl FnOnce() + Send + 'static>,
-        cb: impl Fn(ClientCommand) + Send + 'static,
-    ) {
-        let mut client = self.client.clone();
-        thread::spawn(move || {
-            if let Some(init) = init {
-                init();
-            }
+    pub fn set_event_receiver(&self, cb: impl Fn(EventCommand) + Send + 'static) {
+        // stop currently running task if any exist
+        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
+            sender.blocking_send(()).unwrap();
+        }
 
-            while let Ok(command) = client.receive() {
-                cb(command);
+        let client = self.client.clone();
+        let fut = async move {
+            let (tx, mut rx) = channel(1);
+            RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().set(tx).unwrap();
+
+            loop {
+                tokio::select! {
+                    cmd = client.receive_event_async() => {
+                        cb(cmd);
+                    }
+
+                    // shutdown signal
+                    _ = rx.recv() => {
+                        break;
+                    }
+                }
             }
+        };
+
+        thread::spawn(move || {
+            RUNTIME.block_on(fut);
         });
+    }
+
+    /// Terminate a receiver without setting a new one
+    pub fn terminate_receiver(&self) {
+        // stop currently running task if any exist
+        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
+            sender.blocking_send(()).unwrap();
+        }
     }
 
     /// Get the current monitor state
@@ -345,19 +385,6 @@ impl DriverClient {
             .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
 
         self.remove_mode(id, resolution)
-    }
-}
-
-impl Drop for DriverClient {
-    fn drop(&mut self) {
-        use std::os::windows::io::AsRawHandle as _;
-        // get raw pipe handle. reader/writer doesn't matter, they're all the same handle
-        let handle = self.client.writer.as_raw_handle();
-
-        // manually close handle so that ReadFile stops blocking our thread
-        unsafe {
-            _ = CloseHandle(HANDLE(handle as _));
-        }
     }
 }
 

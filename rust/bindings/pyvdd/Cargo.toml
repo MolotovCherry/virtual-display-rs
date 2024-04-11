@@ -10,9 +10,5 @@ crate-type = ["cdylib"]
 pyo3 = "0.21.1"
 driver-ipc = { path = "../../driver-ipc" }
 
-[dependencies.windows]
-version = "0.54.0"
-features = ["Win32_Foundation", "Win32_System_Threading"]
-
 [lints]
 workspace = true

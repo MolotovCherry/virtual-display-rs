@@ -62,7 +62,7 @@ pub enum EventCommand {
 /// This makes the deserialization process much easier to handle
 /// when a received command could be of multiple types
 #[non_exhaustive]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ServerCommand {
     Driver(DriverCommand),
@@ -73,7 +73,7 @@ pub enum ServerCommand {
 /// This makes the deserialization process much easier to handle
 /// when a received command could be of multiple types
 #[non_exhaustive]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ClientCommand {
     Reply(ReplyCommand),

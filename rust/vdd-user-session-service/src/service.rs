@@ -73,7 +73,7 @@ fn run_service(_arguments: &[OsString]) -> windows_service::Result<()> {
                     }
 
                     SessionChangeReason::SessionLogoff => {
-                        let Ok(mut client) = Client::connect() else {
+                        let Ok(client) = Client::connect() else {
                             return ServiceControlHandlerResult::Other(0x3);
                         };
 

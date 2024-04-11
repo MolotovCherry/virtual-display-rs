@@ -1,6 +1,7 @@
 mod client;
 mod core;
 mod driver_client;
+mod utils;
 
 pub use client::Client;
 pub use core::*;
@@ -20,6 +21,12 @@ pub enum IpcError {
     Client(#[from] ClientError),
     #[error("failed to get request state")]
     RequestState,
+    #[error("failed to receive command")]
+    Receive,
+    #[error("failed to open pipe. is driver installed and working?\nerror: {0}")]
+    ConnectionFailed(std::io::Error),
+    #[error("channel closed")]
+    SendFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
