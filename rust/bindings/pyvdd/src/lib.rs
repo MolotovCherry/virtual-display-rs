@@ -400,7 +400,7 @@ impl PyDriverClient {
     }
 
     /// Get notified of other clients changing driver configuration
-    /// Sig: receive(Optional[Callable[list[Monitor], None]])
+    /// Sig: receive(Optional[Callable[list[Monitor], None]] = None)
     fn receive(&self, callback: Option<PyObject>) {
         if let Some(callback) = callback {
             self.client.set_event_receiver(move |cmd| {
