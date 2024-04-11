@@ -340,8 +340,7 @@ impl PyDriverClient {
             ));
         }
 
-        let mut client = DriverClient::new().into_py_err()?;
-        client.refresh_state().into_py_err()?;
+        let client = DriverClient::new().into_py_err()?;
 
         let monitors = state_to_pytypedlist(py, client.monitors())?;
 
