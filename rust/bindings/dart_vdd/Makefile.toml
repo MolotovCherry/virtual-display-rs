@@ -1,5 +1,5 @@
 [tasks.generate]
-install_crate = "flutter_rust_bridge_codegen@^2.0.0-dev.28"
+install_crate = "flutter_rust_bridge_codegen@^2.0.0-dev.31"
 script = '''
     flutter_rust_bridge_codegen generate
     '''

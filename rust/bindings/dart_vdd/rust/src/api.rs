@@ -1,4 +1,4 @@
-use driver_ipc::{ClientCommand, Dimen, DriverClient, EventCommand, Id, RefreshRate, Result};
+use driver_ipc::{ClientCommand, DriverClient, EventCommand, Result};
 pub use driver_ipc::{Mode, Monitor};
 use flutter_rust_bridge::frb;
 
@@ -6,7 +6,7 @@ use crate::frb_generated::StreamSink;
 
 #[frb(mirror(Monitor), dart_metadata=("freezed"))]
 pub struct _Monitor {
-    pub id: Id,
+    pub id: u32,
     pub name: Option<String>,
     pub enabled: bool,
     pub modes: Vec<Mode>,
@@ -14,9 +14,9 @@ pub struct _Monitor {
 
 #[frb(mirror(Mode), dart_metadata=("freezed"))]
 pub struct _Mode {
-    pub width: Dimen,
-    pub height: Dimen,
-    pub refresh_rates: Vec<RefreshRate>,
+    pub width: u32,
+    pub height: u32,
+    pub refresh_rates: Vec<u32>,
 }
 
 #[frb(opaque)]
@@ -48,8 +48,8 @@ impl VirtualDisplayDriver {
     ///
     /// After calling, will instantly emit the current state of the driver.
     #[frb(getter)]
-    pub fn stream<F: FnOnce() + Send + 'static>(&self, sink: StreamSink<Vec<Monitor>>) {
-        self.client.set_receiver(None::<F>, move |command| {
+    pub fn stream(&self, sink: StreamSink<Vec<Monitor>>) {
+        self.client.set_receiver(None::<fn()>, move |command| {
             if let ClientCommand::Event(EventCommand::Changed(data)) = command {
                 if let Err(_e) = sink.add(data) {
                     // do something with err? hmm
@@ -61,7 +61,7 @@ impl VirtualDisplayDriver {
     /// Set the state of the provided monitors.
     ///
     /// Each monitor with a matching ID will be updated to the provided state.
-    pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<()> {
+    pub fn set_monitors(&mut self, monitors: Vec<Monitor>) -> Result<()> {
         self.client.set_monitors(&monitors)
     }
 
@@ -104,13 +104,13 @@ impl VirtualDisplayDriver {
             modes,
         };
 
-        self.client.add(monitor);
+        self.client.add(monitor)?;
 
         Ok(())
     }
 
     /// Remove monitors from the driver.
-    pub fn remove_monitors(&mut self, ids: &[u32]) {
+    pub fn remove_monitors(&mut self, ids: Vec<u32>) {
         self.client.remove(&ids);
     }
 

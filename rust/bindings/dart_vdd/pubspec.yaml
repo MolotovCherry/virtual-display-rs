@@ -8,7 +8,7 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
-  flutter_rust_bridge: 2.0.0-dev.28
+  flutter_rust_bridge: 2.0.0-dev.31
   freezed_annotation: ^2.4.1
   native_assets_cli: ^0.4.2
   # path: ^1.8.0

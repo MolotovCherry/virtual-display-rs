@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   dart_vdd:
-    path: ../rust/dart_vdd
+    path: ../rust/bindings/dart_vdd
 
 dev_dependencies:
   flutter_test:
