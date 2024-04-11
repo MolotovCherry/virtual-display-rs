@@ -102,7 +102,7 @@ abstract class RustLibApi extends BaseApi {
   Future<List<Monitor>> virtualDisplayDriverState(
       {required VirtualDisplayDriver that, dynamic hint});
 
-  Future<Stream<List<Monitor>>> virtualDisplayDriverStream(
+  Stream<List<Monitor>> virtualDisplayDriverStream(
       {required VirtualDisplayDriver that, dynamic hint});
 
   RustArcIncrementStrongCountFnType
@@ -143,7 +143,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverAddMonitorConstMeta,
       argValues: [that, name, enabled, modes],
@@ -170,7 +170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       codec: SseCodec(
         decodeSuccessData:
             sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverNewConstMeta,
       argValues: [pipeName],
@@ -197,7 +197,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverNotifyConstMeta,
       argValues: [that],
@@ -224,7 +224,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverPersistConstMeta,
       argValues: [that],
@@ -320,7 +320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverSetMonitorConstMeta,
       argValues: [that, id, enabled, name, modes],
@@ -351,7 +351,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_AnyhowException,
+        decodeErrorData: sse_decode_ipc_error,
       ),
       constMeta: kVirtualDisplayDriverSetMonitorsConstMeta,
       argValues: [that, monitors],
@@ -394,17 +394,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Stream<List<Monitor>>> virtualDisplayDriverStream(
-      {required VirtualDisplayDriver that, dynamic hint}) async {
+  Stream<List<Monitor>> virtualDisplayDriverStream(
+      {required VirtualDisplayDriver that, dynamic hint}) {
     final sink = RustStreamSink<List<Monitor>>();
-    await handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         sse_encode_StreamSink_list_monitor_Sse(sink, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -430,12 +429,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustArcDecrementStrongCountFnType
       get rust_arc_decrement_strong_count_VirtualDisplayDriver => wire
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver;
-
-  @protected
-  AnyhowException dco_decode_AnyhowException(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return AnyhowException(raw as String);
-  }
 
   @protected
   VirtualDisplayDriver
@@ -492,6 +485,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_box_autoadd_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  IpcError dco_decode_ipc_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return IpcError_SerDe(
+          dco_decode_String(raw[1]),
+        );
+      case 1:
+        return IpcError_Io(
+          dco_decode_String(raw[1]),
+        );
+      case 2:
+        return IpcError_Win(
+          dco_decode_String(raw[1]),
+        );
+      case 3:
+        return IpcError_Client(
+          dco_decode_String(raw[1]),
+        );
+      case 4:
+        return IpcError_RequestState();
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -594,13 +614,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_String(deserializer);
-    return AnyhowException(inner);
-  }
-
-  @protected
   VirtualDisplayDriver
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
           SseDeserializer deserializer) {
@@ -660,6 +673,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_bool(deserializer));
+  }
+
+  @protected
+  IpcError sse_decode_ipc_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return IpcError_SerDe(var_field0);
+      case 1:
+        var var_field0 = sse_decode_String(deserializer);
+        return IpcError_Io(var_field0);
+      case 2:
+        var var_field0 = sse_decode_String(deserializer);
+        return IpcError_Win(var_field0);
+      case 3:
+        var var_field0 = sse_decode_String(deserializer);
+        return IpcError_Client(var_field0);
+      case 4:
+        return IpcError_RequestState();
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -791,13 +829,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_AnyhowException(
-      AnyhowException self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    throw UnimplementedError('Unreachable ()');
-  }
-
-  @protected
   void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
           VirtualDisplayDriver self, SseSerializer serializer) {
@@ -857,6 +888,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_bool(self, serializer);
+  }
+
+  @protected
+  void sse_encode_ipc_error(IpcError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case IpcError_SerDe(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case IpcError_Io(field0: final field0):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(field0, serializer);
+      case IpcError_Win(field0: final field0):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(field0, serializer);
+      case IpcError_Client(field0: final field0):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(field0, serializer);
+      case IpcError_RequestState():
+        sse_encode_i_32(4, serializer);
+    }
   }
 
   @protected

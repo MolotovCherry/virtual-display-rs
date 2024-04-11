@@ -15,6 +15,816 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
+mixin _$IpcError {
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $IpcErrorCopyWith<$Res> {
+  factory $IpcErrorCopyWith(IpcError value, $Res Function(IpcError) then) =
+      _$IpcErrorCopyWithImpl<$Res, IpcError>;
+}
+
+/// @nodoc
+class _$IpcErrorCopyWithImpl<$Res, $Val extends IpcError>
+    implements $IpcErrorCopyWith<$Res> {
+  _$IpcErrorCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+}
+
+/// @nodoc
+abstract class _$$IpcError_SerDeImplCopyWith<$Res> {
+  factory _$$IpcError_SerDeImplCopyWith(_$IpcError_SerDeImpl value,
+          $Res Function(_$IpcError_SerDeImpl) then) =
+      __$$IpcError_SerDeImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$IpcError_SerDeImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_SerDeImpl>
+    implements _$$IpcError_SerDeImplCopyWith<$Res> {
+  __$$IpcError_SerDeImplCopyWithImpl(
+      _$IpcError_SerDeImpl _value, $Res Function(_$IpcError_SerDeImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$IpcError_SerDeImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$IpcError_SerDeImpl extends IpcError_SerDe {
+  const _$IpcError_SerDeImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'IpcError.serDe(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_SerDeImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IpcError_SerDeImplCopyWith<_$IpcError_SerDeImpl> get copyWith =>
+      __$$IpcError_SerDeImplCopyWithImpl<_$IpcError_SerDeImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) {
+    return serDe(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) {
+    return serDe?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) {
+    if (serDe != null) {
+      return serDe(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) {
+    return serDe(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) {
+    return serDe?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) {
+    if (serDe != null) {
+      return serDe(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_SerDe extends IpcError {
+  const factory IpcError_SerDe(final String field0) = _$IpcError_SerDeImpl;
+  const IpcError_SerDe._() : super._();
+
+  String get field0;
+  @JsonKey(ignore: true)
+  _$$IpcError_SerDeImplCopyWith<_$IpcError_SerDeImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IpcError_IoImplCopyWith<$Res> {
+  factory _$$IpcError_IoImplCopyWith(
+          _$IpcError_IoImpl value, $Res Function(_$IpcError_IoImpl) then) =
+      __$$IpcError_IoImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$IpcError_IoImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_IoImpl>
+    implements _$$IpcError_IoImplCopyWith<$Res> {
+  __$$IpcError_IoImplCopyWithImpl(
+      _$IpcError_IoImpl _value, $Res Function(_$IpcError_IoImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$IpcError_IoImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$IpcError_IoImpl extends IpcError_Io {
+  const _$IpcError_IoImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'IpcError.io(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_IoImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IpcError_IoImplCopyWith<_$IpcError_IoImpl> get copyWith =>
+      __$$IpcError_IoImplCopyWithImpl<_$IpcError_IoImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) {
+    return io(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) {
+    return io?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) {
+    if (io != null) {
+      return io(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) {
+    return io(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) {
+    return io?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) {
+    if (io != null) {
+      return io(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_Io extends IpcError {
+  const factory IpcError_Io(final String field0) = _$IpcError_IoImpl;
+  const IpcError_Io._() : super._();
+
+  String get field0;
+  @JsonKey(ignore: true)
+  _$$IpcError_IoImplCopyWith<_$IpcError_IoImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IpcError_WinImplCopyWith<$Res> {
+  factory _$$IpcError_WinImplCopyWith(
+          _$IpcError_WinImpl value, $Res Function(_$IpcError_WinImpl) then) =
+      __$$IpcError_WinImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$IpcError_WinImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_WinImpl>
+    implements _$$IpcError_WinImplCopyWith<$Res> {
+  __$$IpcError_WinImplCopyWithImpl(
+      _$IpcError_WinImpl _value, $Res Function(_$IpcError_WinImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$IpcError_WinImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$IpcError_WinImpl extends IpcError_Win {
+  const _$IpcError_WinImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'IpcError.win(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_WinImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IpcError_WinImplCopyWith<_$IpcError_WinImpl> get copyWith =>
+      __$$IpcError_WinImplCopyWithImpl<_$IpcError_WinImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) {
+    return win(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) {
+    return win?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) {
+    if (win != null) {
+      return win(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) {
+    return win(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) {
+    return win?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) {
+    if (win != null) {
+      return win(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_Win extends IpcError {
+  const factory IpcError_Win(final String field0) = _$IpcError_WinImpl;
+  const IpcError_Win._() : super._();
+
+  String get field0;
+  @JsonKey(ignore: true)
+  _$$IpcError_WinImplCopyWith<_$IpcError_WinImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IpcError_ClientImplCopyWith<$Res> {
+  factory _$$IpcError_ClientImplCopyWith(_$IpcError_ClientImpl value,
+          $Res Function(_$IpcError_ClientImpl) then) =
+      __$$IpcError_ClientImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$IpcError_ClientImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_ClientImpl>
+    implements _$$IpcError_ClientImplCopyWith<$Res> {
+  __$$IpcError_ClientImplCopyWithImpl(
+      _$IpcError_ClientImpl _value, $Res Function(_$IpcError_ClientImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$IpcError_ClientImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$IpcError_ClientImpl extends IpcError_Client {
+  const _$IpcError_ClientImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'IpcError.client(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_ClientImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IpcError_ClientImplCopyWith<_$IpcError_ClientImpl> get copyWith =>
+      __$$IpcError_ClientImplCopyWithImpl<_$IpcError_ClientImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) {
+    return client(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) {
+    return client?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) {
+    if (client != null) {
+      return client(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) {
+    return client(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) {
+    return client?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) {
+    if (client != null) {
+      return client(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_Client extends IpcError {
+  const factory IpcError_Client(final String field0) = _$IpcError_ClientImpl;
+  const IpcError_Client._() : super._();
+
+  String get field0;
+  @JsonKey(ignore: true)
+  _$$IpcError_ClientImplCopyWith<_$IpcError_ClientImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IpcError_RequestStateImplCopyWith<$Res> {
+  factory _$$IpcError_RequestStateImplCopyWith(
+          _$IpcError_RequestStateImpl value,
+          $Res Function(_$IpcError_RequestStateImpl) then) =
+      __$$IpcError_RequestStateImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$IpcError_RequestStateImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_RequestStateImpl>
+    implements _$$IpcError_RequestStateImplCopyWith<$Res> {
+  __$$IpcError_RequestStateImplCopyWithImpl(_$IpcError_RequestStateImpl _value,
+      $Res Function(_$IpcError_RequestStateImpl) _then)
+      : super(_value, _then);
+}
+
+/// @nodoc
+
+class _$IpcError_RequestStateImpl extends IpcError_RequestState {
+  const _$IpcError_RequestStateImpl() : super._();
+
+  @override
+  String toString() {
+    return 'IpcError.requestState()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_RequestStateImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+  }) {
+    return requestState();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+  }) {
+    return requestState?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    required TResult orElse(),
+  }) {
+    if (requestState != null) {
+      return requestState();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+  }) {
+    return requestState(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+  }) {
+    return requestState?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    required TResult orElse(),
+  }) {
+    if (requestState != null) {
+      return requestState(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_RequestState extends IpcError {
+  const factory IpcError_RequestState() = _$IpcError_RequestStateImpl;
+  const IpcError_RequestState._() : super._();
+}
+
+/// @nodoc
 mixin _$Mode {
   int get width => throw _privateConstructorUsedError;
   int get height => throw _privateConstructorUsedError;

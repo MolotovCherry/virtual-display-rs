@@ -374,16 +374,15 @@ fn wire_VirtualDisplayDriver_state_impl(
     )
 }
 fn wire_VirtualDisplayDriver_stream_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_stream",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -403,14 +402,12 @@ fn wire_VirtualDisplayDriver_stream_impl(
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let api_that = api_that.rust_auto_opaque_decode_ref();
-                    Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::stream(
-                        &api_that, api_sink,
-                    ))
-                })())
-            }
+            transform_result_sse((move || {
+                let api_that = api_that.rust_auto_opaque_decode_ref();
+                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::stream(
+                    &api_that, api_sink,
+                ))
+            })())
         },
     )
 }
@@ -441,13 +438,6 @@ flutter_rust_bridge::frb_generated_moi_arc_impl_value!(
 );
 
 // Section: dart2rust
-
-impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        unreachable!("");
-    }
-}
 
 impl SseDecode for VirtualDisplayDriver {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -491,6 +481,37 @@ impl SseDecode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
+impl SseDecode for crate::api::IpcError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::IpcError::SerDe(var_field0);
+            }
+            1 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::IpcError::Io(var_field0);
+            }
+            2 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::IpcError::Win(var_field0);
+            }
+            3 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::IpcError::Client(var_field0);
+            }
+            4 => {
+                return crate::api::IpcError::RequestState;
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
     }
 }
 
@@ -655,7 +676,6 @@ fn pde_ffi_dispatcher_primary_impl(
         5 => wire_VirtualDisplayDriver_set_monitor_impl(port, ptr, rust_vec_len, data_len),
         4 => wire_VirtualDisplayDriver_set_monitors_impl(port, ptr, rust_vec_len, data_len),
         2 => wire_VirtualDisplayDriver_state_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire_VirtualDisplayDriver_stream_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -669,6 +689,7 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire_VirtualDisplayDriver_new_impl(ptr, rust_vec_len, data_len),
+        3 => wire_VirtualDisplayDriver_stream_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -693,6 +714,32 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<VirtualDisplayDriver>> for Vir
     }
 }
 
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::IpcError {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::api::IpcError::SerDe(field0) => {
+                [0.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::IpcError::Io(field0) => {
+                [1.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::IpcError::Win(field0) => {
+                [2.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::IpcError::Client(field0) => {
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::IpcError::RequestState => [4.into_dart()].into_dart(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::IpcError {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::IpcError> for crate::api::IpcError {
+    fn into_into_dart(self) -> crate::api::IpcError {
+        self
+    }
+}
 // Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::Mode> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
@@ -729,13 +776,6 @@ impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::Monitor>> for crate::api::Monitor {
     fn into_into_dart(self) -> FrbWrapper<crate::api::Monitor> {
         self.into()
-    }
-}
-
-impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(format!("{:?}", self), serializer);
     }
 }
 
@@ -777,6 +817,33 @@ impl SseEncode for bool {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_u8(self as _).unwrap();
+    }
+}
+
+impl SseEncode for crate::api::IpcError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::api::IpcError::SerDe(field0) => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::IpcError::Io(field0) => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::IpcError::Win(field0) => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::IpcError::Client(field0) => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::IpcError::RequestState => {
+                <i32>::sse_encode(4, serializer);
+            }
+        }
     }
 }
 

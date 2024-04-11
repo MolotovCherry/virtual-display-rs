@@ -1,4 +1,4 @@
-use driver_ipc::{ClientCommand, DriverClient, EventCommand, Result};
+use driver_ipc::{ClientCommand, DriverClient, EventCommand};
 pub use driver_ipc::{Mode, Monitor};
 use flutter_rust_bridge::frb;
 
@@ -19,6 +19,26 @@ pub struct _Mode {
     pub refresh_rates: Vec<u32>,
 }
 
+pub enum IpcError {
+    SerDe(String),
+    Io(String),
+    Win(String),
+    Client(String),
+    RequestState,
+}
+
+impl From<driver_ipc::IpcError> for IpcError {
+    fn from(e: driver_ipc::IpcError) -> Self {
+        match e {
+            driver_ipc::IpcError::SerDe(e) => IpcError::SerDe(e.to_string()),
+            driver_ipc::IpcError::Io(e) => IpcError::Io(e.to_string()),
+            driver_ipc::IpcError::Win(e) => IpcError::Win(e.to_string()),
+            driver_ipc::IpcError::Client(e) => IpcError::Client(e.to_string()),
+            driver_ipc::IpcError::RequestState => IpcError::RequestState,
+        }
+    }
+}
+
 #[frb(opaque)]
 pub struct VirtualDisplayDriver {
     client: DriverClient,
@@ -26,7 +46,7 @@ pub struct VirtualDisplayDriver {
 
 impl VirtualDisplayDriver {
     #[frb(sync)]
-    pub fn new(_pipe_name: Option<String>) -> Result<VirtualDisplayDriver> {
+    pub fn new(_pipe_name: Option<String>) -> Result<VirtualDisplayDriver, IpcError> {
         let vdd = VirtualDisplayDriver {
             client: DriverClient::new()?,
         };
@@ -47,7 +67,7 @@ impl VirtualDisplayDriver {
     /// current state of the driver.
     ///
     /// After calling, will instantly emit the current state of the driver.
-    #[frb(getter)]
+    #[frb(getter, sync)]
     pub fn stream(&self, sink: StreamSink<Vec<Monitor>>) {
         self.client.set_receiver(None::<fn()>, move |command| {
             if let ClientCommand::Event(EventCommand::Changed(data)) = command {
@@ -61,8 +81,9 @@ impl VirtualDisplayDriver {
     /// Set the state of the provided monitors.
     ///
     /// Each monitor with a matching ID will be updated to the provided state.
-    pub fn set_monitors(&mut self, monitors: Vec<Monitor>) -> Result<()> {
-        self.client.set_monitors(&monitors)
+    pub fn set_monitors(&mut self, monitors: Vec<Monitor>) -> Result<(), IpcError> {
+        self.client.set_monitors(&monitors)?;
+        Ok(())
     }
 
     /// Set the state of the monitor with the provided ID.
@@ -74,7 +95,7 @@ impl VirtualDisplayDriver {
         enabled: Option<bool>,
         name: Option<String>,
         modes: Option<Vec<Mode>>,
-    ) -> Result<()> {
+    ) -> Result<(), IpcError> {
         self.client.find_monitor_mut(id, |monitor| {
             if let Some(enabled) = enabled {
                 monitor.enabled = enabled;
@@ -96,7 +117,7 @@ impl VirtualDisplayDriver {
         name: Option<String>,
         enabled: bool,
         modes: Vec<Mode>,
-    ) -> Result<()> {
+    ) -> Result<(), IpcError> {
         let monitor = Monitor {
             id: self.client.new_id(None)?,
             name,
@@ -120,12 +141,14 @@ impl VirtualDisplayDriver {
     }
 
     /// Push in-memory changes to driver.
-    pub fn notify(&mut self) -> Result<()> {
-        self.client.notify()
+    pub fn notify(&mut self) -> Result<(), IpcError> {
+        self.client.notify()?;
+        Ok(())
     }
 
     /// Persist in-memory changes to user settings
-    pub fn persist(&mut self) -> Result<()> {
-        self.client.persist()
+    pub fn persist(&mut self) -> Result<(), IpcError> {
+        self.client.persist()?;
+        Ok(())
     }
 }

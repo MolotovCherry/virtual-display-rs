@@ -93,10 +93,29 @@ class VirtualDisplayDriver extends RustOpaque {
   /// current state of the driver.
   ///
   /// After calling, will instantly emit the current state of the driver.
-  Future<Stream<List<Monitor>>> get stream =>
+  Stream<List<Monitor>> get stream =>
       RustLib.instance.api.virtualDisplayDriverStream(
         that: this,
       );
+}
+
+@freezed
+sealed class IpcError with _$IpcError implements FrbException {
+  const IpcError._();
+
+  const factory IpcError.serDe(
+    String field0,
+  ) = IpcError_SerDe;
+  const factory IpcError.io(
+    String field0,
+  ) = IpcError_Io;
+  const factory IpcError.win(
+    String field0,
+  ) = IpcError_Win;
+  const factory IpcError.client(
+    String field0,
+  ) = IpcError_Client;
+  const factory IpcError.requestState() = IpcError_RequestState;
 }
 
 @freezed
