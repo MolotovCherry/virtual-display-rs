@@ -100,7 +100,7 @@ impl Client {
                     };
 
                     if user_is_event {
-                        _ = event_send.send(e.clone());
+                        _ = event_send.send(e);
                     }
                 } else if let ClientCommand::Reply(r) = data {
                     _ = client_send.send(r);
