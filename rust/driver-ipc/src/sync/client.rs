@@ -3,7 +3,7 @@ use crate::{Client as AsyncClient, EventCommand, Id, Monitor, ReplyCommand, Resu
 
 /// A thin api client over the driver api with all the essential api.
 /// Does the bare minimum required. Does not track state
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Client(AsyncClient);
 
 impl Client {
