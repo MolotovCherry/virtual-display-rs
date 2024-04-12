@@ -53,7 +53,7 @@ impl DriverClient {
         }
     }
 
-    pub async fn get_state(&mut self) -> Result<Vec<Monitor>> {
+    async fn get_state(&mut self) -> Result<Vec<Monitor>> {
         Self::_get_state(&mut self.client).await
     }
 

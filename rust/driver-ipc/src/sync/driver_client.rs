@@ -18,10 +18,6 @@ impl DriverClient {
         client.map(Self)
     }
 
-    pub fn get_state(&mut self) -> Result<Vec<Monitor>> {
-        RUNTIME.block_on(self.0.get_state())
-    }
-
     /// Get the ID of a monitor using a string. The string can be either the name
     /// of the monitor, or the ID.
     ///
