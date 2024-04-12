@@ -1,42 +1,59 @@
-use std::{collections::HashSet, mem::ManuallyDrop, thread};
+use std::{
+    collections::HashSet,
+    sync::{Mutex, OnceLock},
+    thread,
+};
 
-use windows::Win32::Foundation::{CloseHandle, HANDLE};
+use tokio::sync::mpsc::{channel, Sender};
 
 use crate::{
-    Client, ClientCommand, ClientError, Id, IpcError, Mode, Monitor, ReplyCommand, Result,
+    client::RUNTIME, Client, ClientError, EventCommand, Id, IpcError, Mode, Monitor, ReplyCommand,
+    Result,
 };
+
+// used to terminate existing receivers
+static RECEIVER_SHUTDOWN_TOKEN: Mutex<OnceLock<Sender<()>>> = Mutex::new(OnceLock::new());
 
 /// Extra API over Client which allows nice fancy things
 #[derive(Debug)]
 pub struct DriverClient {
-    // I'll handle dropping of this field manually
-    client: ManuallyDrop<Client>,
+    client: Client,
     state: Vec<Monitor>,
 }
 
 impl DriverClient {
+    /// connect to default driver name
     pub fn new() -> Result<Self> {
-        let mut client = ManuallyDrop::new(Client::connect()?);
+        let mut client = Client::connect()?;
 
         let state = Self::_get_state(&mut client)?;
 
         Ok(Self { client, state })
     }
 
-    fn _get_state(client: &mut ManuallyDrop<Client>) -> Result<Vec<Monitor>> {
+    /// specify pipe name to connect to
+    pub fn new_with(name: &str) -> Result<Self> {
+        let mut client = Client::connect_to(name)?;
+
+        let state = Self::_get_state(&mut client)?;
+
+        Ok(Self { client, state })
+    }
+
+    fn _get_state(client: &mut Client) -> Result<Vec<Monitor>> {
         client.request_state()?;
 
-        while let Ok(command) = client.receive() {
-            match command {
-                ClientCommand::Reply(ReplyCommand::State(state)) => {
+        loop {
+            match client.receive_reply(true) {
+                Some(ReplyCommand::State(state)) => {
                     return Ok(state);
                 }
 
-                _ => continue,
+                _ => {
+                    continue;
+                }
             }
         }
-
-        Err(IpcError::RequestState)
     }
 
     fn get_state(&mut self) -> Result<Vec<Monitor>> {
@@ -55,24 +72,24 @@ impl DriverClient {
     /// Ex) "my-mon-name", "5"
     /// In the above example, this will search for a monitor of name "my-mon-name", "5", or
     /// an ID of 5
-    pub fn find_id(&self, query: &str) -> Result<Id> {
+    pub fn find_id(&self, query: &str) -> Option<Id> {
         let id = query.parse::<Id>();
 
         for monitor in &self.state {
             if let Some(name) = monitor.name.as_deref() {
                 if name == query {
-                    return Ok(monitor.id);
+                    return Some(monitor.id);
                 }
             }
 
             if let Ok(id) = id {
                 if monitor.id == id {
-                    return Ok(monitor.id);
+                    return Some(monitor.id);
                 }
             }
         }
 
-        Err(ClientError::QueryNotFound(query.to_owned()).into())
+        None
     }
 
     /// Manually refresh internal state with latest driver changes
@@ -84,25 +101,48 @@ impl DriverClient {
 
     /// Supply a callback used to receive commands from the driver
     ///
+    /// This only allows one receiver at a time. Setting a new cb will also terminate existing reciever
+    ///
     /// Note: DriverClient DOES NOT do any hidden state changes! Only calling proper api will change internal state.
     ///       driver state IS NOT updated on its own when Event commands are received!
     ///       if you want to update internal state, call set_monitors on DriverClient in your callback
     ///       to properly handle it!
-    pub fn set_receiver(
-        &self,
-        init: Option<impl FnOnce() + Send + 'static>,
-        cb: impl Fn(ClientCommand) + Send + 'static,
-    ) {
-        let mut client = self.client.clone();
-        thread::spawn(move || {
-            if let Some(init) = init {
-                init();
-            }
+    pub fn set_event_receiver(&self, cb: impl Fn(EventCommand) + Send + 'static) {
+        // stop currently running task if any exist
+        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
+            sender.blocking_send(()).unwrap();
+        }
 
-            while let Ok(command) = client.receive() {
-                cb(command);
+        let client = self.client.clone();
+        let fut = async move {
+            let (tx, mut rx) = channel(1);
+            RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().set(tx).unwrap();
+
+            loop {
+                tokio::select! {
+                    cmd = client.receive_event_async() => {
+                        cb(cmd);
+                    }
+
+                    // shutdown signal
+                    _ = rx.recv() => {
+                        break;
+                    }
+                }
             }
+        };
+
+        thread::spawn(move || {
+            RUNTIME.block_on(fut);
         });
+    }
+
+    /// Terminate a receiver without setting a new one
+    pub fn terminate_receiver(&self) {
+        // stop currently running task if any exist
+        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
+            sender.blocking_send(()).unwrap();
+        }
     }
 
     /// Get the current monitor state
@@ -140,33 +180,37 @@ impl DriverClient {
     }
 
     /// Find a monitor by ID.
-    pub fn find_monitor(&self, id: Id) -> Result<&Monitor> {
+    pub fn find_monitor(&self, id: Id) -> Option<&Monitor> {
         let monitor_by_id = self.state.iter().find(|monitor| monitor.id == id);
-        if let Some(monitor) = monitor_by_id {
-            return Ok(monitor);
-        }
-
-        Err(ClientError::MonNotFound(id).into())
+        monitor_by_id
     }
 
     /// Find a monitor by query.
-    pub fn find_monitor_query(&self, query: &str) -> Result<&Monitor> {
+    pub fn find_monitor_query(&self, query: &str) -> Option<&Monitor> {
         let id = self.find_id(query)?;
         self.find_monitor(id)
     }
 
     /// Find a monitor by ID and return mutable reference to it.
-    pub fn find_monitor_mut<R>(&mut self, id: Id, cb: impl FnOnce(&mut Monitor) -> R) -> Result<R> {
-        let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
-        let Some(monitor) = monitor_by_id else {
-            return Err(ClientError::MonNotFound(id).into());
-        };
+    pub fn find_monitor_mut<R>(&mut self, id: Id, cb: impl FnOnce(&mut Monitor) -> R) -> Option<R> {
+        let monitor = self.state.iter_mut().find(|monitor| monitor.id == id)?;
 
         let r = cb(monitor);
 
-        mons_have_duplicates(&self.state)?;
+        mons_have_duplicates(&self.state).ok()?;
 
-        Ok(r)
+        Some(r)
+    }
+
+    /// Find a monitor by ID and return mutable reference to it.
+    ///
+    /// Does not do checking to validate there are no duplicates (since this is not easy when returning a mut reference)
+    /// Caller agrees they will make sure there are no duplicates
+    ///
+    /// Despite the "unchecked" part of this name, this is a safe method
+    pub fn find_monitor_mut_unchecked(&mut self, id: Id) -> Option<&mut Monitor> {
+        let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
+        monitor_by_id
     }
 
     /// Find a monitor by query.
@@ -174,9 +218,20 @@ impl DriverClient {
         &mut self,
         query: &str,
         cb: impl FnOnce(&mut Monitor) -> R,
-    ) -> Result<R> {
+    ) -> Option<R> {
         let id = self.find_id(query)?;
         self.find_monitor_mut(id, cb)
+    }
+
+    /// Find a monitor by query.
+    ///
+    /// Does not do checking to validate there are no duplicates (since this is not easy when returning a mut reference)
+    /// Caller agrees they will make sure there are no duplicates
+    ///
+    /// Despite the "unchecked" part of this name, this is a safe method
+    pub fn find_monitor_mut_query_unchecked(&mut self, query: &str) -> Option<&mut Monitor> {
+        let id = self.find_id(query)?;
+        self.find_monitor_mut_unchecked(id)
     }
 
     /// Persist changes to registry for current user
@@ -186,7 +241,7 @@ impl DriverClient {
 
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
     /// which the driver will ignore when you notify it of changes
-    pub fn new_id(&self, preferred_id: Option<Id>) -> Result<Id> {
+    pub fn new_id(&self, preferred_id: Option<Id>) -> Option<Id> {
         let existing_ids = self
             .state
             .iter()
@@ -195,16 +250,16 @@ impl DriverClient {
 
         if let Some(id) = preferred_id {
             if !existing_ids.contains(&id) {
-                return Err(ClientError::MonExists(id).into());
+                return None;
             }
 
-            Ok(id)
+            Some(id)
         } else {
             #[allow(clippy::maybe_infinite_iter)]
             let new_id = (0..)
                 .find(|id| !existing_ids.contains(id))
                 .expect("failed to get a new ID");
-            Ok(new_id)
+            Some(new_id)
         }
     }
 
@@ -217,7 +272,7 @@ impl DriverClient {
     pub fn remove_query(&mut self, queries: &[impl AsRef<str>]) -> Result<()> {
         let mut ids = Vec::new();
         for id in queries {
-            if let Ok(id) = self.find_id(id.as_ref()) {
+            if let Some(id) = self.find_id(id.as_ref()) {
                 ids.push(id);
                 continue;
             }
@@ -261,7 +316,7 @@ impl DriverClient {
     pub fn set_enabled_query(&mut self, queries: &[impl AsRef<str>], enabled: bool) -> Result<()> {
         let mut ids = Vec::new();
         for id in queries {
-            if let Ok(id) = self.find_id(id.as_ref()) {
+            if let Some(id) = self.find_id(id.as_ref()) {
                 ids.push(id);
                 continue;
             }
@@ -304,7 +359,10 @@ impl DriverClient {
 
     /// Add a mode to monitor by query
     pub fn add_mode_query(&mut self, query: &str, mode: Mode) -> Result<()> {
-        let id = self.find_id(query)?;
+        let id = self
+            .find_id(query)
+            .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
+
         self.add_mode(id, mode)
     }
 
@@ -322,21 +380,11 @@ impl DriverClient {
 
     /// Remove monitor mode by query
     pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> Result<()> {
-        let id = self.find_id(query)?;
+        let id = self
+            .find_id(query)
+            .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
+
         self.remove_mode(id, resolution)
-    }
-}
-
-impl Drop for DriverClient {
-    fn drop(&mut self) {
-        use std::os::windows::io::AsRawHandle as _;
-        // get raw pipe handle. reader/writer doesn't matter, they're all the same handle
-        let handle = self.client.writer.as_raw_handle();
-
-        // manually close handle so that ReadFile stops blocking our thread
-        unsafe {
-            _ = CloseHandle(HANDLE(handle as _));
-        }
     }
 }
 

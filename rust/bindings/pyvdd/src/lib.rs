@@ -5,33 +5,21 @@
 
 mod utils;
 
+use std::fmt::Debug;
 use std::{
     borrow::{Borrow, Cow},
     collections::HashSet,
     fmt::Display,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, Ordering},
 };
-use std::{fmt::Debug, sync::Mutex};
 
-use driver_ipc::{
-    ClientCommand, Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate,
-};
+use driver_ipc::{Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate};
 use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
     pyclass::boolean_struct::False,
     types::{DerefToPyAny, PyList, PyLong},
     DowncastIntoError, PyClass, PyTypeCheck,
-};
-use windows::Win32::{
-    Foundation::{DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE},
-    System::{
-        Threading::{GetCurrentProcess, GetCurrentThread},
-        IO::CancelSynchronousIo,
-    },
 };
 
 use self::utils::IntoPyErr as _;
@@ -336,7 +324,6 @@ impl IntoPyListIter for Py<PyTypedList> {
 #[pyo3(name = "DriverClient")]
 struct PyDriverClient {
     client: DriverClient,
-    thread_registry: Arc<Mutex<Option<HANDLE>>>,
     /// The list of monitors
     /// Sig: list[Monitor]
     #[pyo3(get)]
@@ -353,16 +340,11 @@ impl PyDriverClient {
             ));
         }
 
-        let mut client = DriverClient::new().into_py_err()?;
-        client.refresh_state().into_py_err()?;
+        let client = DriverClient::new().into_py_err()?;
 
         let monitors = state_to_pytypedlist(py, client.monitors())?;
 
-        let slf = Self {
-            client,
-            monitors,
-            thread_registry: Arc::new(Mutex::new(None)),
-        };
+        let slf = Self { client, monitors };
 
         Ok(slf)
     }
@@ -417,70 +399,34 @@ impl PyDriverClient {
     }
 
     /// Get notified of other clients changing driver configuration
-    /// Sig: receive(Callable[list[Monitor], None])
-    fn receive(&self, callback: PyObject) {
-        // cancel the receiver internally if called again
-        {
-            let lock = self.thread_registry.lock().unwrap().take();
-            if let Some(thread) = lock {
-                unsafe {
-                    _ = CancelSynchronousIo(thread);
-                }
-            }
+    /// Sig: receive(Optional[Callable[list[Monitor], None]] = None)
+    fn receive(&self, callback: Option<PyObject>) {
+        if let Some(callback) = callback {
+            self.client.set_event_receiver(move |cmd| {
+                let EventCommand::Changed(data) = cmd else {
+                    unreachable!()
+                };
+
+                Python::with_gil(|py| {
+                    let state = state_to_pylist(py, &data);
+                    let Ok(state) = state else {
+                        return;
+                    };
+
+                    if let Err(e) = callback.call1(py, (state,)) {
+                        e.print(py);
+                    }
+                });
+            });
+        } else {
+            self.client.terminate_receiver();
         }
-
-        let registry = self.thread_registry.clone();
-        self.client.set_receiver(
-            // init - store thread handle for later
-            Some(move || {
-                let mut lock = registry.lock().unwrap();
-
-                let pseudo_handle = unsafe { GetCurrentThread() };
-                let current_process = unsafe { GetCurrentProcess() };
-
-                let mut thread_handle = HANDLE::default();
-                unsafe {
-                    _ = DuplicateHandle(
-                        current_process,
-                        pseudo_handle,
-                        current_process,
-                        &mut thread_handle,
-                        0,
-                        false,
-                        DUPLICATE_SAME_ACCESS,
-                    );
-                }
-
-                *lock = Some(thread_handle);
-            }),
-            // cb
-            move |command| {
-                if let ClientCommand::Event(EventCommand::Changed(data)) = command {
-                    Python::with_gil(|py| {
-                        let state = state_to_pylist(py, &data);
-                        let Ok(state) = state else {
-                            return;
-                        };
-
-                        if let Err(e) = callback.call1(py, (state,)) {
-                            e.print(py);
-                        }
-                    });
-                }
-            },
-        );
-    }
-
-    /// Find id of monitor based on query. Query is a string containing monitor's name or id
-    /// Sig: find_id(query: str) -> Optional[int]
-    fn find_id(&self, query: &str) -> Option<Id> {
-        self.client.find_id(query).ok()
     }
 
     /// Find a monitor by Id
     /// Sig: find_monitor(query: int | str) -> Optional[Monitor]
     #[allow(clippy::needless_pass_by_value)]
-    fn find_monitor(&self, py: Python, query: PyObject) -> PyResult<Option<Py<PyMonitor>>> {
+    fn find(&self, py: Python, query: PyObject) -> PyResult<Option<Py<PyMonitor>>> {
         let iter = self.monitors.iter_ref::<PyMonitor>(py);
 
         let query_b = query.bind(py);
@@ -524,7 +470,8 @@ impl PyDriverClient {
         if self.client.set_monitors(&state).is_err() {
             return Ok(None);
         }
-        Ok(self.client.new_id(preferred_id).ok())
+
+        Ok(self.client.new_id(preferred_id))
     }
 
     /// Remove monitors by id

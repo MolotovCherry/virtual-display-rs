@@ -18,6 +18,7 @@ features = [
     "Win32_System_Services",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_Threading",
+    "Win32_Security",
 ]
 
 [lints]

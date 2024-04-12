@@ -106,16 +106,11 @@ client.monitors[0].modes[0].modes[0].refresh_rates[0] = 90
 # DriverClient functions
 #
 
-# get the id of Monitor belonging to name
+# find a Monitor by id or name
 #
-# DriverClient.find_id(query: str) -> Optional[int]
-client.find_id("myname")
-
-# get a Monitor by id or name
-#
-# DriverClient.find_monitor(int | str) -> Optional[Monitor]
-client.find_monitor(5)
-client.find_monitor("name")
+# DriverClient.find(int | str) -> Optional[Monitor]
+client.find(5)
+client.find("name")
 
 # Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
 # which the driver will ignore when you notify it of changes
@@ -136,12 +131,15 @@ client.persist()
 # you can ask to be notified.
 # this represents the complete current state of the driver
 #
-# DriverClient.receive(Callable[list[Monitor], None])
+# DriverClient.receive(Optional[Callable[list[Monitor], None]] = None)
 client.receive(lambda d: print(d))
 # one way to use this might be to auto update your driver instance
 def set_monitors(data):
     client.monitors = data
+# calling it on a new callback will cancel the old one and set the new one
 client.receive(set_monitors)
+# calling it with no args will cancel the current receiver
+client.receive()
 
 # gets latest states from driver
 #

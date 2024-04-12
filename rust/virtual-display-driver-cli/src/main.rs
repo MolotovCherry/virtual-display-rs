@@ -1,7 +1,7 @@
 mod mode;
 
 use clap::Parser;
-use eyre::Context as _;
+use eyre::{bail, eyre, Context as _};
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
@@ -210,7 +210,10 @@ fn add(client: &mut DriverClient, opts: &GlobalOptions, command: AddCommand) -> 
         .map(driver_ipc::Mode::from)
         .collect::<Vec<_>>();
 
-    let id = client.new_id(command.id)?;
+    let id = client
+        .new_id(command.id)
+        .ok_or_else(|| eyre!("Monitor {} already exists", command.id.unwrap()))?;
+
     let new_monitor = driver_ipc::Monitor {
         id,
         enabled: !command.disabled,
@@ -243,7 +246,7 @@ fn add_mode(
     opts: &GlobalOptions,
     command: AddModeCommand,
 ) -> eyre::Result<()> {
-    let (id, new_modes) = client.find_monitor_mut_query(&command.id, |monitor| {
+    let Some((id, new_modes)) = client.find_monitor_mut_query(&command.id, |monitor| {
         let id = monitor.id;
 
         let existing_modes = monitor.modes.iter().cloned().map(mode::Mode::from);
@@ -253,7 +256,9 @@ fn add_mode(
 
         monitor.modes = new_modes.clone();
         (id, new_modes)
-    })?;
+    }) else {
+        bail!("Monitor `{}` not found", command.id);
+    };
 
     client.notify()?;
 
@@ -272,21 +277,22 @@ fn remove_mode(
     opts: &GlobalOptions,
     command: &RemoveModeCommand,
 ) -> eyre::Result<()> {
-    let (id, new_modes) = client.find_monitor_mut_query(
-        &command.id,
-        |monitor: &mut Monitor| -> eyre::Result<(Id, Vec<driver_ipc::Mode>)> {
-            let id = monitor.id;
+    let (id, new_modes) = client
+        .find_monitor_mut_query(
+            &command.id,
+            |monitor: &mut Monitor| -> eyre::Result<(Id, Vec<driver_ipc::Mode>)> {
+                let id = monitor.id;
 
-            let modes = monitor.modes.iter().cloned().map(mode::Mode::from);
-            let new_modes = mode::remove(modes, &command.mode)?;
-            let new_modes: Vec<driver_ipc::Mode> =
-                new_modes.into_iter().map(driver_ipc::Mode::from).collect();
+                let modes = monitor.modes.iter().cloned().map(mode::Mode::from);
+                let new_modes = mode::remove(modes, &command.mode)?;
+                let new_modes: Vec<driver_ipc::Mode> =
+                    new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
-            monitor.modes = new_modes.clone();
-
-            eyre::Result::Ok((id, new_modes))
-        },
-    )??;
+                monitor.modes = new_modes.clone();
+                eyre::Result::Ok((id, new_modes))
+            },
+        )
+        .ok_or(eyre!("Monitor `{}` not found", command.id))??;
 
     client.notify()?;
 
@@ -393,7 +399,10 @@ fn set_enabled(
     query: &str,
     enabled: bool,
 ) -> eyre::Result<EnableDisableOutcome> {
-    let monitor = client.find_monitor_query(query)?.clone();
+    let monitor = client
+        .find_monitor_query(query)
+        .ok_or(eyre!("Monitor matching `{query}` not found"))?
+        .clone();
 
     client.set_enabled_query(&[query], enabled)?;
     client.notify()?;
