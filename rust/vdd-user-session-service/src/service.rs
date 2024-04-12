@@ -1,6 +1,9 @@
 use std::{ffi::OsString, io::ErrorKind, sync::mpsc, time::Duration};
 
-use driver_ipc::{Client, DriverClient, Monitor};
+use driver_ipc::{
+    sync::{Client, DriverClient},
+    Monitor,
+};
 use windows::Win32::{
     Foundation::{CloseHandle, HANDLE},
     Security::{ImpersonateLoggedOnUser, SE_TCB_NAME},

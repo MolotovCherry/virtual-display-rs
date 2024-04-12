@@ -1,18 +1,15 @@
-use std::{
-    collections::HashSet,
-    sync::{Mutex, OnceLock},
-    thread,
+use std::{collections::HashSet, sync::OnceLock};
+
+use tokio::{
+    sync::mpsc::{channel, Sender},
+    task,
 };
 
-use tokio::sync::mpsc::{channel, Sender};
-
-use crate::{
-    client::RUNTIME, Client, ClientError, EventCommand, Id, IpcError, Mode, Monitor, ReplyCommand,
-    Result,
-};
+use crate::{Client, ClientError, EventCommand, Id, IpcError, Mode, Monitor, ReplyCommand, Result};
 
 // used to terminate existing receivers
-static RECEIVER_SHUTDOWN_TOKEN: Mutex<OnceLock<Sender<()>>> = Mutex::new(OnceLock::new());
+static RECEIVER_SHUTDOWN_TOKEN: std::sync::Mutex<OnceLock<Sender<()>>> =
+    std::sync::Mutex::new(OnceLock::new());
 
 /// Extra API over Client which allows nice fancy things
 #[derive(Debug)]
@@ -23,28 +20,28 @@ pub struct DriverClient {
 
 impl DriverClient {
     /// connect to default driver name
-    pub fn new() -> Result<Self> {
-        let mut client = Client::connect()?;
+    pub async fn new() -> Result<Self> {
+        let mut client = Client::connect().await?;
 
-        let state = Self::_get_state(&mut client)?;
+        let state = Self::_get_state(&mut client).await?;
 
         Ok(Self { client, state })
     }
 
     /// specify pipe name to connect to
-    pub fn new_with(name: &str) -> Result<Self> {
-        let mut client = Client::connect_to(name)?;
+    pub async fn new_with(name: &str) -> Result<Self> {
+        let mut client = Client::connect_to(name).await?;
 
-        let state = Self::_get_state(&mut client)?;
+        let state = Self::_get_state(&mut client).await?;
 
         Ok(Self { client, state })
     }
 
-    fn _get_state(client: &mut Client) -> Result<Vec<Monitor>> {
-        client.request_state()?;
+    async fn _get_state(client: &mut Client) -> Result<Vec<Monitor>> {
+        client.request_state().await?;
 
         loop {
-            match client.receive_reply(true) {
+            match client.receive_reply(true).await {
                 Some(ReplyCommand::State(state)) => {
                     return Ok(state);
                 }
@@ -56,8 +53,8 @@ impl DriverClient {
         }
     }
 
-    fn get_state(&mut self) -> Result<Vec<Monitor>> {
-        Self::_get_state(&mut self.client)
+    pub async fn get_state(&mut self) -> Result<Vec<Monitor>> {
+        Self::_get_state(&mut self.client).await
     }
 
     /// Get the ID of a monitor using a string. The string can be either the name
@@ -93,8 +90,8 @@ impl DriverClient {
     }
 
     /// Manually refresh internal state with latest driver changes
-    pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
-        self.state = self.get_state()?;
+    pub async fn refresh_state(&mut self) -> Result<&[Monitor]> {
+        self.state = self.get_state().await?;
 
         Ok(&self.state)
     }
@@ -107,20 +104,21 @@ impl DriverClient {
     ///       driver state IS NOT updated on its own when Event commands are received!
     ///       if you want to update internal state, call set_monitors on DriverClient in your callback
     ///       to properly handle it!
-    pub fn set_event_receiver(&self, cb: impl Fn(EventCommand) + Send + 'static) {
+    pub async fn set_event_receiver(&mut self, cb: impl Fn(EventCommand) + Send + 'static) {
         // stop currently running task if any exist
-        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
-            sender.blocking_send(()).unwrap();
+        let token = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take();
+        if let Some(sender) = token {
+            sender.send(()).await.unwrap();
         }
 
-        let client = self.client.clone();
-        let fut = async move {
-            let (tx, mut rx) = channel(1);
-            RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().set(tx).unwrap();
+        let (tx, mut rx) = channel(1);
+        RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().set(tx).unwrap();
 
+        let client = self.client.clone();
+        task::spawn(async move {
             loop {
                 tokio::select! {
-                    cmd = client.receive_event_async() => {
+                    cmd = client.receive_event() => {
                         cb(cmd);
                     }
 
@@ -130,18 +128,15 @@ impl DriverClient {
                     }
                 }
             }
-        };
-
-        thread::spawn(move || {
-            RUNTIME.block_on(fut);
         });
     }
 
     /// Terminate a receiver without setting a new one
-    pub fn terminate_event_receiver(&self) {
+    pub async fn terminate_event_receiver(&self) {
         // stop currently running task if any exist
-        if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
-            sender.blocking_send(()).unwrap();
+        let token = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take();
+        if let Some(sender) = token {
+            sender.send(()).await.unwrap();
         }
     }
 
@@ -175,8 +170,8 @@ impl DriverClient {
     /// and only saved when you run `persist()``
     ///
     /// Send current state to driver
-    pub fn notify(&mut self) -> Result<()> {
-        self.client.notify(&self.state)
+    pub async fn notify(&mut self) -> Result<()> {
+        self.client.notify(&self.state).await
     }
 
     /// Find a monitor by ID.

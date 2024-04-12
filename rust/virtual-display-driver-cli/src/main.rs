@@ -7,7 +7,7 @@ use lazy_format::lazy_format;
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use driver_ipc::{DriverClient, Id, Monitor};
+use driver_ipc::{sync::DriverClient, Id, Monitor};
 
 #[derive(Debug, Parser)]
 struct Args {

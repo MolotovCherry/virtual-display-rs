@@ -13,7 +13,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use driver_ipc::{Dimen, DriverClient, EventCommand, Id, Mode, Monitor, RefreshRate};
+use driver_ipc::{sync::DriverClient, Dimen, EventCommand, Id, Mode, Monitor, RefreshRate};
 use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
@@ -400,7 +400,7 @@ impl PyDriverClient {
 
     /// Get notified of other clients changing driver configuration
     /// Sig: receive(Optional[Callable[list[Monitor], None]] = None)
-    fn receive(&self, callback: Option<PyObject>) {
+    fn receive(&mut self, callback: Option<PyObject>) {
         if let Some(callback) = callback {
             self.client.set_event_receiver(move |cmd| {
                 let EventCommand::Changed(data) = cmd else {
