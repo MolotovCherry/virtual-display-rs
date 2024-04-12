@@ -1,4 +1,4 @@
-use driver_ipc::{sync::DriverClient, EventCommand};
+use driver_ipc::{DriverClient, EventCommand};
 pub use driver_ipc::{Mode, Monitor};
 use flutter_rust_bridge::frb;
 
@@ -51,12 +51,11 @@ pub struct VirtualDisplayDriver {
 }
 
 impl VirtualDisplayDriver {
-    #[frb(sync)]
-    pub fn new(pipe_name: Option<String>) -> Result<VirtualDisplayDriver, IpcError> {
+    pub async fn new(pipe_name: Option<String>) -> Result<VirtualDisplayDriver, IpcError> {
         let client = if let Some(name) = pipe_name {
-            DriverClient::new_with(&name)?
+            DriverClient::new_with(&name).await?
         } else {
-            DriverClient::new()?
+            DriverClient::new().await?
         };
 
         let vdd = VirtualDisplayDriver { client };
@@ -65,7 +64,7 @@ impl VirtualDisplayDriver {
     }
 
     /// Get the current state of the driver.
-    #[frb(getter)]
+    #[frb(getter, sync)]
     pub fn state(&self) -> Vec<Monitor> {
         self.client.monitors().to_owned()
     }
@@ -77,25 +76,28 @@ impl VirtualDisplayDriver {
     /// current state of the driver.
     ///
     /// If set again, it will cancel the old stream and set the new one
-    #[frb(getter, sync)]
-    pub fn stream(&mut self, sink: StreamSink<Vec<Monitor>>) {
-        self.client.set_event_receiver(move |command| {
-            if let EventCommand::Changed(data) = command {
-                if let Err(_e) = sink.add(data) {
-                    // do something with err? hmm
+    #[frb(getter)]
+    pub async fn stream(&mut self, sink: StreamSink<Vec<Monitor>>) {
+        self.client
+            .set_event_receiver(move |command| {
+                if let EventCommand::Changed(data) = command {
+                    if let Err(_e) = sink.add(data) {
+                        // do something with err? hmm
+                    }
                 }
-            }
-        });
+            })
+            .await;
     }
 
     /// Cancel any previously set up stream
-    pub fn cancel_stream(&self) {
-        self.client.terminate_event_receiver();
+    pub async fn cancel_stream(&self) {
+        self.client.terminate_event_receiver().await;
     }
 
     /// Set the state of the provided monitors.
     ///
     /// Each monitor with a matching ID will be updated to the provided state.
+    #[frb(sync)]
     pub fn set_monitors(&mut self, monitors: Vec<Monitor>) -> Result<(), IpcError> {
         self.client.set_monitors(&monitors)?;
         Ok(())
@@ -104,6 +106,7 @@ impl VirtualDisplayDriver {
     /// Set the state of the monitor with the provided ID.
     ///
     /// Only the provided properties will be updated.
+    #[frb(sync)]
     pub fn set_monitor(
         &mut self,
         id: u32,
@@ -125,6 +128,7 @@ impl VirtualDisplayDriver {
     }
 
     /// Add a new monitor to the driver.
+    #[frb(sync)]
     pub fn add_monitor(
         &mut self,
         name: Option<String>,
@@ -144,18 +148,20 @@ impl VirtualDisplayDriver {
     }
 
     /// Remove monitors from the driver.
+    #[frb(sync)]
     pub fn remove_monitors(&mut self, ids: Vec<u32>) {
         self.client.remove(&ids);
     }
 
     /// Remove all monitors from the driver.
+    #[frb(sync)]
     pub fn remove_all_monitors(&mut self) {
         self.client.remove_all();
     }
 
     /// Push in-memory changes to driver.
-    pub fn notify(&mut self) -> Result<(), IpcError> {
-        self.client.notify()?;
+    pub async fn notify(&mut self) -> Result<(), IpcError> {
+        self.client.notify().await?;
         Ok(())
     }
 

@@ -62,14 +62,17 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<void> virtualDisplayDriverAddMonitor(
+  void virtualDisplayDriverAddMonitor(
       {required VirtualDisplayDriver that,
       String? name,
       required bool enabled,
       required List<Mode> modes,
       dynamic hint});
 
-  VirtualDisplayDriver virtualDisplayDriverNew(
+  Future<void> virtualDisplayDriverCancelStream(
+      {required VirtualDisplayDriver that, dynamic hint});
+
+  Future<VirtualDisplayDriver> virtualDisplayDriverNew(
       {String? pipeName, dynamic hint});
 
   Future<void> virtualDisplayDriverNotify(
@@ -78,15 +81,15 @@ abstract class RustLibApi extends BaseApi {
   Future<void> virtualDisplayDriverPersist(
       {required VirtualDisplayDriver that, dynamic hint});
 
-  Future<void> virtualDisplayDriverRemoveAllMonitors(
+  void virtualDisplayDriverRemoveAllMonitors(
       {required VirtualDisplayDriver that, dynamic hint});
 
-  Future<void> virtualDisplayDriverRemoveMonitors(
+  void virtualDisplayDriverRemoveMonitors(
       {required VirtualDisplayDriver that,
       required List<int> ids,
       dynamic hint});
 
-  Future<void> virtualDisplayDriverSetMonitor(
+  void virtualDisplayDriverSetMonitor(
       {required VirtualDisplayDriver that,
       required int id,
       bool? enabled,
@@ -94,15 +97,15 @@ abstract class RustLibApi extends BaseApi {
       List<Mode>? modes,
       dynamic hint});
 
-  Future<void> virtualDisplayDriverSetMonitors(
+  void virtualDisplayDriverSetMonitors(
       {required VirtualDisplayDriver that,
       required List<Monitor> monitors,
       dynamic hint});
 
-  Future<List<Monitor>> virtualDisplayDriverState(
+  List<Monitor> virtualDisplayDriverState(
       {required VirtualDisplayDriver that, dynamic hint});
 
-  Stream<List<Monitor>> virtualDisplayDriverStream(
+  Future<Stream<List<Monitor>>> virtualDisplayDriverStream(
       {required VirtualDisplayDriver that, dynamic hint});
 
   RustArcIncrementStrongCountFnType
@@ -124,22 +127,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<void> virtualDisplayDriverAddMonitor(
+  void virtualDisplayDriverAddMonitor(
       {required VirtualDisplayDriver that,
       String? name,
       required bool enabled,
       required List<Mode> modes,
       dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         sse_encode_opt_String(name, serializer);
         sse_encode_bool(enabled, serializer);
         sse_encode_list_mode(modes, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 6, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -159,13 +161,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  VirtualDisplayDriver virtualDisplayDriverNew(
+  Future<void> virtualDisplayDriverCancelStream(
+      {required VirtualDisplayDriver that, dynamic hint}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 4, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kVirtualDisplayDriverCancelStreamConstMeta,
+      argValues: [that],
+      apiImpl: this,
+      hint: hint,
+    ));
+  }
+
+  TaskConstMeta get kVirtualDisplayDriverCancelStreamConstMeta =>
+      const TaskConstMeta(
+        debugName: "VirtualDisplayDriver_cancel_stream",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<VirtualDisplayDriver> virtualDisplayDriverNew(
       {String? pipeName, dynamic hint}) {
-    return handler.executeSync(SyncTask(
-      callFfi: () {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_opt_String(pipeName, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 1, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -193,7 +224,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 9, port: port_);
+            funcId: 10, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -220,7 +251,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 10, port: port_);
+            funcId: 11, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -240,15 +271,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> virtualDisplayDriverRemoveAllMonitors(
+  void virtualDisplayDriverRemoveAllMonitors(
       {required VirtualDisplayDriver that, dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 8, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -268,18 +298,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> virtualDisplayDriverRemoveMonitors(
+  void virtualDisplayDriverRemoveMonitors(
       {required VirtualDisplayDriver that,
       required List<int> ids,
       dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         sse_encode_list_prim_u_32_loose(ids, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 7, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -299,15 +328,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> virtualDisplayDriverSetMonitor(
+  void virtualDisplayDriverSetMonitor(
       {required VirtualDisplayDriver that,
       required int id,
       bool? enabled,
       String? name,
       List<Mode>? modes,
       dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
@@ -315,12 +344,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_opt_box_autoadd_bool(enabled, serializer);
         sse_encode_opt_String(name, serializer);
         sse_encode_opt_list_mode(modes, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
-        decodeErrorData: sse_decode_ipc_error,
+        decodeErrorData: null,
       ),
       constMeta: kVirtualDisplayDriverSetMonitorConstMeta,
       argValues: [that, id, enabled, name, modes],
@@ -336,18 +364,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> virtualDisplayDriverSetMonitors(
+  void virtualDisplayDriverSetMonitors(
       {required VirtualDisplayDriver that,
       required List<Monitor> monitors,
       dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         sse_encode_list_monitor(monitors, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -367,15 +394,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<Monitor>> virtualDisplayDriverState(
+  List<Monitor> virtualDisplayDriverState(
       {required VirtualDisplayDriver that, dynamic hint}) {
-    return handler.executeNormal(NormalTask(
-      callFfi: (port_) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
-        pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 2, port: port_);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_monitor,
@@ -394,16 +420,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Stream<List<Monitor>> virtualDisplayDriverStream(
-      {required VirtualDisplayDriver that, dynamic hint}) {
+  Future<Stream<List<Monitor>>> virtualDisplayDriverStream(
+      {required VirtualDisplayDriver that, dynamic hint}) async {
     final sink = RustStreamSink<List<Monitor>>();
-    handler.executeSync(SyncTask(
-      callFfi: () {
+    await handler.executeNormal(NormalTask(
+      callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
-        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedrust_asyncRwLockVirtualDisplayDriver(
             that, serializer);
         sse_encode_StreamSink_list_monitor_Sse(sink, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -509,6 +536,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 4:
         return IpcError_RequestState();
+      case 5:
+        return IpcError_Receive();
+      case 6:
+        return IpcError_ConnectionFailed(
+          dco_decode_String(raw[1]),
+        );
+      case 7:
+        return IpcError_SendFailed();
       default:
         throw Exception("unreachable");
     }
@@ -695,6 +730,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return IpcError_Client(var_field0);
       case 4:
         return IpcError_RequestState();
+      case 5:
+        return IpcError_Receive();
+      case 6:
+        var var_field0 = sse_decode_String(deserializer);
+        return IpcError_ConnectionFailed(var_field0);
+      case 7:
+        return IpcError_SendFailed();
       default:
         throw UnimplementedError('');
     }
@@ -908,6 +950,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(field0, serializer);
       case IpcError_RequestState():
         sse_encode_i_32(4, serializer);
+      case IpcError_Receive():
+        sse_encode_i_32(5, serializer);
+      case IpcError_ConnectionFailed(field0: final field0):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(field0, serializer);
+      case IpcError_SendFailed():
+        sse_encode_i_32(7, serializer);
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dart_vdd/dart_vdd.dart';
 import 'package:dart_vdd/src/generated/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
@@ -8,16 +10,18 @@ void main() async {
   await RustLib.init(
     // There is currently no way to accurately resolve the shared library in
     // every szenario
-    externalLibrary: ExternalLibrary.open("../target/release/dart_vdd.dll"),
+    externalLibrary: ExternalLibrary.open("../../target/release/dart_vdd.dll"),
 
     // This works with `dart build`
     // externalLibrary: ExternalLibrary.open("dart_vdd.dll"),
   );
 
-  final driver = VirtualDisplayDriver();
+  final driver = await VirtualDisplayDriver.newInstance();
+
+  print(driver.state);
 
   Future(() async {
-    await for (final monitors in driver.stream) {
+    await for (final monitors in await driver.stream) {
       print('monitors: $monitors');
     }
   });
@@ -25,4 +29,14 @@ void main() async {
   driver.addMonitor(enabled: true, modes: [
     Mode(width: 1920, height: 1080, refreshRates: Uint32List.fromList([60])),
   ]);
+  await driver.notify();
+  await driver.persist();
+
+  await Future.delayed(Duration(seconds: 10));
+
+  driver.removeAllMonitors();
+  await driver.notify();
+  await driver.persist();
+
+  exit(0);
 }

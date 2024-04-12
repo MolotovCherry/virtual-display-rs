@@ -23,6 +23,9 @@ mixin _$IpcError {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -32,6 +35,9 @@ mixin _$IpcError {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -41,6 +47,9 @@ mixin _$IpcError {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -51,6 +60,9 @@ mixin _$IpcError {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -60,6 +72,9 @@ mixin _$IpcError {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) =>
       throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -69,6 +84,9 @@ mixin _$IpcError {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) =>
       throw _privateConstructorUsedError;
@@ -161,6 +179,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) {
     return serDe(field0);
   }
@@ -173,6 +194,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) {
     return serDe?.call(field0);
   }
@@ -185,6 +209,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) {
     if (serDe != null) {
@@ -201,6 +228,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) {
     return serDe(this);
   }
@@ -213,6 +243,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) {
     return serDe?.call(this);
   }
@@ -225,6 +258,9 @@ class _$IpcError_SerDeImpl extends IpcError_SerDe {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) {
     if (serDe != null) {
@@ -313,6 +349,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) {
     return io(field0);
   }
@@ -325,6 +364,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) {
     return io?.call(field0);
   }
@@ -337,6 +379,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) {
     if (io != null) {
@@ -353,6 +398,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) {
     return io(this);
   }
@@ -365,6 +413,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) {
     return io?.call(this);
   }
@@ -377,6 +428,9 @@ class _$IpcError_IoImpl extends IpcError_Io {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) {
     if (io != null) {
@@ -465,6 +519,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) {
     return win(field0);
   }
@@ -477,6 +534,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) {
     return win?.call(field0);
   }
@@ -489,6 +549,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) {
     if (win != null) {
@@ -505,6 +568,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) {
     return win(this);
   }
@@ -517,6 +583,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) {
     return win?.call(this);
   }
@@ -529,6 +598,9 @@ class _$IpcError_WinImpl extends IpcError_Win {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) {
     if (win != null) {
@@ -618,6 +690,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) {
     return client(field0);
   }
@@ -630,6 +705,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) {
     return client?.call(field0);
   }
@@ -642,6 +720,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) {
     if (client != null) {
@@ -658,6 +739,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) {
     return client(this);
   }
@@ -670,6 +754,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) {
     return client?.call(this);
   }
@@ -682,6 +769,9 @@ class _$IpcError_ClientImpl extends IpcError_Client {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) {
     if (client != null) {
@@ -746,6 +836,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     required TResult Function(String field0) win,
     required TResult Function(String field0) client,
     required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
   }) {
     return requestState();
   }
@@ -758,6 +851,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     TResult? Function(String field0)? win,
     TResult? Function(String field0)? client,
     TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
   }) {
     return requestState?.call();
   }
@@ -770,6 +866,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     TResult Function(String field0)? win,
     TResult Function(String field0)? client,
     TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
     required TResult orElse(),
   }) {
     if (requestState != null) {
@@ -786,6 +885,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     required TResult Function(IpcError_Win value) win,
     required TResult Function(IpcError_Client value) client,
     required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
   }) {
     return requestState(this);
   }
@@ -798,6 +900,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     TResult? Function(IpcError_Win value)? win,
     TResult? Function(IpcError_Client value)? client,
     TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
   }) {
     return requestState?.call(this);
   }
@@ -810,6 +915,9 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
     TResult Function(IpcError_Win value)? win,
     TResult Function(IpcError_Client value)? client,
     TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
     required TResult orElse(),
   }) {
     if (requestState != null) {
@@ -822,6 +930,459 @@ class _$IpcError_RequestStateImpl extends IpcError_RequestState {
 abstract class IpcError_RequestState extends IpcError {
   const factory IpcError_RequestState() = _$IpcError_RequestStateImpl;
   const IpcError_RequestState._() : super._();
+}
+
+/// @nodoc
+abstract class _$$IpcError_ReceiveImplCopyWith<$Res> {
+  factory _$$IpcError_ReceiveImplCopyWith(_$IpcError_ReceiveImpl value,
+          $Res Function(_$IpcError_ReceiveImpl) then) =
+      __$$IpcError_ReceiveImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$IpcError_ReceiveImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_ReceiveImpl>
+    implements _$$IpcError_ReceiveImplCopyWith<$Res> {
+  __$$IpcError_ReceiveImplCopyWithImpl(_$IpcError_ReceiveImpl _value,
+      $Res Function(_$IpcError_ReceiveImpl) _then)
+      : super(_value, _then);
+}
+
+/// @nodoc
+
+class _$IpcError_ReceiveImpl extends IpcError_Receive {
+  const _$IpcError_ReceiveImpl() : super._();
+
+  @override
+  String toString() {
+    return 'IpcError.receive()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType && other is _$IpcError_ReceiveImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
+  }) {
+    return receive();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
+  }) {
+    return receive?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (receive != null) {
+      return receive();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
+  }) {
+    return receive(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
+  }) {
+    return receive?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (receive != null) {
+      return receive(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_Receive extends IpcError {
+  const factory IpcError_Receive() = _$IpcError_ReceiveImpl;
+  const IpcError_Receive._() : super._();
+}
+
+/// @nodoc
+abstract class _$$IpcError_ConnectionFailedImplCopyWith<$Res> {
+  factory _$$IpcError_ConnectionFailedImplCopyWith(
+          _$IpcError_ConnectionFailedImpl value,
+          $Res Function(_$IpcError_ConnectionFailedImpl) then) =
+      __$$IpcError_ConnectionFailedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String field0});
+}
+
+/// @nodoc
+class __$$IpcError_ConnectionFailedImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_ConnectionFailedImpl>
+    implements _$$IpcError_ConnectionFailedImplCopyWith<$Res> {
+  __$$IpcError_ConnectionFailedImplCopyWithImpl(
+      _$IpcError_ConnectionFailedImpl _value,
+      $Res Function(_$IpcError_ConnectionFailedImpl) _then)
+      : super(_value, _then);
+
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? field0 = null,
+  }) {
+    return _then(_$IpcError_ConnectionFailedImpl(
+      null == field0
+          ? _value.field0
+          : field0 // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$IpcError_ConnectionFailedImpl extends IpcError_ConnectionFailed {
+  const _$IpcError_ConnectionFailedImpl(this.field0) : super._();
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'IpcError.connectionFailed(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_ConnectionFailedImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @JsonKey(ignore: true)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IpcError_ConnectionFailedImplCopyWith<_$IpcError_ConnectionFailedImpl>
+      get copyWith => __$$IpcError_ConnectionFailedImplCopyWithImpl<
+          _$IpcError_ConnectionFailedImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
+  }) {
+    return connectionFailed(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
+  }) {
+    return connectionFailed?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (connectionFailed != null) {
+      return connectionFailed(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
+  }) {
+    return connectionFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
+  }) {
+    return connectionFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (connectionFailed != null) {
+      return connectionFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_ConnectionFailed extends IpcError {
+  const factory IpcError_ConnectionFailed(final String field0) =
+      _$IpcError_ConnectionFailedImpl;
+  const IpcError_ConnectionFailed._() : super._();
+
+  String get field0;
+  @JsonKey(ignore: true)
+  _$$IpcError_ConnectionFailedImplCopyWith<_$IpcError_ConnectionFailedImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IpcError_SendFailedImplCopyWith<$Res> {
+  factory _$$IpcError_SendFailedImplCopyWith(_$IpcError_SendFailedImpl value,
+          $Res Function(_$IpcError_SendFailedImpl) then) =
+      __$$IpcError_SendFailedImplCopyWithImpl<$Res>;
+}
+
+/// @nodoc
+class __$$IpcError_SendFailedImplCopyWithImpl<$Res>
+    extends _$IpcErrorCopyWithImpl<$Res, _$IpcError_SendFailedImpl>
+    implements _$$IpcError_SendFailedImplCopyWith<$Res> {
+  __$$IpcError_SendFailedImplCopyWithImpl(_$IpcError_SendFailedImpl _value,
+      $Res Function(_$IpcError_SendFailedImpl) _then)
+      : super(_value, _then);
+}
+
+/// @nodoc
+
+class _$IpcError_SendFailedImpl extends IpcError_SendFailed {
+  const _$IpcError_SendFailedImpl() : super._();
+
+  @override
+  String toString() {
+    return 'IpcError.sendFailed()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IpcError_SendFailedImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String field0) serDe,
+    required TResult Function(String field0) io,
+    required TResult Function(String field0) win,
+    required TResult Function(String field0) client,
+    required TResult Function() requestState,
+    required TResult Function() receive,
+    required TResult Function(String field0) connectionFailed,
+    required TResult Function() sendFailed,
+  }) {
+    return sendFailed();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String field0)? serDe,
+    TResult? Function(String field0)? io,
+    TResult? Function(String field0)? win,
+    TResult? Function(String field0)? client,
+    TResult? Function()? requestState,
+    TResult? Function()? receive,
+    TResult? Function(String field0)? connectionFailed,
+    TResult? Function()? sendFailed,
+  }) {
+    return sendFailed?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String field0)? serDe,
+    TResult Function(String field0)? io,
+    TResult Function(String field0)? win,
+    TResult Function(String field0)? client,
+    TResult Function()? requestState,
+    TResult Function()? receive,
+    TResult Function(String field0)? connectionFailed,
+    TResult Function()? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (sendFailed != null) {
+      return sendFailed();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(IpcError_SerDe value) serDe,
+    required TResult Function(IpcError_Io value) io,
+    required TResult Function(IpcError_Win value) win,
+    required TResult Function(IpcError_Client value) client,
+    required TResult Function(IpcError_RequestState value) requestState,
+    required TResult Function(IpcError_Receive value) receive,
+    required TResult Function(IpcError_ConnectionFailed value) connectionFailed,
+    required TResult Function(IpcError_SendFailed value) sendFailed,
+  }) {
+    return sendFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(IpcError_SerDe value)? serDe,
+    TResult? Function(IpcError_Io value)? io,
+    TResult? Function(IpcError_Win value)? win,
+    TResult? Function(IpcError_Client value)? client,
+    TResult? Function(IpcError_RequestState value)? requestState,
+    TResult? Function(IpcError_Receive value)? receive,
+    TResult? Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult? Function(IpcError_SendFailed value)? sendFailed,
+  }) {
+    return sendFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(IpcError_SerDe value)? serDe,
+    TResult Function(IpcError_Io value)? io,
+    TResult Function(IpcError_Win value)? win,
+    TResult Function(IpcError_Client value)? client,
+    TResult Function(IpcError_RequestState value)? requestState,
+    TResult Function(IpcError_Receive value)? receive,
+    TResult Function(IpcError_ConnectionFailed value)? connectionFailed,
+    TResult Function(IpcError_SendFailed value)? sendFailed,
+    required TResult orElse(),
+  }) {
+    if (sendFailed != null) {
+      return sendFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IpcError_SendFailed extends IpcError {
+  const factory IpcError_SendFailed() = _$IpcError_SendFailedImpl;
+  const IpcError_SendFailed._() : super._();
 }
 
 /// @nodoc

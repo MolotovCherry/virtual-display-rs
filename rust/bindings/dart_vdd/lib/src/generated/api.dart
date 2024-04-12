@@ -27,7 +27,7 @@ class VirtualDisplayDriver extends RustOpaque {
   );
 
   /// Add a new monitor to the driver.
-  Future<void> addMonitor(
+  void addMonitor(
           {String? name,
           required bool enabled,
           required List<Mode> modes,
@@ -35,7 +35,13 @@ class VirtualDisplayDriver extends RustOpaque {
       RustLib.instance.api.virtualDisplayDriverAddMonitor(
           that: this, name: name, enabled: enabled, modes: modes, hint: hint);
 
-  factory VirtualDisplayDriver({String? pipeName, dynamic hint}) =>
+  /// Cancel any previously set up stream
+  Future<void> cancelStream({dynamic hint}) => RustLib.instance.api
+      .virtualDisplayDriverCancelStream(that: this, hint: hint);
+
+  // HINT: Make it `#[frb(sync)]` to let it become the default constructor of Dart class.
+  static Future<VirtualDisplayDriver> newInstance(
+          {String? pipeName, dynamic hint}) =>
       RustLib.instance.api
           .virtualDisplayDriverNew(pipeName: pipeName, hint: hint);
 
@@ -48,18 +54,18 @@ class VirtualDisplayDriver extends RustOpaque {
       RustLib.instance.api.virtualDisplayDriverPersist(that: this, hint: hint);
 
   /// Remove all monitors from the driver.
-  Future<void> removeAllMonitors({dynamic hint}) => RustLib.instance.api
+  void removeAllMonitors({dynamic hint}) => RustLib.instance.api
       .virtualDisplayDriverRemoveAllMonitors(that: this, hint: hint);
 
   /// Remove monitors from the driver.
-  Future<void> removeMonitors({required List<int> ids, dynamic hint}) =>
+  void removeMonitors({required List<int> ids, dynamic hint}) =>
       RustLib.instance.api
           .virtualDisplayDriverRemoveMonitors(that: this, ids: ids, hint: hint);
 
   /// Set the state of the monitor with the provided ID.
   ///
   /// Only the provided properties will be updated.
-  Future<void> setMonitor(
+  void setMonitor(
           {required int id,
           bool? enabled,
           String? name,
@@ -76,13 +82,12 @@ class VirtualDisplayDriver extends RustOpaque {
   /// Set the state of the provided monitors.
   ///
   /// Each monitor with a matching ID will be updated to the provided state.
-  Future<void> setMonitors({required List<Monitor> monitors, dynamic hint}) =>
+  void setMonitors({required List<Monitor> monitors, dynamic hint}) =>
       RustLib.instance.api.virtualDisplayDriverSetMonitors(
           that: this, monitors: monitors, hint: hint);
 
   /// Get the current state of the driver.
-  Future<List<Monitor>> get state =>
-      RustLib.instance.api.virtualDisplayDriverState(
+  List<Monitor> get state => RustLib.instance.api.virtualDisplayDriverState(
         that: this,
       );
 
@@ -92,8 +97,8 @@ class VirtualDisplayDriver extends RustOpaque {
   /// from which process the change is requested. It will always reflect the
   /// current state of the driver.
   ///
-  /// After calling, will instantly emit the current state of the driver.
-  Stream<List<Monitor>> get stream =>
+  /// If set again, it will cancel the old stream and set the new one
+  Future<Stream<List<Monitor>>> get stream =>
       RustLib.instance.api.virtualDisplayDriverStream(
         that: this,
       );
@@ -116,6 +121,11 @@ sealed class IpcError with _$IpcError implements FrbException {
     String field0,
   ) = IpcError_Client;
   const factory IpcError.requestState() = IpcError_RequestState;
+  const factory IpcError.receive() = IpcError_Receive;
+  const factory IpcError.connectionFailed(
+    String field0,
+  ) = IpcError_ConnectionFailed;
+  const factory IpcError.sendFailed() = IpcError_SendFailed;
 }
 
 @freezed

@@ -9,12 +9,12 @@ void main() {
   setUpAll(() async {
     await RustLib.init(
       // There is currently no way to accurately resolve the shared library
-      externalLibrary: ExternalLibrary.open("../target/release/dart_vdd.dll"),
+      externalLibrary: ExternalLibrary.open("../../target/release/dart_vdd.dll"),
     );
   });
 
-  test('Test', () {
-    final driver = VirtualDisplayDriver();
+  test('Test', () async {
+    final driver = await VirtualDisplayDriver.newInstance();
 
     expect(() => driver.removeAllMonitors(), throwsException);
   });

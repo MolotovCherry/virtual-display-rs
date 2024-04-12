@@ -40,16 +40,15 @@ flutter_rust_bridge::frb_generated_default_handler!();
 // Section: wire_funcs
 
 fn wire_VirtualDisplayDriver_add_monitor_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_add_monitor",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -68,30 +67,29 @@ fn wire_VirtualDisplayDriver_add_monitor_impl(
             let api_enabled = <bool>::sse_decode(&mut deserializer);
             let api_modes = <Vec<crate::api::Mode>>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    crate::api::VirtualDisplayDriver::add_monitor(
-                        &mut api_that,
-                        api_name,
-                        api_enabled,
-                        api_modes,
-                    )
-                })())
-            }
+            transform_result_sse((move || {
+                let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                crate::api::VirtualDisplayDriver::add_monitor(
+                    &mut api_that,
+                    api_name,
+                    api_enabled,
+                    api_modes,
+                )
+            })())
         },
     )
 }
-fn wire_VirtualDisplayDriver_new_impl(
+fn wire_VirtualDisplayDriver_cancel_stream_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "VirtualDisplayDriver_new",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            debug_name: "VirtualDisplayDriver_cancel_stream",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -103,11 +101,53 @@ fn wire_VirtualDisplayDriver_new_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api__pipe_name = <Option<String>>::sse_decode(&mut deserializer);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::rust_async::RwLock<VirtualDisplayDriver>,
+            >>::sse_decode(&mut deserializer);
             deserializer.end();
-            transform_result_sse((move || {
-                crate::api::VirtualDisplayDriver::new(api__pipe_name)
-            })())
+            move |context| async move {
+                transform_result_sse(
+                    (move || async move {
+                        let api_that = api_that.rust_auto_opaque_decode_ref();
+                        Result::<_, ()>::Ok(
+                            crate::api::VirtualDisplayDriver::cancel_stream(&api_that).await,
+                        )
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire_VirtualDisplayDriver_new_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "VirtualDisplayDriver_new",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_pipe_name = <Option<String>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse((move || async move {
+                         crate::api::VirtualDisplayDriver::new(api_pipe_name).await
+                    })().await)
+            }
         },
     )
 }
@@ -117,7 +157,7 @@ fn wire_VirtualDisplayDriver_notify_impl(
     rust_vec_len_: i32,
     data_len_: i32,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_notify",
             port: Some(port_),
@@ -137,11 +177,14 @@ fn wire_VirtualDisplayDriver_notify_impl(
                 flutter_rust_bridge::for_generated::rust_async::RwLock<VirtualDisplayDriver>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    crate::api::VirtualDisplayDriver::notify(&mut api_that)
-                })())
+            move |context| async move {
+                transform_result_sse(
+                    (move || async move {
+                        let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                        crate::api::VirtualDisplayDriver::notify(&mut api_that).await
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -182,16 +225,15 @@ fn wire_VirtualDisplayDriver_persist_impl(
     )
 }
 fn wire_VirtualDisplayDriver_remove_all_monitors_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_remove_all_monitors",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -207,28 +249,25 @@ fn wire_VirtualDisplayDriver_remove_all_monitors_impl(
                 flutter_rust_bridge::for_generated::rust_async::RwLock<VirtualDisplayDriver>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::remove_all_monitors(
-                        &mut api_that,
-                    ))
-                })())
-            }
+            transform_result_sse((move || {
+                let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::remove_all_monitors(
+                    &mut api_that,
+                ))
+            })())
         },
     )
 }
 fn wire_VirtualDisplayDriver_remove_monitors_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_remove_monitors",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -245,29 +284,26 @@ fn wire_VirtualDisplayDriver_remove_monitors_impl(
             >>::sse_decode(&mut deserializer);
             let api_ids = <Vec<u32>>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::remove_monitors(
-                        &mut api_that,
-                        api_ids,
-                    ))
-                })())
-            }
+            transform_result_sse((move || {
+                let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::remove_monitors(
+                    &mut api_that,
+                    api_ids,
+                ))
+            })())
         },
     )
 }
 fn wire_VirtualDisplayDriver_set_monitor_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_set_monitor",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -287,32 +323,29 @@ fn wire_VirtualDisplayDriver_set_monitor_impl(
             let api_name = <Option<String>>::sse_decode(&mut deserializer);
             let api_modes = <Option<Vec<crate::api::Mode>>>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    crate::api::VirtualDisplayDriver::set_monitor(
-                        &mut api_that,
-                        api_id,
-                        api_enabled,
-                        api_name,
-                        api_modes,
-                    )
-                })())
-            }
+            transform_result_sse((move || {
+                let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::set_monitor(
+                    &mut api_that,
+                    api_id,
+                    api_enabled,
+                    api_name,
+                    api_modes,
+                ))
+            })())
         },
     )
 }
 fn wire_VirtualDisplayDriver_set_monitors_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_set_monitors",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -329,26 +362,23 @@ fn wire_VirtualDisplayDriver_set_monitors_impl(
             >>::sse_decode(&mut deserializer);
             let api_monitors = <Vec<crate::api::Monitor>>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
-                    crate::api::VirtualDisplayDriver::set_monitors(&mut api_that, api_monitors)
-                })())
-            }
+            transform_result_sse((move || {
+                let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                crate::api::VirtualDisplayDriver::set_monitors(&mut api_that, api_monitors)
+            })())
         },
     )
 }
 fn wire_VirtualDisplayDriver_state_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_state",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
             let message = unsafe {
@@ -364,25 +394,24 @@ fn wire_VirtualDisplayDriver_state_impl(
                 flutter_rust_bridge::for_generated::rust_async::RwLock<VirtualDisplayDriver>,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            move |context| {
-                transform_result_sse((move || {
-                    let api_that = api_that.rust_auto_opaque_decode_ref();
-                    Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::state(&api_that))
-                })())
-            }
+            transform_result_sse((move || {
+                let api_that = api_that.rust_auto_opaque_decode_ref();
+                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::state(&api_that))
+            })())
         },
     )
 }
 fn wire_VirtualDisplayDriver_stream_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
     data_len_: i32,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
             debug_name: "VirtualDisplayDriver_stream",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
         move || {
             let message = unsafe {
@@ -402,12 +431,17 @@ fn wire_VirtualDisplayDriver_stream_impl(
                 flutter_rust_bridge::for_generated::SseCodec,
             >>::sse_decode(&mut deserializer);
             deserializer.end();
-            transform_result_sse((move || {
-                let api_that = api_that.rust_auto_opaque_decode_ref();
-                Result::<_, ()>::Ok(crate::api::VirtualDisplayDriver::stream(
-                    &api_that, api_sink,
-                ))
-            })())
+            move |context| async move {
+                transform_result_sse(
+                    (move || async move {
+                        let mut api_that = api_that.rust_auto_opaque_decode_ref_mut();
+                        Result::<_, ()>::Ok(
+                            crate::api::VirtualDisplayDriver::stream(&mut api_that, api_sink).await,
+                        )
+                    })()
+                    .await,
+                )
+            }
         },
     )
 }
@@ -507,6 +541,16 @@ impl SseDecode for crate::api::IpcError {
             }
             4 => {
                 return crate::api::IpcError::RequestState;
+            }
+            5 => {
+                return crate::api::IpcError::Receive;
+            }
+            6 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::api::IpcError::ConnectionFailed(var_field0);
+            }
+            7 => {
+                return crate::api::IpcError::SendFailed;
             }
             _ => {
                 unimplemented!("");
@@ -668,14 +712,11 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        6 => wire_VirtualDisplayDriver_add_monitor_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire_VirtualDisplayDriver_notify_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire_VirtualDisplayDriver_persist_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire_VirtualDisplayDriver_remove_all_monitors_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire_VirtualDisplayDriver_remove_monitors_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire_VirtualDisplayDriver_set_monitor_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire_VirtualDisplayDriver_set_monitors_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire_VirtualDisplayDriver_state_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire_VirtualDisplayDriver_cancel_stream_impl(port, ptr, rust_vec_len, data_len),
+        1 => wire_VirtualDisplayDriver_new_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire_VirtualDisplayDriver_notify_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire_VirtualDisplayDriver_persist_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire_VirtualDisplayDriver_stream_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -688,8 +729,12 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire_VirtualDisplayDriver_new_impl(ptr, rust_vec_len, data_len),
-        3 => wire_VirtualDisplayDriver_stream_impl(ptr, rust_vec_len, data_len),
+        7 => wire_VirtualDisplayDriver_add_monitor_impl(ptr, rust_vec_len, data_len),
+        9 => wire_VirtualDisplayDriver_remove_all_monitors_impl(ptr, rust_vec_len, data_len),
+        8 => wire_VirtualDisplayDriver_remove_monitors_impl(ptr, rust_vec_len, data_len),
+        6 => wire_VirtualDisplayDriver_set_monitor_impl(ptr, rust_vec_len, data_len),
+        5 => wire_VirtualDisplayDriver_set_monitors_impl(ptr, rust_vec_len, data_len),
+        2 => wire_VirtualDisplayDriver_state_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -731,6 +776,11 @@ impl flutter_rust_bridge::IntoDart for crate::api::IpcError {
                 [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
             crate::api::IpcError::RequestState => [4.into_dart()].into_dart(),
+            crate::api::IpcError::Receive => [5.into_dart()].into_dart(),
+            crate::api::IpcError::ConnectionFailed(field0) => {
+                [6.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::api::IpcError::SendFailed => [7.into_dart()].into_dart(),
         }
     }
 }
@@ -842,6 +892,16 @@ impl SseEncode for crate::api::IpcError {
             }
             crate::api::IpcError::RequestState => {
                 <i32>::sse_encode(4, serializer);
+            }
+            crate::api::IpcError::Receive => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::api::IpcError::ConnectionFailed(field0) => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::api::IpcError::SendFailed => {
+                <i32>::sse_encode(7, serializer);
             }
         }
     }
