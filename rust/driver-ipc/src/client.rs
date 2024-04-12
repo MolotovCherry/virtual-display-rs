@@ -3,21 +3,19 @@ use std::{
     io,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{channel, Receiver, Sender},
         Arc,
     },
-    thread,
 };
 
 use log::error;
 use serde::Serialize;
 use tokio::{
     net::windows::named_pipe::{ClientOptions, NamedPipeClient, PipeMode},
-    runtime::{Builder, Runtime},
     sync::{
-        mpsc::{unbounded_channel, UnboundedReceiver},
+        mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
         Mutex,
     },
+    task,
 };
 use winreg::{
     enums::{HKEY_CURRENT_USER, KEY_WRITE},
@@ -25,121 +23,113 @@ use winreg::{
 };
 
 use crate::{
-    utils::LazyLock, ClientCommand, DriverCommand, EventCommand, Id, IpcError, Monitor,
-    ReplyCommand, RequestCommand, Result,
+    ClientCommand, DriverCommand, EventCommand, Id, IpcError, Monitor, ReplyCommand,
+    RequestCommand, Result,
 };
 
 // EOF byte used to separate messages
 const EOF: u8 = 0x4;
 
-pub(crate) static RUNTIME: LazyLock<Runtime> =
-    LazyLock::new(|| Builder::new_multi_thread().enable_all().build().unwrap());
-
 /// A thin api client over the driver api with all the essential api.
-/// Does not track state for you
-///
-/// This is cloneable and won't drop the client connection until all
-/// instances are dropped
+/// Does the bare minimum required. Does not track state
 #[derive(Debug, Clone)]
-pub struct Client {
-    client: Arc<NamedPipeClient>,
-    is_event: Arc<AtomicBool>,
-    is_event_async: Arc<AtomicBool>,
-    event_recv: Arc<Mutex<Receiver<EventCommand>>>,
-    event_recv_async: Arc<Mutex<UnboundedReceiver<EventCommand>>>,
-    client_recv: Arc<Mutex<Receiver<ReplyCommand>>>,
+pub struct Client(Arc<Inner>);
+
+#[derive(Debug)]
+struct Inner {
+    client: NamedPipeClient,
+    user_is_event: AtomicBool,
+    event_recv: Mutex<UnboundedReceiver<EventCommand>>,
+    client_recv: Mutex<UnboundedReceiver<ReplyCommand>>,
 }
 
 impl Client {
     /// connect to pipe virtualdisplaydriver
-    pub fn connect() -> Result<Self> {
-        Self::connect_to("virtualdisplaydriver")
+    pub async fn connect() -> Result<Self> {
+        Self::connect_to("virtualdisplaydriver").await
     }
 
     // choose which pipe name you connect to
     // pipe name is ONLY the name, only the {name} portion of \\.\pipe\{name}
-    pub fn connect_to(name: &str) -> Result<Self> {
-        let fut = async {
-            ClientOptions::new()
-                .read(true)
-                .write(true)
-                .pipe_mode(PipeMode::Byte)
-                .open(format!(r"\\.\pipe\{name}"))
-                .map_err(IpcError::ConnectionFailed)
+    pub async fn connect_to(name: &str) -> Result<Self> {
+        let client = ClientOptions::new()
+            .read(true)
+            .write(true)
+            .pipe_mode(PipeMode::Byte)
+            .open(format!(r"\\.\pipe\{name}"))
+            .map_err(IpcError::ConnectionFailed)?;
+
+        let client = client;
+        let user_is_event = AtomicBool::new(false);
+        let (event_send, event_recv) = unbounded_channel();
+        let (client_send, client_recv) = unbounded_channel();
+
+        let inner = Inner {
+            client,
+            user_is_event,
+            event_recv: Mutex::new(event_recv),
+            client_recv: Mutex::new(client_recv),
         };
 
-        let client = Arc::new(RUNTIME.block_on(fut)?);
-        let is_event = Arc::new(AtomicBool::new(false));
-        let is_event_async = Arc::new(AtomicBool::new(false));
-        let (event_send, event_recv) = channel();
-        let (event_send_async, event_recv_async) = unbounded_channel();
-        let (client_send, client_recv) = channel();
+        let client = Self(Arc::new(inner));
 
-        let slf = Self {
-            client: client.clone(),
-            is_event: is_event.clone(),
-            is_event_async: is_event_async.clone(),
-            event_recv: Arc::new(Mutex::new(event_recv)),
-            event_recv_async: Arc::new(Mutex::new(event_recv_async)),
-            client_recv: Arc::new(Mutex::new(client_recv)),
-        };
-
-        let (tx, rx) = channel();
+        let (tx, mut rx) = unbounded_channel();
 
         // receive command thread
-        thread::spawn(move || {
-            _ = RUNTIME.block_on(receive_command(&client, tx));
+        let client2 = client.clone();
+        task::spawn(async move {
+            _ = receive_command(&client2, tx).await;
         });
 
-        thread::spawn(move || loop {
-            let Ok(data) = rx.recv() else {
-                // sender closed
-                break;
-            };
+        let client2 = client.clone();
+        task::spawn(async move {
+            let user_is_event = &client2.0.user_is_event;
 
-            let is_event = is_event.load(Ordering::Acquire);
-            let is_event_async = is_event_async.load(Ordering::Acquire);
-            let data_is_event = matches!(data, ClientCommand::Event(_));
-
-            if (is_event || is_event_async) && data_is_event {
-                let ClientCommand::Event(e) = data else {
-                    unreachable!()
+            loop {
+                let Some(data) = rx.recv().await else {
+                    // sender closed
+                    break;
                 };
 
-                if is_event {
-                    _ = event_send.send(e.clone());
-                }
+                let user_is_event = user_is_event.load(Ordering::Acquire);
+                let data_is_event = matches!(data, ClientCommand::Event(_));
 
-                if is_event_async {
-                    _ = event_send_async.send(e);
+                if user_is_event && data_is_event {
+                    let ClientCommand::Event(e) = data else {
+                        unreachable!()
+                    };
+
+                    if user_is_event {
+                        _ = event_send.send(e.clone());
+                    }
+                } else if let ClientCommand::Reply(r) = data {
+                    _ = client_send.send(r);
                 }
-            } else if let ClientCommand::Reply(r) = data {
-                _ = client_send.send(r);
             }
         });
 
-        Ok(slf)
+        Ok(client)
     }
 
     /// Notifies driver of changes (additions/updates/removals)
-    pub fn notify(&self, monitors: &[Monitor]) -> Result<()> {
+    pub async fn notify(&self, monitors: &[Monitor]) -> Result<()> {
         let command = DriverCommand::Notify(monitors.to_owned());
 
-        send_command(&self.client, &command)
+        send_command(&self.0.client, &command).await
     }
 
     /// Remove specific monitors by id
-    pub fn remove(&self, ids: &[Id]) -> Result<()> {
+    pub async fn remove(&self, ids: &[Id]) -> Result<()> {
         let command = DriverCommand::Remove(ids.to_owned());
 
-        send_command(&self.client, &command)
+        send_command(&self.0.client, &command).await
     }
 
     /// Remove all monitors
-    pub fn remove_all(&self) -> Result<()> {
+    pub async fn remove_all(&self) -> Result<()> {
         let command = DriverCommand::RemoveAll;
 
-        send_command(&self.client, &command)
+        send_command(&self.0.client, &command).await
     }
 
     /// Receive generic reply
@@ -149,46 +139,34 @@ impl Client {
     ///
     /// The reason for the `last` flag is that replies are auto buffered in the background, so if you send a
     /// request, the reply may be missed
-    pub fn receive_reply(&self, last: bool) -> Option<ReplyCommand> {
-        let lock = self.client_recv.blocking_lock();
+    pub async fn receive_reply(&self, last: bool) -> Option<ReplyCommand> {
+        let mut recv = self.0.client_recv.lock().await;
 
         if last {
-            last_recv(&lock)
+            last_recv(&mut recv).await
         } else {
-            latest_recv(&lock)
+            latest_recv(&mut recv).await
         }
     }
 
     /// Receive an event. Only new events after calling this are received
-    pub fn receive_event(&self) -> EventCommand {
-        self.is_event.store(true, Ordering::Release);
+    pub async fn receive_event(&self) -> EventCommand {
+        self.0.user_is_event.store(true, Ordering::Release);
 
-        let lock = self.event_recv.blocking_lock();
-        let event = latest_recv(&lock);
+        let mut recv = self.0.event_recv.lock().await;
+        let event = latest_recv(&mut recv).await;
 
-        self.is_event.store(false, Ordering::Release);
-
-        event.unwrap()
-    }
-
-    /// Receive an event. Only new events after calling this are received
-    pub async fn receive_event_async(&self) -> EventCommand {
-        self.is_event_async.store(true, Ordering::Release);
-
-        let mut lock = self.event_recv_async.lock().await;
-        let event = latest_event_recv_await(&mut lock).await;
-
-        self.is_event_async.store(false, Ordering::Release);
+        self.0.user_is_event.store(false, Ordering::Release);
 
         event.unwrap()
     }
 
     /// Request state update
     /// use `receive()` to get the reply
-    pub fn request_state(&self) -> Result<()> {
+    pub async fn request_state(&self) -> Result<()> {
         let command = RequestCommand::State;
 
-        send_command(&self.client, &command)
+        send_command(&self.0.client, &command).await
     }
 
     /// Persist changes to registry for current user
@@ -219,60 +197,57 @@ impl Client {
     }
 }
 
-fn send_command(client: &NamedPipeClient, command: &impl Serialize) -> Result<()> {
+async fn send_command(client: &NamedPipeClient, command: &impl Serialize) -> Result<()> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
     let mut message = serde_json::to_vec(command)?;
     message.push(EOF);
 
     // write to pipe without needing to block or split it
-    let fut = async {
-        let mut written = 0;
-        loop {
-            // wait for pipe to be writable
-            client.writable().await?;
 
-            match client.try_write(&message[written..]) {
-                // we wrote less than the entire size
-                Ok(n) if written + n < message.len() => {
-                    written += n;
-                    continue;
-                }
+    let mut written = 0;
+    loop {
+        // wait for pipe to be writable
+        client.writable().await?;
 
-                // write succeeded
-                Ok(n) if written + n >= message.len() => {
-                    break;
-                }
-
-                // nothing wrote, retry again
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    continue;
-                }
-
-                // actual error
-                Err(e) => {
-                    return Err(e);
-                }
-
-                _ => unreachable!(),
+        match client.try_write(&message[written..]) {
+            // we wrote less than the entire size
+            Ok(n) if written + n < message.len() => {
+                written += n;
+                continue;
             }
+
+            // write succeeded
+            Ok(n) if written + n >= message.len() => {
+                break;
+            }
+
+            // nothing wrote, retry again
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                continue;
+            }
+
+            // actual error
+            Err(e) => {
+                return Err(e.into());
+            }
+
+            _ => unreachable!(),
         }
-
-        std::io::Result::Ok(())
-    };
-
-    RUNTIME.block_on(fut)?;
+    }
 
     Ok(())
 }
 
 // receive all commands and send them back to the receiver
 async fn receive_command(
-    client: &NamedPipeClient,
-    tx: Sender<ClientCommand>,
+    client: &Client,
+    tx: UnboundedSender<ClientCommand>,
 ) -> Result<Infallible> {
     let mut buf = vec![0; 4096];
     let mut recv_buf = Vec::with_capacity(4096);
+
+    let client = &client.0.client;
 
     loop {
         // wait for client to be readable
@@ -323,9 +298,7 @@ async fn receive_command(
 }
 
 /// Drains the channel and returns last message in the queue. If channel was empty, blocks for the next message
-fn last_recv<T>(receiver: &Receiver<T>) -> Option<T> {
-    use std::sync::mpsc::TryRecvError;
-
+async fn last_recv<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
     let mut buf = None;
 
     loop {
@@ -334,7 +307,7 @@ fn last_recv<T>(receiver: &Receiver<T>) -> Option<T> {
 
             Err(TryRecvError::Empty) => {
                 break if buf.is_none() {
-                    receiver.recv().ok()
+                    receiver.recv().await
                 } else {
                     buf
                 };
@@ -346,24 +319,7 @@ fn last_recv<T>(receiver: &Receiver<T>) -> Option<T> {
 }
 
 /// Drains the channel and blocks for the next message
-fn latest_recv<T>(receiver: &Receiver<T>) -> Option<T> {
-    use std::sync::mpsc::TryRecvError;
-
-    loop {
-        match receiver.try_recv() {
-            Ok(_) => (),
-
-            Err(TryRecvError::Empty) => break receiver.recv().ok(),
-
-            Err(TryRecvError::Disconnected) => break None,
-        }
-    }
-}
-
-/// Drains the channel and blocks for the next message
-async fn latest_event_recv_await<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
-    use tokio::sync::mpsc::error::TryRecvError;
-
+async fn latest_recv<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
     loop {
         match receiver.try_recv() {
             Ok(_) => (),
