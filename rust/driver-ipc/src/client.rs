@@ -330,16 +330,3 @@ async fn latest_recv<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
         }
     }
 }
-
-/// Drains the channel and blocks for the next message
-async fn latest_event_recv_await<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
-    loop {
-        match receiver.try_recv() {
-            Ok(_) => (),
-
-            Err(TryRecvError::Empty) => break receiver.recv().await,
-
-            Err(TryRecvError::Disconnected) => break None,
-        }
-    }
-}
