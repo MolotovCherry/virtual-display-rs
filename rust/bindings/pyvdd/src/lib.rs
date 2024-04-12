@@ -419,7 +419,7 @@ impl PyDriverClient {
                 });
             });
         } else {
-            self.client.terminate_receiver();
+            self.client.terminate_event_receiver();
         }
     }
 
