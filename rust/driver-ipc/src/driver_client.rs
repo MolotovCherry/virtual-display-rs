@@ -138,7 +138,7 @@ impl DriverClient {
     }
 
     /// Terminate a receiver without setting a new one
-    pub fn terminate_receiver(&self) {
+    pub fn terminate_event_receiver(&self) {
         // stop currently running task if any exist
         if let Some(sender) = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take() {
             sender.blocking_send(()).unwrap();

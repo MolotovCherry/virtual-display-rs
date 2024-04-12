@@ -1,4 +1,4 @@
-use driver_ipc::{ClientCommand, DriverClient, EventCommand};
+use driver_ipc::{DriverClient, EventCommand};
 pub use driver_ipc::{Mode, Monitor};
 use flutter_rust_bridge::frb;
 
@@ -25,6 +25,9 @@ pub enum IpcError {
     Win(String),
     Client(String),
     RequestState,
+    Receive,
+    ConnectionFailed(String),
+    SendFailed,
 }
 
 impl From<driver_ipc::IpcError> for IpcError {
@@ -35,6 +38,9 @@ impl From<driver_ipc::IpcError> for IpcError {
             driver_ipc::IpcError::Win(e) => IpcError::Win(e.to_string()),
             driver_ipc::IpcError::Client(e) => IpcError::Client(e.to_string()),
             driver_ipc::IpcError::RequestState => IpcError::RequestState,
+            driver_ipc::IpcError::Receive => IpcError::Receive,
+            driver_ipc::IpcError::ConnectionFailed(e) => IpcError::ConnectionFailed(e.to_string()),
+            driver_ipc::IpcError::SendFailed => IpcError::SendFailed,
         }
     }
 }
@@ -46,10 +52,14 @@ pub struct VirtualDisplayDriver {
 
 impl VirtualDisplayDriver {
     #[frb(sync)]
-    pub fn new(_pipe_name: Option<String>) -> Result<VirtualDisplayDriver, IpcError> {
-        let vdd = VirtualDisplayDriver {
-            client: DriverClient::new()?,
+    pub fn new(pipe_name: Option<String>) -> Result<VirtualDisplayDriver, IpcError> {
+        let client = if let Some(name) = pipe_name {
+            DriverClient::new_with(&name)?
+        } else {
+            DriverClient::new()?
         };
+
+        let vdd = VirtualDisplayDriver { client };
 
         Ok(vdd)
     }
@@ -66,16 +76,21 @@ impl VirtualDisplayDriver {
     /// from which process the change is requested. It will always reflect the
     /// current state of the driver.
     ///
-    /// After calling, will instantly emit the current state of the driver.
+    /// If set again, it will cancel the old stream and set the new one
     #[frb(getter, sync)]
     pub fn stream(&self, sink: StreamSink<Vec<Monitor>>) {
-        self.client.set_receiver(None::<fn()>, move |command| {
-            if let ClientCommand::Event(EventCommand::Changed(data)) = command {
+        self.client.set_event_receiver(move |command| {
+            if let EventCommand::Changed(data) = command {
                 if let Err(_e) = sink.add(data) {
                     // do something with err? hmm
                 }
             }
         });
+    }
+
+    /// Cancel any previously set up stream
+    pub fn cancel_stream(&self) {
+        self.client.terminate_event_receiver();
     }
 
     /// Set the state of the provided monitors.
@@ -95,7 +110,7 @@ impl VirtualDisplayDriver {
         enabled: Option<bool>,
         name: Option<String>,
         modes: Option<Vec<Mode>>,
-    ) -> Result<(), IpcError> {
+    ) {
         self.client.find_monitor_mut(id, |monitor| {
             if let Some(enabled) = enabled {
                 monitor.enabled = enabled;
@@ -106,9 +121,7 @@ impl VirtualDisplayDriver {
             if let Some(modes) = modes {
                 monitor.modes = modes;
             }
-        })?;
-
-        Ok(())
+        });
     }
 
     /// Add a new monitor to the driver.
@@ -119,7 +132,7 @@ impl VirtualDisplayDriver {
         modes: Vec<Mode>,
     ) -> Result<(), IpcError> {
         let monitor = Monitor {
-            id: self.client.new_id(None)?,
+            id: self.client.new_id(None).unwrap(),
             name,
             enabled,
             modes,
