@@ -1,0 +1,15 @@
+[package]
+name = "dart-vdd"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+driver-ipc = { path = "../../../driver-ipc" }
+flutter_rust_bridge = "=2.0.0-dev.31"
+
+[lints]
+# May not work, because package might be compiled outside this workspace
+workspace = true
