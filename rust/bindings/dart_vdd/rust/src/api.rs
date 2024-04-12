@@ -1,4 +1,4 @@
-use driver_ipc::{DriverClient, EventCommand};
+use driver_ipc::{sync::DriverClient, EventCommand};
 pub use driver_ipc::{Mode, Monitor};
 use flutter_rust_bridge::frb;
 
@@ -78,7 +78,7 @@ impl VirtualDisplayDriver {
     ///
     /// If set again, it will cancel the old stream and set the new one
     #[frb(getter, sync)]
-    pub fn stream(&self, sink: StreamSink<Vec<Monitor>>) {
+    pub fn stream(&mut self, sink: StreamSink<Vec<Monitor>>) {
         self.client.set_event_receiver(move |command| {
             if let EventCommand::Changed(data) = command {
                 if let Err(_e) = sink.add(data) {
