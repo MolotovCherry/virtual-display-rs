@@ -1,4 +1,4 @@
-from pyvdd import *
+from vdd import *
 
 #
 # Before you begin, please note the following:

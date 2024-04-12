@@ -27,7 +27,7 @@ use self::utils::IntoPyErr as _;
 static INIT: AtomicBool = AtomicBool::new(false);
 
 #[pymodule]
-#[pyo3(name = "pyvdd")]
+#[pyo3(name = "vdd")]
 fn extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDriverClient>()?;
     m.add_class::<PyMonitor>()?;

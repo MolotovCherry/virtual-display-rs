@@ -17,8 +17,8 @@ dependencies = [
     { name = "copy", path = "virtual-display-driver-cli" },
     { name = "build", path = "vdd-user-session-service" },
     { name = "copy", path = "vdd-user-session-service" },
-    { name = "build", path = "bindings/pyvdd" },
-    { name = "copy", path = "bindings/pyvdd" },
+    { name = "build", path = "bindings/python" },
+    { name = "copy", path = "bindings/python" },
 ]
 
 [tasks.build-installer]

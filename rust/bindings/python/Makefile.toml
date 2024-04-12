@@ -22,7 +22,7 @@ script = [
     )
     ''',
     '''
-        ren %BUILD_TARGET_PATH%\pyvdd.dll pyvdd.pyd
+        ren %BUILD_TARGET_PATH%\vdd.dll vdd.pyd
     ''',
     # copy output files to it
     '''
