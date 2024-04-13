@@ -7,14 +7,12 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-clap = { version = "4.5.3", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive"] }
 color-eyre = "0.6.3"
 driver-ipc = { path = "../driver-ipc" }
 eyre = "0.6.12"
 owo-colors = "4.0.0"
-serde_json = "1.0.114"
-windows = { version = "0.54.0", features = ["Win32_Foundation"] }
-win-pipes = { git = "https://github.com/MolotovCherry/WinPipes-rs" }
+serde_json = "1.0.115"
 lazy_format = "2.0.3"
 joinery = "3.1.0"
 serde = "1.0.197"
