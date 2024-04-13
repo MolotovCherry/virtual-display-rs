@@ -1,0 +1,17 @@
+[package]
+name = "libvdd"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+driver-ipc = { path = "../../driver-ipc" }
+
+[build-dependencies]
+cbindgen = "0.26.0"
+
+[lints]
+workspace = true

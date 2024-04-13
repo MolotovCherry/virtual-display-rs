@@ -9,6 +9,7 @@ members = [
     "virtual-display-driver-cli",
     "bindings/python",
     "vdd-user-session-service",
+    "bindings/c",
 ]
 
 [profile.release]
