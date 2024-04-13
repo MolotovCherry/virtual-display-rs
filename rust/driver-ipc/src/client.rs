@@ -1,14 +1,19 @@
-use std::{convert::Infallible, io, sync::Arc, time::Duration};
+use std::{io, sync::Arc, time::Duration};
 
 use log::error;
 use serde::Serialize;
-use tokio::{net::windows::named_pipe, sync::broadcast, task, time::timeout};
+use tokio::{
+    net::windows::named_pipe,
+    sync::{broadcast, Notify},
+    task,
+    time::timeout,
+};
 use tokio_stream::{Stream, StreamExt};
 
 use crate::*;
 
 // EOF byte used to separate messages
-const EOF: u8 = 0x4;
+pub(crate) const EOF: u8 = 0x4;
 
 /// A thin api client over the driver api with all the essential api.
 /// Does the bare minimum required. Does not track state
@@ -16,6 +21,9 @@ const EOF: u8 = 0x4;
 pub struct Client {
     client: Arc<named_pipe::NamedPipeClient>,
     command_tx: broadcast::Sender<ClientCommand>,
+
+    // Used to stop the receiver task when no more clients are present
+    notify: Arc<Notify>,
 }
 
 impl Client {
@@ -38,15 +46,22 @@ impl Client {
             .map_err(IpcError::ConnectionFailed)?;
         let client = Arc::new(client);
 
+        let notify = Arc::new(Notify::new());
+
         let (command_tx, _command_rx) = broadcast::channel::<ClientCommand>(10);
 
         {
             let client = client.clone();
             let command_tx = command_tx.clone();
-            task::spawn(async move { receive_command(&client, command_tx).await });
+            let notify = notify.clone();
+            task::spawn(async move { receive_command(&client, command_tx, &notify).await });
         }
 
-        Ok(Self { client, command_tx })
+        Ok(Self {
+            client,
+            command_tx,
+            notify,
+        })
     }
 
     /// Notifies driver of changes (additions/updates/removals).
@@ -138,6 +153,15 @@ impl Client {
     }
 }
 
+impl Drop for Client {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.notify) == 2 {
+            println!("No receivers, stopping receiver task");
+            self.notify.notify_waiters();
+        }
+    }
+}
+
 async fn send_command(
     client: &named_pipe::NamedPipeClient,
     command: &impl Serialize,
@@ -187,13 +211,17 @@ async fn send_command(
 async fn receive_command(
     client: &named_pipe::NamedPipeClient,
     tx: broadcast::Sender<ClientCommand>,
-) -> Result<Infallible> {
+    notify: &Notify,
+) -> Result<()> {
     let mut buf = vec![0; 4096];
     let mut recv_buf = Vec::with_capacity(4096);
 
     loop {
         // wait for client to be readable
-        client.readable().await?;
+        tokio::select! {
+            _ = client.readable() => {}
+            _ = notify.notified() => return Ok(())
+        }
 
         match client.try_read(&mut buf) {
             Ok(0) => return Err(IpcError::Io(io::Error::last_os_error())),
@@ -236,5 +264,154 @@ async fn receive_command(
 
         // drain all processed messages
         recv_buf.drain(..bidx);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::mock::*;
+
+    const PIPE_NAME: &str = "virtualdisplaydriver-test";
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_1() {
+        let mut server = MockServer::new(PIPE_NAME);
+
+        let client = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+
+        // Check receiver
+
+        let mut stream = client.receive_events();
+
+        // Check request_state
+
+        server.check_next(|cmd| {
+            assert!(matches!(cmd, ServerCommand::Request(RequestCommand::State)));
+        });
+
+        let (state, _) = tokio::join!(client.request_state(), server.pump());
+
+        let state = state.expect("Failed to request state");
+        assert!(state.is_empty());
+
+        // Check notify
+
+        let mons1 = [Monitor {
+            id: 0,
+            enabled: true,
+            name: Some("test".to_string()),
+            modes: vec![Mode {
+                width: 1920,
+                height: 1080,
+                refresh_rates: vec![60],
+            }],
+        }];
+
+        let fut = client.notify(&mons1);
+
+        tokio::join!(fut, server.pump())
+            .0
+            .expect("Failed to notify");
+
+        assert_mons_eq(server.state(), &mons1);
+
+        // Check request_state
+
+        let (state, _) = tokio::join!(client.request_state(), server.pump());
+
+        let state = state.expect("Failed to request state");
+        assert_mons_eq(&state, &mons1);
+
+        // Check notify multiple
+
+        let mons2 = [
+            Monitor {
+                id: 0,
+                enabled: false,
+                name: Some("test1".to_string()),
+                modes: vec![Mode {
+                    width: 100,
+                    height: 200,
+                    refresh_rates: vec![80, 90],
+                }],
+            },
+            Monitor {
+                id: 1,
+                enabled: true,
+                name: Some("test2".to_string()),
+                modes: vec![Mode {
+                    width: 300,
+                    height: 400,
+                    refresh_rates: vec![50],
+                }],
+            },
+        ];
+
+        tokio::join!(client.notify(&mons2), server.pump())
+            .0
+            .expect("Failed to notify");
+
+        assert_mons_eq(server.state(), &mons2);
+
+        // Check remove
+
+        tokio::join!(client.remove(&[0]), server.pump())
+            .0
+            .expect("Failed to remove");
+
+        assert!(server.state().len() == 1);
+        assert!(server.state()[0].id == 1);
+
+        // Check remove all
+
+        tokio::join!(client.remove_all(), server.pump())
+            .0
+            .expect("Failed to remove all");
+
+        assert!(server.state().is_empty());
+
+        // Check stream
+
+        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
+            panic!("Failed to receive event");
+        };
+        assert_mons_eq(&event_mons, &mons1);
+
+        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
+            panic!("Failed to receive event");
+        };
+        assert_mons_eq(&event_mons, &mons2);
+
+        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
+            panic!("Failed to receive event");
+        };
+        assert_mons_eq(&event_mons, &mons2[1..]);
+
+        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
+            panic!("Failed to receive event");
+        };
+        assert!(event_mons.is_empty());
+
+        drop(client);
+
+        assert!(stream.next().await.is_none())
+    }
+
+    fn assert_mons_eq(a: &[Monitor], b: &[Monitor]) {
+        assert!(a.len() == b.len());
+
+        for (a, b) in a.iter().zip(b.iter()) {
+            assert!(a.id == b.id);
+            assert!(a.enabled == b.enabled);
+            assert!(a.name == b.name);
+            assert!(a.modes.len() == b.modes.len());
+
+            for (a, b) in a.modes.iter().zip(b.modes.iter()) {
+                assert!(a.width == b.width);
+                assert!(a.height == b.height);
+                assert!(a.refresh_rates == b.refresh_rates);
+            }
+        }
     }
 }

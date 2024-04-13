@@ -8,6 +8,9 @@ pub use client::Client;
 pub use core::*;
 pub use driver_client::DriverClient;
 
+#[cfg(test)]
+mod mock;
+
 pub static DEFAULT_PIPE_NAME: &str = "virtualdisplaydriver";
 
 pub type Result<T> = std::result::Result<T, IpcError>;

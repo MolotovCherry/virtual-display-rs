@@ -18,5 +18,16 @@ tokio = { version = "1.37.0", features = [
     "sync",
     "time",
     "net",
+    "macros",
 ] }
 tokio-stream = { version = "0.1.15", features = ["sync"] }
+
+[dev-dependencies]
+tokio = { version = "1.37.0", features = [
+    "rt-multi-thread",
+    "sync",
+    "time",
+    "net",
+    "macros",
+    "io-util",
+] }
