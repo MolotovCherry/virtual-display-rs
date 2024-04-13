@@ -1,78 +1,77 @@
-use std::{collections::HashSet, sync::OnceLock};
+use std::collections::HashSet;
 
-use tokio::{
-    sync::mpsc::{channel, Sender},
-    task,
-};
+use tokio::{sync::watch, task};
+use tokio_stream::{Stream, StreamExt};
 
-use crate::{Client, ClientError, EventCommand, Id, IpcError, Mode, Monitor, ReplyCommand, Result};
-
-// used to terminate existing receivers
-static RECEIVER_SHUTDOWN_TOKEN: std::sync::Mutex<OnceLock<Sender<()>>> =
-    std::sync::Mutex::new(OnceLock::new());
+use crate::*;
 
 /// Extra API over Client which allows nice fancy things
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DriverClient {
     client: Client,
+    state_rx: watch::Receiver<Vec<Monitor>>,
     state: Vec<Monitor>,
 }
 
 impl DriverClient {
-    /// connect to default driver name
+    /// Connect to driver on pipe with default name.
+    ///
+    /// The default name is [DEFAULT_PIPE_NAME]
     pub async fn new() -> Result<Self> {
-        let mut client = Client::connect().await?;
-
-        let state = Self::_get_state(&mut client).await?;
-
-        Ok(Self { client, state })
+        Self::new_with(DEFAULT_PIPE_NAME).await
     }
 
-    /// specify pipe name to connect to
+    /// Connect to driver on pipe with specified name.
+    ///
+    /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
     pub async fn new_with(name: &str) -> Result<Self> {
-        let mut client = Client::connect_to(name).await?;
+        let client = Client::connect_to(name)?;
 
-        let state = Self::_get_state(&mut client).await?;
+        let current_state = client.request_state().await?;
 
-        Ok(Self { client, state })
-    }
+        let (state_tx, state_rx) = watch::channel(current_state.clone());
 
-    async fn _get_state(client: &mut Client) -> Result<Vec<Monitor>> {
-        client.request_state().await?;
+        let mut stream = client.receive_events();
 
-        loop {
-            match client.receive_reply(true).await {
-                Some(ReplyCommand::State(state)) => {
-                    return Ok(state);
-                }
-
-                _ => {
-                    continue;
+        task::spawn(async move {
+            while let Some(event) = stream.next().await {
+                match event {
+                    EventCommand::Changed(value) => {
+                        if state_tx.send(value).is_err() {
+                            // Client was dropped, stop listening
+                            break;
+                        }
+                    }
                 }
             }
-        }
+        });
+
+        Ok(Self {
+            client,
+            state_rx,
+            state: current_state,
+        })
     }
 
-    async fn get_state(&mut self) -> Result<Vec<Monitor>> {
-        Self::_get_state(&mut self.client).await
-    }
-
-    /// Get the ID of a monitor using a string. The string can be either the name
-    /// of the monitor, or the ID.
+    /// TODO: Fix doc
+    ///
+    /// Get the ID of a monitor using a string. The string can be either the
+    /// name of the monitor, or the ID.
     ///
     /// This ID can then be used in other api calls.
     ///
-    /// This search first searches name, then id of each monitor in consecutive order
-    /// So it's possible a name could be "5", and a monitor Id 5 next wouldn't be found
-    /// since a name matched before
+    /// This search first searches name, then id of each monitor in consecutive
+    /// order So it's possible a name could be "5", and a monitor Id 5 next
+    /// wouldn't be found since a name matched before
     ///
-    /// Ex) "my-mon-name", "5"
-    /// In the above example, this will search for a monitor of name "my-mon-name", "5", or
-    /// an ID of 5
+    /// ### Example
+    ///
+    /// "my-mon-name", "5" In the above example, this will search for a
+    /// monitor with name "my-mon-name", "5", or an ID of 5
     pub fn find_id(&self, query: &str) -> Option<Id> {
         let id = query.parse::<Id>();
 
-        for monitor in &self.state {
+        for monitor in self.monitors().iter() {
             if let Some(name) = monitor.name.as_deref() {
                 if name == query {
                     return Some(monitor.id);
@@ -90,54 +89,14 @@ impl DriverClient {
     }
 
     /// Manually refresh internal state with latest driver changes
-    pub async fn refresh_state(&mut self) -> Result<&[Monitor]> {
-        self.state = self.get_state().await?;
+    pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
+        self.state = self.state_rx.borrow().clone();
 
         Ok(&self.state)
     }
 
-    /// Supply a callback used to receive commands from the driver
-    ///
-    /// This only allows one receiver at a time. Setting a new cb will also terminate existing reciever
-    ///
-    /// Note: DriverClient DOES NOT do any hidden state changes! Only calling proper api will change internal state.
-    ///       driver state IS NOT updated on its own when Event commands are received!
-    ///       if you want to update internal state, call set_monitors on DriverClient in your callback
-    ///       to properly handle it!
-    pub async fn set_event_receiver(&mut self, cb: impl Fn(EventCommand) + Send + 'static) {
-        // stop currently running task if any exist
-        let token = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take();
-        if let Some(sender) = token {
-            sender.send(()).await.unwrap();
-        }
-
-        let (tx, mut rx) = channel(1);
-        RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().set(tx).unwrap();
-
-        let client = self.client.clone();
-        task::spawn(async move {
-            loop {
-                tokio::select! {
-                    cmd = client.receive_event() => {
-                        cb(cmd);
-                    }
-
-                    // shutdown signal
-                    _ = rx.recv() => {
-                        break;
-                    }
-                }
-            }
-        });
-    }
-
-    /// Terminate a receiver without setting a new one
-    pub async fn terminate_event_receiver(&self) {
-        // stop currently running task if any exist
-        let token = RECEIVER_SHUTDOWN_TOKEN.lock().unwrap().take();
-        if let Some(sender) = token {
-            sender.send(()).await.unwrap();
-        }
+    pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
+        self.client.receive_events()
     }
 
     /// Get the current monitor state
@@ -156,14 +115,13 @@ impl DriverClient {
     /// Replace a monitor
     /// Determines which monitor to replace based on the ID
     pub fn replace_monitor(&mut self, monitor: Monitor) -> Result<()> {
-        for state_monitor in self.state.iter_mut() {
-            if state_monitor.id == monitor.id {
-                *state_monitor = monitor;
-                return Ok(());
+        match self.state.iter_mut().find(|m| m.id == monitor.id) {
+            Some(m) => {
+                *m = monitor;
+                Ok(())
             }
+            None => Err(ClientError::MonNotFound(monitor.id).into()),
         }
-
-        Err(ClientError::MonNotFound(monitor.id).into())
     }
 
     /// All changes done are in-memory only. They are only applied when you run `notify()``,
@@ -176,8 +134,7 @@ impl DriverClient {
 
     /// Find a monitor by ID.
     pub fn find_monitor(&self, id: Id) -> Option<&Monitor> {
-        let monitor_by_id = self.state.iter().find(|monitor| monitor.id == id);
-        monitor_by_id
+        self.state.iter().find(|monitor| monitor.id == id)
     }
 
     /// Find a monitor by query.
@@ -204,8 +161,7 @@ impl DriverClient {
     ///
     /// Despite the "unchecked" part of this name, this is a safe method
     pub fn find_monitor_mut_unchecked(&mut self, id: Id) -> Option<&mut Monitor> {
-        let monitor_by_id = self.state.iter_mut().find(|monitor| monitor.id == id);
-        monitor_by_id
+        self.state.iter_mut().find(|monitor| monitor.id == id)
     }
 
     /// Find a monitor by query.
@@ -336,7 +292,7 @@ impl DriverClient {
             .iter()
             .any(|_mode| _mode.height == mode.height && _mode.width == mode.width)
         {
-            return Err(ClientError::ModeExists(mode.width, mode.height).into());
+            return Err(ClientError::DupMode(mode.width, mode.height, mon.id).into());
         }
 
         let iter = mode.refresh_rates.iter().copied();

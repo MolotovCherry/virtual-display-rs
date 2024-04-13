@@ -8,5 +8,10 @@ use tokio::runtime::{Builder, Runtime};
 
 use crate::utils::LazyLock;
 
-static RUNTIME: LazyLock<Runtime> =
-    LazyLock::new(|| Builder::new_multi_thread().enable_all().build().unwrap());
+static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
+    Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap()
+});

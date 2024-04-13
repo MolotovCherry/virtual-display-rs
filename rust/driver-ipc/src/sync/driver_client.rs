@@ -1,3 +1,5 @@
+use tokio_stream::StreamExt;
+
 use super::RUNTIME;
 use crate::{DriverClient as AsyncDriverClient, EventCommand, Id, Mode, Monitor, Result};
 
@@ -36,23 +38,20 @@ impl DriverClient {
 
     /// Manually refresh internal state with latest driver changes
     pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
-        RUNTIME.block_on(self.0.refresh_state())
+        self.0.refresh_state()
     }
 
-    /// Supply a callback used to receive commands from the driver
-    ///
-    /// This only allows one receiver at a time. Setting a new cb will also terminate existing reciever
-    ///
-    /// Note: DriverClient DOES NOT do any hidden state changes! Only calling proper api will change internal state.
-    ///       driver state IS NOT updated on its own when Event commands are received!
-    ///       if you want to update internal state, call set_monitors on DriverClient in your callback
-    ///       to properly handle it!
-    pub fn set_event_receiver(&mut self, cb: impl Fn(EventCommand) + Send + 'static) {
-        RUNTIME.block_on(self.0.set_event_receiver(cb))
-    }
+    pub fn add_event_receiver(&mut self, cb: impl Fn(EventCommand) -> bool + Send + 'static) {
+        let mut stream = self.0.receive_events();
 
-    /// Terminate a receiver without setting a new one
-    pub fn terminate_event_receiver(&self) {}
+        RUNTIME.spawn(async move {
+            while let Some(event) = stream.next().await {
+                if !cb(event) {
+                    break;
+                }
+            }
+        });
+    }
 
     /// Get the current monitor state
     pub fn monitors(&self) -> &[Monitor] {
