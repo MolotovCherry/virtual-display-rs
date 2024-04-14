@@ -4,41 +4,52 @@ use tokio_stream::StreamExt;
 use super::RUNTIME;
 use crate::{Client as AsyncClient, EventCommand, Id, Monitor, Result};
 
-/// A thin api client over the driver api with all the essential api.
-/// Does the bare minimum required. Does not track state
+/// Client for interacting with the Virtual Display Driver.
+///
+/// Connects via a named pipe to the driver.
+///
+/// You can send changes to the driver and receive continuous events from it.
+///
+/// This is a synchronous version of [crate::Client]. It uses its own tokio
+/// runtime. This runtime is configured with a single worker thread.
 #[derive(Debug, Clone)]
 pub struct Client(AsyncClient);
 
 impl Client {
-    /// connect to pipe virtualdisplaydriver
+    /// Connect to driver on pipe with default name.
+    ///
+    /// The default name is [crate::DEFAULT_PIPE_NAME].
     pub fn connect() -> Result<Self> {
         let client = RUNTIME.block_on(async { AsyncClient::connect() })?;
         Ok(Self(client))
     }
 
-    // choose which pipe name you connect to
-    // pipe name is ONLY the name, only the {name} portion of \\.\pipe\{name}
+    /// Connect to driver on pipe with specified name.
+    ///
+    /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
     pub fn connect_to(name: &str) -> Result<Self> {
         let client = RUNTIME.block_on(async { AsyncClient::connect_to(name) })?;
         Ok(Self(client))
     }
 
-    /// Notifies driver of changes (additions/updates/removals)
+    /// Send new state to the driver.
     pub fn notify(&self, monitors: &[Monitor]) -> Result<()> {
         RUNTIME.block_on(self.0.notify(monitors))
     }
 
-    /// Remove specific monitors by id
+    /// Remove all monitors with the specified IDs.
     pub fn remove(&self, ids: &[Id]) -> Result<()> {
         RUNTIME.block_on(self.0.remove(ids))
     }
 
-    /// Remove all monitors
+    /// Remove all monitors.
     pub fn remove_all(&self) -> Result<()> {
         RUNTIME.block_on(self.0.remove_all())
     }
 
-    /// Receive an event. Only new events after calling this are received
+    /// Block and receive the next driver event.
+    ///
+    /// Only new events after calling this method will be received.
     pub fn receive_event(&mut self) -> EventCommand {
         RUNTIME.block_on(async {
             self.0
@@ -49,7 +60,7 @@ impl Client {
         })
     }
 
-    /// Add an event receiver.
+    /// Add an event receiver to receive continuous events from the driver.
     ///
     /// Returns an object that can be used to cancel the subscription.
     ///
@@ -64,13 +75,18 @@ impl Client {
         EventsSubscription::start_subscriber(cb, stream)
     }
 
-    /// Request state update
-    /// use `receive()` to get the reply
+    /// Request the current state of the driver.
+    ///
+    /// Returns [IpcError::Timeout] if the driver does not respond within 5
+    /// seconds.
     pub fn request_state(&self) -> Result<Vec<Monitor>> {
         RUNTIME.block_on(self.0.request_state())
     }
 
-    /// Persist changes to registry for current user
+    /// Write `monitors` to the registry for current user.
+    ///
+    /// Next time the driver is started, it will load this state from the
+    /// registry. This might be after a reboot or a driver restart.
     pub fn persist(monitors: &[Monitor]) -> Result<()> {
         AsyncClient::persist(monitors)
     }

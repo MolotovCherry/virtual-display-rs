@@ -15,15 +15,16 @@ use crate::*;
 // EOF byte used to separate messages
 pub(crate) const EOF: u8 = 0x4;
 
-/// A thin api client over the driver api with all the essential api.
-/// Does the bare minimum required. Does not track state
+/// Client for interacting with the Virtual Display Driver.
+///
+/// Connects via a named pipe to the driver.
+///
+/// You can send changes to the driver and receive continuous events from it.
 #[derive(Debug)]
 pub struct Client {
     client: Arc<named_pipe::NamedPipeClient>,
     command_rx: broadcast::Receiver<ClientCommand>,
-
-    // Used to stop the receiver task when no more clients are present
-    notify: Arc<Notify>,
+    abort_receiver: Arc<Notify>,
 }
 
 impl Client {
@@ -46,15 +47,15 @@ impl Client {
             .map_err(IpcError::ConnectionFailed)?;
         let client = Arc::new(client);
 
-        let notify = Arc::new(Notify::new());
+        let abort_receiver = Arc::new(Notify::new());
 
         let (command_tx, command_rx) = broadcast::channel::<ClientCommand>(10);
 
         {
             let client = client.clone();
-            let notify = notify.clone();
+            let abort_receiver = abort_receiver.clone();
             task::spawn(async move {
-                let r = receive_command(&client, command_tx, &notify).await;
+                let r = receive_command(&client, command_tx, &abort_receiver).await;
                 if let Err(e) = r {
                     println!("TODO: Handle error: {:?}", e);
                 }
@@ -64,18 +65,18 @@ impl Client {
         Ok(Self {
             client,
             command_rx,
-            notify,
+            abort_receiver,
         })
     }
 
-    /// Notifies driver of changes (additions/updates/removals).
+    /// Send new state to the driver.
     pub async fn notify(&self, monitors: &[Monitor]) -> Result<()> {
         let command = DriverCommand::Notify(monitors.to_owned());
 
         send_command(&self.client, &command).await
     }
 
-    /// Remove specific monitors by id.
+    /// Remove all monitors with the specified IDs.
     pub async fn remove(&self, ids: &[Id]) -> Result<()> {
         let command = DriverCommand::Remove(ids.to_owned());
 
@@ -89,6 +90,10 @@ impl Client {
         send_command(&self.client, &command).await
     }
 
+    /// Request the current state of the driver.
+    ///
+    /// Returns [IpcError::Timeout] if the driver does not respond within 5
+    /// seconds.
     pub async fn request_state(&self) -> Result<Vec<Monitor>> {
         let mut rx = self.command_rx.resubscribe();
 
@@ -110,7 +115,7 @@ impl Client {
         }
     }
 
-    /// Receive events from the driver.
+    /// Receive continuous events from the driver.
     ///
     /// Only new events after calling this method are received.
     ///
@@ -127,7 +132,10 @@ impl Client {
         })
     }
 
-    /// Persist changes to registry for current user
+    /// Write `monitors` to the registry for current user.
+    ///
+    /// Next time the driver is started, it will load this state from the
+    /// registry. This might be after a reboot or a driver restart.
     pub fn persist(monitors: &[Monitor]) -> Result<()> {
         use winreg::*;
 
@@ -162,15 +170,15 @@ impl Clone for Client {
         Self {
             client: self.client.clone(),
             command_rx: self.command_rx.resubscribe(),
-            notify: self.notify.clone(),
+            abort_receiver: self.abort_receiver.clone(),
         }
     }
 }
 
 impl Drop for Client {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.notify) == 2 {
-            self.notify.notify_waiters();
+        if Arc::strong_count(&self.abort_receiver) == 2 {
+            self.abort_receiver.notify_waiters();
         }
     }
 }
@@ -224,7 +232,7 @@ async fn send_command(
 async fn receive_command(
     client: &named_pipe::NamedPipeClient,
     tx: broadcast::Sender<ClientCommand>,
-    notify: &Notify,
+    abort: &Notify,
 ) -> Result<()> {
     let mut buf = vec![0; 4096];
     let mut recv_buf = Vec::with_capacity(4096);
@@ -233,7 +241,7 @@ async fn receive_command(
         // wait for client to be readable
         tokio::select! {
             r = client.readable() => r?,
-            _ = notify.notified() => return Ok(()),
+            _ = abort.notified() => return Ok(()),
         }
 
         match client.try_read(&mut buf) {
