@@ -115,9 +115,13 @@ impl EventsSubscription {
         let (result_tx, result_rx) = oneshot::channel();
 
         RUNTIME.spawn(async move {
-            while let Some(event) = tokio::select! {
-                event = stream.next() => event,
-                _ = abort_rx.recv() => None,
+            while let Some(event) = if abort_rx.is_closed() {
+                stream.next().await
+            } else {
+                tokio::select! {
+                    event = stream.next() => event,
+                    _ = abort_rx.recv() => None,
+                }
             } {
                 let mut cb = panic::AssertUnwindSafe(&mut cb);
                 let res = panic::catch_unwind(move || {
@@ -232,6 +236,34 @@ mod test {
 
     use super::*;
     use crate::mock::*;
+
+    #[test]
+    fn event_receiver_not_canceled_after_drop() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver_not_canceled_after_drop";
+
+        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+
+        let client = Client::connect_to(PIPE_NAME).unwrap();
+
+        let call_count = Arc::new(Mutex::new(0));
+
+        let sub = client.add_event_receiver({
+            let call_count = call_count.clone();
+            move |_| {
+                *call_count.lock().unwrap() += 1;
+            }
+        });
+
+        drop(sub);
+
+        client.notify(&[]).unwrap();
+        RUNTIME.block_on(server.pump());
+
+        // Give time for the callback to be run
+        sleep(std::time::Duration::from_millis(50));
+
+        assert_eq!(*call_count.lock().unwrap(), 1);
+    }
 
     #[test]
     fn catch_unwind_when_receiver_panics() {
