@@ -17,10 +17,10 @@ pub(crate) const EOF: u8 = 0x4;
 
 /// A thin api client over the driver api with all the essential api.
 /// Does the bare minimum required. Does not track state
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Client {
     client: Arc<named_pipe::NamedPipeClient>,
-    command_tx: broadcast::Sender<ClientCommand>,
+    command_rx: broadcast::Receiver<ClientCommand>,
 
     // Used to stop the receiver task when no more clients are present
     notify: Arc<Notify>,
@@ -48,18 +48,22 @@ impl Client {
 
         let notify = Arc::new(Notify::new());
 
-        let (command_tx, _command_rx) = broadcast::channel::<ClientCommand>(10);
+        let (command_tx, command_rx) = broadcast::channel::<ClientCommand>(10);
 
         {
             let client = client.clone();
-            let command_tx = command_tx.clone();
             let notify = notify.clone();
-            task::spawn(async move { receive_command(&client, command_tx, &notify).await });
+            task::spawn(async move {
+                let r = receive_command(&client, command_tx, &notify).await;
+                if let Err(e) = r {
+                    println!("TODO: Handle error: {:?}", e);
+                }
+            });
         }
 
         Ok(Self {
             client,
-            command_tx,
+            command_rx,
             notify,
         })
     }
@@ -86,7 +90,7 @@ impl Client {
     }
 
     pub async fn request_state(&self) -> Result<Vec<Monitor>> {
-        let mut rx = self.command_tx.subscribe();
+        let mut rx = self.command_rx.resubscribe();
 
         send_command(&self.client, &RequestCommand::State).await?;
 
@@ -114,7 +118,7 @@ impl Client {
     pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
         use tokio_stream::wrappers::*;
 
-        let stream = BroadcastStream::new(self.command_tx.subscribe());
+        let stream = BroadcastStream::new(self.command_rx.resubscribe());
 
         stream.filter_map(|cmd| match cmd {
             Ok(ClientCommand::Event(event)) => Some(event),
@@ -150,6 +154,16 @@ impl Client {
         reg_key.set_value("data", &data)?;
 
         Ok(())
+    }
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            command_rx: self.command_rx.resubscribe(),
+            notify: self.notify.clone(),
+        }
     }
 }
 
@@ -268,10 +282,27 @@ async fn receive_command(
 
 #[cfg(test)]
 mod test {
+    use tokio::time::sleep;
+
     use super::*;
     use crate::mock::*;
 
-    const PIPE_NAME: &str = "virtualdisplaydriver-test";
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn receiver_stops_when_server_closed() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test2";
+
+        let server = MockServer::new(PIPE_NAME);
+
+        let client = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+
+        let stream = client.receive_events();
+
+        drop(server);
+
+        let events: Vec<_> = stream.collect().await;
+
+        assert!(events.is_empty());
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn test_1() {

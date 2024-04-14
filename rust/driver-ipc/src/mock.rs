@@ -3,7 +3,7 @@ use std::{io, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::windows::named_pipe,
-    sync::broadcast,
+    sync::{broadcast, Notify},
     task,
 };
 
@@ -16,6 +16,7 @@ pub struct MockServer {
     state: Vec<Monitor>,
     command_rx: broadcast::Receiver<ServerCommand>,
     command_tx: broadcast::Sender<ServerCommand>,
+    notify_closed: Arc<Notify>,
 }
 
 impl MockServer {
@@ -28,11 +29,14 @@ impl MockServer {
             .unwrap();
         let server = Arc::new(server);
 
+        let notify_closed = Arc::new(Notify::new());
+
         let (command_tx, command_rx) = broadcast::channel(64);
 
         {
             let server = server.clone();
             let command_tx = command_tx.clone();
+            let notify_closed = notify_closed.clone();
             task::spawn(async move {
                 let server = unsafe {
                     (server.as_ref() as *const _ as *mut named_pipe::NamedPipeServer)
@@ -45,10 +49,15 @@ impl MockServer {
                 loop {
                     let mut buf = vec![];
                     loop {
-                        let v = match server.read_u8().await {
+                        let byte = tokio::select! {
+                            _ = notify_closed.notified() => return,
+                            r = server.read_u8() => r,
+                        };
+
+                        let v = match byte {
                             Ok(v) => v,
                             Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return, // Client disconnected
-                            Err(e) => panic!("Failed to read byte: {:?}", e),
+                            Err(_) => continue,
                         };
                         if v == EOF {
                             break;
@@ -69,6 +78,7 @@ impl MockServer {
             state: vec![],
             command_rx,
             command_tx,
+            notify_closed,
         }
     }
 
@@ -137,5 +147,11 @@ impl MockServer {
                 .await
                 .expect("Failed to write event");
         }
+    }
+}
+
+impl Drop for MockServer {
+    fn drop(&mut self) {
+        self.notify_closed.notify_waiters();
     }
 }
