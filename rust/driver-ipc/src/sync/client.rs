@@ -110,7 +110,7 @@ mod test {
     use crate::mock::*;
 
     #[test]
-    fn test() {
+    fn event_receiver() {
         const PIPE_NAME: &str = "virtualdisplaydriver-sync-test1";
 
         let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
@@ -142,5 +142,32 @@ mod test {
             events.lock().unwrap().as_slice(),
             [EventCommand::Changed(mons)] if mons.is_empty()
         ))
+    }
+
+    #[test]
+    fn event_receiver_cancel_from_cb() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-test2";
+
+        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+
+        let client = Client::connect_to(PIPE_NAME).unwrap();
+
+        let shared_sub = Arc::new(Mutex::new(None::<EventsSubscription>));
+
+        let sub = client.add_event_receiver({
+            let shared_sub = shared_sub.clone();
+            move |event| {
+                assert!(matches!(event, EventCommand::Changed(mons) if mons.is_empty()));
+                assert!(shared_sub.lock().unwrap().as_mut().unwrap().cancel());
+            }
+        });
+
+        *shared_sub.lock().unwrap() = Some(sub);
+
+        client.notify(&[]).unwrap();
+        RUNTIME.block_on(server.pump());
+        sleep(std::time::Duration::from_millis(50));
+
+        assert!(!shared_sub.lock().unwrap().as_mut().unwrap().cancel());
     }
 }
