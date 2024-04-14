@@ -39,6 +39,13 @@ impl DriverClient {
         self.0.refresh_state()
     }
 
+    /// Add an event receiver.
+    ///
+    /// Returns an object that can be used to cancel the subscription.
+    ///
+    /// The callback should return as soon as possible. It is called from the
+    /// library's tokio runtime and blocks all other operations. In consequence,
+    /// all other library events will be delayed until the callback returns.
     pub fn add_event_receiver(
         &self,
         cb: impl FnMut(EventCommand) + Send + 'static,
