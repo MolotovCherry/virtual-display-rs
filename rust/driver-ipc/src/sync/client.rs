@@ -1,4 +1,6 @@
-use tokio::sync::mpsc;
+use std::{any::Any, panic, thread};
+
+use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 
 use super::RUNTIME;
@@ -76,7 +78,7 @@ impl Client {
     /// closed after all copies are dropped.
     pub fn add_event_receiver(
         &self,
-        cb: impl FnMut(EventCommand) + Send + 'static,
+        cb: impl FnMut(EventCommand) + Send + panic::UnwindSafe + 'static,
     ) -> EventsSubscription {
         let stream = self.0.receive_events();
         EventsSubscription::start_subscriber(cb, stream)
@@ -101,31 +103,123 @@ impl Client {
 
 pub struct EventsSubscription {
     pub(crate) abort_tx: mpsc::Sender<()>,
+    result_rx: Option<oneshot::Receiver<Box<dyn Any + Send>>>,
 }
 
 impl EventsSubscription {
     pub(crate) fn start_subscriber(
-        mut cb: impl FnMut(EventCommand) + Send + 'static,
+        mut cb: impl FnMut(EventCommand) + Send + panic::UnwindSafe + 'static,
         mut stream: impl tokio_stream::Stream<Item = EventCommand> + Unpin + Send + 'static,
     ) -> Self {
         let (abort_tx, mut abort_rx) = mpsc::channel(1);
+        let (result_tx, result_rx) = oneshot::channel();
 
         RUNTIME.spawn(async move {
             while let Some(event) = tokio::select! {
                 event = stream.next() => event,
                 _ = abort_rx.recv() => None,
             } {
-                cb(event);
+                let mut cb = panic::AssertUnwindSafe(&mut cb);
+                let res = panic::catch_unwind(move || {
+                    cb(event);
+                });
+                if let Err(e) = res {
+                    if let Err(e) = result_tx.send(e) {
+                        log::error!(
+                            "Event receiver panicked, but subscription is already dropped: {:?}",
+                            e
+                        );
+                    };
+                    break;
+                }
             }
         });
 
-        Self { abort_tx }
+        Self {
+            abort_tx,
+            result_rx: Some(result_rx),
+        }
     }
 
-    pub fn cancel(&mut self) -> bool {
+    /// Cancel the subscription.
+    ///
+    /// Returns `Ok(true)` if the subscription was not already cancelled.
+    ///
+    /// Returns `Ok(false)` if the subscription was already cancelled.
+    ///
+    /// Returns `Err(e)` if the callback panicked. Any subsequent calls will
+    /// return `Ok(false)`.
+    ///
+    /// Will return immediately. A panic will not be caught if the callback
+    /// panics after calling this method.
+    pub fn cancel(&mut self) -> thread::Result<bool> {
+        let Some(ref mut rx) = self.result_rx else {
+            // Already cancelled by `cancel_async`
+            return Ok(false);
+        };
+
+        match rx.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => {
+                // Returns error when either buffer is full (buffer size = 1), or
+                // receiver is closed <=> already cancelled
+                Ok(self.abort_tx.try_send(()).is_ok())
+            }
+            Err(oneshot::error::TryRecvError::Closed) => Ok(false),
+            Ok(e) => Err(e),
+        }
+    }
+
+    /// Cancel the subscription.
+    ///
+    /// Returns `Ok(true)` if the subscription was not already cancelled.
+    ///
+    /// Returns `Ok(false)` if the subscription was already cancelled.
+    ///
+    /// Returns `Err(e)` if the callback panicked. Any subsequent calls will
+    /// return `Ok(false)`.
+    ///
+    /// This method blocks until the callback either returns or panics.
+    pub fn cancel_blocking(&mut self) -> thread::Result<bool> {
+        RUNTIME.block_on(self.cancel_async())
+    }
+
+    /// Cancel the subscription.
+    ///
+    /// Returns `Ok(true)` if the subscription was not already cancelled.
+    ///
+    /// Returns `Ok(false)` if the subscription was already cancelled.
+    ///
+    /// Returns `Err(e)` if the callback panicked. Any subsequent calls will
+    /// return `Ok(false)`.
+    ///
+    /// This method waits until the callback either returns or panics.
+    pub async fn cancel_async(&mut self) -> thread::Result<bool> {
         // Returns error when either buffer is full (buffer size = 1), or
         // receiver is closed <=> already cancelled
-        self.abort_tx.try_send(()).is_ok()
+        let Some(rx) = self.result_rx.take() else {
+            // Already cancelled by `cancel_async`
+            return Ok(false);
+        };
+
+        let res = self.abort_tx.try_send(()).is_ok();
+        match rx.await {
+            Err(_) => Ok(res),
+            Ok(e) => Err(e),
+        }
+    }
+}
+
+impl Drop for EventsSubscription {
+    fn drop(&mut self) {
+        let Some(ref mut rx) = self.result_rx else {
+            return;
+        };
+        if let Err(e) = rx.try_recv() {
+            log::error!(
+                "Event receiver panicked, but subscription is dropped without canceling: {:?}",
+                e
+            );
+        }
     }
 }
 
@@ -138,6 +232,36 @@ mod test {
 
     use super::*;
     use crate::mock::*;
+
+    #[test]
+    fn catch_unwind_when_receiver_panics() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-catch_unwind_when_receiver_panics";
+
+        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+
+        let client = Client::connect_to(PIPE_NAME).unwrap();
+
+        let mut sub1 = client.add_event_receiver(move |_| {
+            panic!("Panic1 in callback");
+        });
+        let mut sub2 = client.add_event_receiver(move |_| {
+            panic!("Panic2 in callback");
+        });
+
+        client.notify(&[]).unwrap();
+        RUNTIME.block_on(server.pump());
+
+        // Give time for the callback to be run
+        sleep(std::time::Duration::from_millis(50));
+
+        sub1.cancel_blocking().expect_err("Callback should panic");
+        assert!(!sub1
+            .cancel_blocking()
+            .expect("Error should already be handled"));
+
+        sub2.cancel().expect_err("Callback should panic");
+        assert!(!sub2.cancel().expect("Error should already be handled"));
+    }
 
     #[test]
     fn event_receiver() {
@@ -160,9 +284,9 @@ mod test {
         RUNTIME.block_on(server.pump());
         sleep(std::time::Duration::from_millis(50));
 
-        assert!(sub.cancel());
-        assert!(!sub.cancel());
-        assert!(!sub.cancel());
+        assert!(sub.cancel().expect("Callback should not panic"));
+        assert!(!sub.cancel().expect("Callback should not panic"));
+        assert!(!sub.cancel().expect("Callback should not panic"));
 
         client.notify(&[]).unwrap();
         RUNTIME.block_on(server.pump());
@@ -194,7 +318,13 @@ mod test {
                     "Wrong event received"
                 );
                 assert!(
-                    shared_sub.lock().unwrap().as_mut().unwrap().cancel(),
+                    shared_sub
+                        .lock()
+                        .unwrap()
+                        .as_mut()
+                        .unwrap()
+                        .cancel()
+                        .expect("Callback should not panic"),
                     "Should not be cancelled by now"
                 );
                 *shared_flag.lock().unwrap() = true;
@@ -208,7 +338,13 @@ mod test {
         sleep(std::time::Duration::from_millis(50));
 
         assert!(
-            !shared_sub.lock().unwrap().as_mut().unwrap().cancel(),
+            !shared_sub
+                .lock()
+                .unwrap()
+                .as_mut()
+                .unwrap()
+                .cancel()
+                .expect("Callback should not panic"),
             "Should already be cancelled"
         );
         assert!(*shared_flag.lock().unwrap(), "Callback was not run");
