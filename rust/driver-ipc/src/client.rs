@@ -156,7 +156,6 @@ impl Client {
 impl Drop for Client {
     fn drop(&mut self) {
         if Arc::strong_count(&self.notify) == 2 {
-            println!("No receivers, stopping receiver task");
             self.notify.notify_waiters();
         }
     }
