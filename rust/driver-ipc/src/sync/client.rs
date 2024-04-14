@@ -176,12 +176,21 @@ mod test {
         let client = Client::connect_to(PIPE_NAME).unwrap();
 
         let shared_sub = Arc::new(Mutex::new(None::<EventsSubscription>));
+        let shared_flag = Arc::new(Mutex::new(false));
 
         let sub = client.add_event_receiver({
             let shared_sub = shared_sub.clone();
+            let shared_flag = shared_flag.clone();
             move |event| {
-                assert!(matches!(event, EventCommand::Changed(mons) if mons.is_empty()));
-                assert!(shared_sub.lock().unwrap().as_mut().unwrap().cancel());
+                assert!(
+                    matches!(event, EventCommand::Changed(mons) if mons.is_empty()),
+                    "Wrong event received"
+                );
+                assert!(
+                    shared_sub.lock().unwrap().as_mut().unwrap().cancel(),
+                    "Should not be cancelled by now"
+                );
+                *shared_flag.lock().unwrap() = true;
             }
         });
 
@@ -191,6 +200,10 @@ mod test {
         RUNTIME.block_on(server.pump());
         sleep(std::time::Duration::from_millis(50));
 
-        assert!(!shared_sub.lock().unwrap().as_mut().unwrap().cancel());
+        assert!(
+            !shared_sub.lock().unwrap().as_mut().unwrap().cancel(),
+            "Should already be cancelled"
+        );
+        assert!(*shared_flag.lock().unwrap(), "Callback was not run");
     }
 }
