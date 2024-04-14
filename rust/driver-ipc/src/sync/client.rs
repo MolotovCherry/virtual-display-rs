@@ -1,3 +1,4 @@
+use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
 use super::RUNTIME;
@@ -11,14 +12,14 @@ pub struct Client(AsyncClient);
 impl Client {
     /// connect to pipe virtualdisplaydriver
     pub fn connect() -> Result<Self> {
-        let client = AsyncClient::connect()?;
+        let client = RUNTIME.block_on(async { AsyncClient::connect() })?;
         Ok(Self(client))
     }
 
     // choose which pipe name you connect to
     // pipe name is ONLY the name, only the {name} portion of \\.\pipe\{name}
     pub fn connect_to(name: &str) -> Result<Self> {
-        let client = AsyncClient::connect_to(name)?;
+        let client = RUNTIME.block_on(async { AsyncClient::connect_to(name) })?;
         Ok(Self(client))
     }
 
@@ -48,16 +49,12 @@ impl Client {
         })
     }
 
-    pub fn add_event_receiver(&mut self, cb: impl Fn(EventCommand) -> bool + Send + 'static) {
-        let mut stream = self.0.receive_events();
-
-        RUNTIME.spawn(async move {
-            while let Some(event) = stream.next().await {
-                if !cb(event) {
-                    break;
-                }
-            }
-        });
+    pub fn add_event_receiver(
+        &self,
+        cb: impl FnMut(EventCommand) + Send + 'static,
+    ) -> EventsSubscription {
+        let stream = self.0.receive_events();
+        EventsSubscription::start_subscriber(cb, stream)
     }
 
     /// Request state update
@@ -69,5 +66,81 @@ impl Client {
     /// Persist changes to registry for current user
     pub fn persist(monitors: &[Monitor]) -> Result<()> {
         AsyncClient::persist(monitors)
+    }
+}
+
+pub struct EventsSubscription {
+    pub(crate) abort_tx: mpsc::Sender<()>,
+}
+
+impl EventsSubscription {
+    pub(crate) fn start_subscriber(
+        mut cb: impl FnMut(EventCommand) + Send + 'static,
+        mut stream: impl tokio_stream::Stream<Item = EventCommand> + Unpin + Send + 'static,
+    ) -> Self {
+        let (abort_tx, mut abort_rx) = mpsc::channel(1);
+
+        RUNTIME.spawn(async move {
+            while let Some(event) = tokio::select! {
+                event = stream.next() => event,
+                _ = abort_rx.recv() => None,
+            } {
+                cb(event);
+            }
+        });
+
+        Self { abort_tx }
+    }
+
+    pub fn cancel(&mut self) -> bool {
+        // Returns error when either buffer is full (buffer size = 1), or
+        // receiver is closed <=> already cancelled
+        self.abort_tx.try_send(()).is_ok()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::{
+        sync::{Arc, Mutex},
+        thread::sleep,
+    };
+
+    use super::*;
+    use crate::mock::*;
+
+    #[test]
+    fn test() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-test1";
+
+        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+
+        let client = Client::connect_to(PIPE_NAME).unwrap();
+
+        let events = Arc::new(Mutex::new(vec![]));
+
+        let mut sub = client.add_event_receiver({
+            let events = events.clone();
+            move |event| {
+                events.lock().unwrap().push(event);
+            }
+        });
+
+        client.notify(&[]).unwrap();
+        RUNTIME.block_on(server.pump());
+        sleep(std::time::Duration::from_millis(50));
+
+        assert!(sub.cancel());
+        assert!(!sub.cancel());
+        assert!(!sub.cancel());
+
+        client.notify(&[]).unwrap();
+        RUNTIME.block_on(server.pump());
+        sleep(std::time::Duration::from_millis(50));
+
+        assert!(matches!(
+            events.lock().unwrap().as_slice(),
+            [EventCommand::Changed(mons)] if mons.is_empty()
+        ))
     }
 }

@@ -1,6 +1,4 @@
-use tokio_stream::StreamExt;
-
-use super::RUNTIME;
+use super::{client::EventsSubscription, RUNTIME};
 use crate::{DriverClient as AsyncDriverClient, EventCommand, Id, Mode, Monitor, Result};
 
 /// Extra API over Client which allows nice fancy things
@@ -41,16 +39,12 @@ impl DriverClient {
         self.0.refresh_state()
     }
 
-    pub fn add_event_receiver(&mut self, cb: impl Fn(EventCommand) -> bool + Send + 'static) {
-        let mut stream = self.0.receive_events();
-
-        RUNTIME.spawn(async move {
-            while let Some(event) = stream.next().await {
-                if !cb(event) {
-                    break;
-                }
-            }
-        });
+    pub fn add_event_receiver(
+        &self,
+        cb: impl FnMut(EventCommand) + Send + 'static,
+    ) -> EventsSubscription {
+        let stream = self.0.receive_events();
+        EventsSubscription::start_subscriber(cb, stream)
     }
 
     /// Get the current monitor state
