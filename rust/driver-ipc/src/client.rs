@@ -305,14 +305,16 @@ mod test {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-    async fn test_1() {
+    async fn general_test_1() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test1";
+
         let mut server = MockServer::new(PIPE_NAME);
 
         let client = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
 
-        // Check receiver
+        // Get receiver stream
 
-        let mut stream = client.receive_events();
+        let stream = client.receive_events();
 
         // Check request_state
 
@@ -344,14 +346,14 @@ mod test {
             .0
             .expect("Failed to notify");
 
-        assert_mons_eq(server.state(), &mons1);
+        assert_eq!(server.state(), &mons1);
 
         // Check request_state
 
         let (state, _) = tokio::join!(client.request_state(), server.pump());
 
         let state = state.expect("Failed to request state");
-        assert_mons_eq(&state, &mons1);
+        assert_eq!(&state, &mons1);
 
         // Check notify multiple
 
@@ -382,7 +384,12 @@ mod test {
             .0
             .expect("Failed to notify");
 
-        assert_mons_eq(server.state(), &mons2);
+        assert_eq!(server.state(), &mons2);
+
+        // Give some time for the server to send the last event
+        sleep(Duration::from_millis(50)).await;
+
+        let stream2 = client.receive_events();
 
         // Check remove
 
@@ -390,8 +397,8 @@ mod test {
             .0
             .expect("Failed to remove");
 
-        assert!(server.state().len() == 1);
-        assert!(server.state()[0].id == 1);
+        assert_eq!(server.state().len(), 1);
+        assert_eq!(server.state()[0].id, 1);
 
         // Check remove all
 
@@ -401,47 +408,33 @@ mod test {
 
         assert!(server.state().is_empty());
 
-        // Check stream
+        // Check streams
 
-        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
-            panic!("Failed to receive event");
-        };
-        assert_mons_eq(&event_mons, &mons1);
-
-        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
-            panic!("Failed to receive event");
-        };
-        assert_mons_eq(&event_mons, &mons2);
-
-        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
-            panic!("Failed to receive event");
-        };
-        assert_mons_eq(&event_mons, &mons2[1..]);
-
-        let Some(EventCommand::Changed(event_mons)) = stream.next().await else {
-            panic!("Failed to receive event");
-        };
-        assert!(event_mons.is_empty());
+        // Give some time for the server to send the last event
+        sleep(Duration::from_millis(50)).await;
 
         drop(client);
 
-        assert!(stream.next().await.is_none())
-    }
+        let events: Vec<_> = stream.collect().await;
 
-    fn assert_mons_eq(a: &[Monitor], b: &[Monitor]) {
-        assert!(a.len() == b.len());
+        assert!(matches!(events[..], [
+                EventCommand::Changed(ref e1),
+                EventCommand::Changed(ref e2),
+                EventCommand::Changed(ref e3),
+                EventCommand::Changed(ref e4),
+            ] if *e1 == mons1
+                && *e2 == mons2
+                && *e3 == mons2[1..]
+                && e4.is_empty()
+        ));
 
-        for (a, b) in a.iter().zip(b.iter()) {
-            assert!(a.id == b.id);
-            assert!(a.enabled == b.enabled);
-            assert!(a.name == b.name);
-            assert!(a.modes.len() == b.modes.len());
+        let events: Vec<_> = stream2.collect().await;
 
-            for (a, b) in a.modes.iter().zip(b.modes.iter()) {
-                assert!(a.width == b.width);
-                assert!(a.height == b.height);
-                assert!(a.refresh_rates == b.refresh_rates);
-            }
-        }
+        assert!(matches!(events[..], [
+                EventCommand::Changed(ref e1),
+                EventCommand::Changed(ref e2),
+            ] if  *e1 == mons2[1..]
+                && e2.is_empty()
+        ));
     }
 }
