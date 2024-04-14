@@ -226,19 +226,17 @@ pub fn startup() {
                             },
 
                             val = rx.recv() => {
-                                let data = match val {
+                                let command = match val {
                                     // ignore if this value was sent for the current client (current client doesn't need notification)
                                     Ok((client_id, _)) if client_id == id => continue,
 
-                                    Ok((_, data)) => data,
+                                    Ok((_, data)) => EventCommand::Changed(data),
 
                                     Err(RecvError::Lagged(_)) => continue,
 
                                     // closed
                                     Err(_) => break
                                 };
-
-                                let command = EventCommand::Changed(data);
 
                                 let Ok(mut serialized) = serde_json::to_string(&command) else {
                                     error!("Command::Request - failed to serialize reply");
