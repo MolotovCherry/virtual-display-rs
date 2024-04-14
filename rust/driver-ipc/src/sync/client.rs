@@ -10,6 +10,9 @@ use crate::{Client as AsyncClient, EventCommand, Id, Monitor, Result};
 ///
 /// You can send changes to the driver and receive continuous events from it.
 ///
+/// It is save to clone this client. The connection is shared between all
+/// copies.
+///
 /// This is a synchronous version of [crate::Client]. It uses its own tokio
 /// runtime. This runtime is configured with a single worker thread.
 #[derive(Debug, Clone)]
@@ -64,9 +67,13 @@ impl Client {
     ///
     /// Returns an object that can be used to cancel the subscription.
     ///
-    /// The callback should return as soon as possible. It is called from the
-    /// library's tokio runtime and blocks all other operations. In consequence,
-    /// all other library events will be delayed until the callback returns.
+    /// Note: The callback should return as soon as possible. It is called from
+    /// the library's tokio runtime and blocks all other operations. In
+    /// consequence, all other library events will be delayed until the callback
+    /// returns.
+    ///
+    /// Note: If multiple copies of this client exist, the receiver will only be
+    /// closed after all copies are dropped.
     pub fn add_event_receiver(
         &self,
         cb: impl FnMut(EventCommand) + Send + 'static,
@@ -134,7 +141,7 @@ mod test {
 
     #[test]
     fn event_receiver() {
-        const PIPE_NAME: &str = "virtualdisplaydriver-sync-test1";
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver";
 
         let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
 
@@ -169,7 +176,7 @@ mod test {
 
     #[test]
     fn event_receiver_cancel_from_cb() {
-        const PIPE_NAME: &str = "virtualdisplaydriver-sync-test2";
+        const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver_cancel_from_cb";
 
         let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
 

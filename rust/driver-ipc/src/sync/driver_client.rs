@@ -61,11 +61,20 @@ impl DriverClient {
 
     /// Add an event receiver to receive continuous events from the driver.
     ///
+    /// This receiver will always reflect the real state of the driver,
+    /// regardless of who changed its state. This means, if it is changed by
+    /// another process, this receiver will still be updated.
+    ///
     /// Returns an object that can be used to cancel the subscription.
     ///
-    /// The callback should return as soon as possible. It is called from the
-    /// library's tokio runtime and blocks all other operations. In consequence,
-    /// all other library events will be delayed until the callback returns.
+    /// Note: The callback should return as soon as possible. It is called from
+    /// the library's tokio runtime and blocks all other operations. In
+    /// consequence, all other library events will be delayed until the callback
+    /// returns.
+    ///
+    /// Note: If multiple copies of this client exist (using
+    /// [DriverClient::duplicate]), the returned stream will only be closed
+    /// after all copies are dropped.
     pub fn add_event_receiver(
         &self,
         cb: impl FnMut(EventCommand) + Send + 'static,
@@ -336,5 +345,16 @@ impl DriverClient {
     /// manually call [DriverClient::refresh_state].
     pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> Result<()> {
         self.0.remove_mode_query(query, resolution)
+    }
+
+    /// Returns a copy of this client with it's own independent state.
+    ///
+    /// Changes to one client will not affect the other.
+    ///
+    /// Note: Event receivers created with [DriverClient::add_event_receiver] will
+    /// only be closed after all copies are dropped, regardless of which client
+    /// was used to create the receiver.
+    pub fn duplicate(&self) -> Self {
+        Self(self.0.duplicate())
     }
 }

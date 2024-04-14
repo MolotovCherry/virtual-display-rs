@@ -13,7 +13,7 @@ use crate::*;
 /// [DriverClient::persist]. To synchronize this object with the driver, you
 /// must call [DriverClient::refresh_state]. The state will not be updated
 /// automatically.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DriverClient {
     client: Client,
     state_rx: watch::Receiver<Vec<Monitor>>,
@@ -113,6 +113,10 @@ impl DriverClient {
     /// This stream will always reflect the real state of the driver, regardless
     /// of who changed its state. This means, if it is changed by another
     /// process, this stream will still be updated.
+    ///
+    /// Note: If multiple copies of this client exist (using
+    /// [DriverClient::duplicate]), the returned stream will only be closed
+    /// after all copies are dropped.
     pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
         self.client.receive_events()
     }
@@ -490,6 +494,21 @@ impl DriverClient {
             .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
 
         self.remove_mode(id, resolution)
+    }
+
+    /// Returns a copy of this client with it's own independent state.
+    ///
+    /// Changes to one client will not affect the other.
+    ///
+    /// Note: Event receivers created with [DriverClient::receive_events] will
+    /// only be closed after all copies are dropped, regardless of which client
+    /// was used to create the receiver.
+    pub fn duplicate(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            state_rx: self.state_rx.clone(),
+            state: self.state.clone(),
+        }
     }
 }
 

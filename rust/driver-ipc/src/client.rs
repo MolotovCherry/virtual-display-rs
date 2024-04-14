@@ -20,6 +20,9 @@ pub(crate) const EOF: u8 = 0x4;
 /// Connects via a named pipe to the driver.
 ///
 /// You can send changes to the driver and receive continuous events from it.
+///
+/// It is save to clone this client. The connection is shared between all
+/// copies.
 #[derive(Debug)]
 pub struct Client {
     client: Arc<named_pipe::NamedPipeClient>,
@@ -120,6 +123,9 @@ impl Client {
     /// Only new events after calling this method are received.
     ///
     /// May be called multiple times.
+    ///
+    /// Note: If multiple copies of this client exist, the receiver will only be
+    /// closed after all copies are dropped.
     pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
         use tokio_stream::wrappers::*;
 
@@ -296,8 +302,41 @@ mod test {
     use crate::mock::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn receiver_stops_when_client_closed() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_client_closed";
+
+        let mut server = MockServer::new(PIPE_NAME);
+
+        let client1 = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+        let stream1 = client1.receive_events();
+
+        let client2 = client1.clone();
+        let stream2 = client2.receive_events();
+
+        client1.notify(&[]).await.expect("Failed to notify");
+        server.pump().await;
+
+        sleep(Duration::from_millis(50)).await;
+
+        drop(client1);
+
+        client2.notify(&[]).await.expect("Failed to notify");
+        server.pump().await;
+
+        sleep(Duration::from_millis(50)).await;
+
+        drop(client2);
+
+        let events1: Vec<_> = stream1.collect().await;
+        let events2: Vec<_> = stream2.collect().await;
+
+        assert_eq!(events1.len(), 2, "{:?}", events1);
+        assert_eq!(events2.len(), 2, "{:?}", events2);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn receiver_stops_when_server_closed() {
-        const PIPE_NAME: &str = "virtualdisplaydriver-test2";
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_server_closed";
 
         let server = MockServer::new(PIPE_NAME);
 
@@ -316,7 +355,7 @@ mod test {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
     async fn general_test_1() {
-        const PIPE_NAME: &str = "virtualdisplaydriver-test1";
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-general_test_1";
 
         let mut server = MockServer::new(PIPE_NAME);
 
