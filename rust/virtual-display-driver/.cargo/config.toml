@@ -2,17 +2,10 @@
 target = "x86_64-pc-windows-msvc"
 
 rustflags = [
-    "-Z",
-    "pre-link-arg=/NOLOGO",
-    "-Z",
-    "pre-link-arg=/MANIFEST:NO",
-    "-Z",
-    "pre-link-arg=/SUBSYSTEM:WINDOWS",
-    "-Z",
-    "pre-link-arg=/DYNAMICBASE",
-    "-Z",
-    "pre-link-arg=/NXCOMPAT",
-
-    "-C",
-    "link-arg=/OPT:REF,ICF",
+    "-Zpre-link-arg=/NOLOGO",
+    "-Zpre-link-arg=/MANIFEST:NO",
+    "-Zpre-link-arg=/SUBSYSTEM:WINDOWS",
+    "-Zpre-link-arg=/DYNAMICBASE",
+    "-Zpre-link-arg=/NXCOMPAT",
+    "-Clink-arg=/OPT:REF,ICF",
 ]
