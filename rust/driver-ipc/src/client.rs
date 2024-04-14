@@ -297,6 +297,8 @@ mod test {
 
         let stream = client.receive_events();
 
+        sleep(Duration::from_millis(50)).await;
+
         drop(server);
 
         let events: Vec<_> = stream.collect().await;
