@@ -219,8 +219,8 @@ async fn receive_command(
     loop {
         // wait for client to be readable
         tokio::select! {
-            _ = client.readable() => {}
-            _ = notify.notified() => return Ok(())
+            r = client.readable() => r?,
+            _ = notify.notified() => return Ok(()),
         }
 
         match client.try_read(&mut buf) {
