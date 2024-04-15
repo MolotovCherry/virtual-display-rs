@@ -98,6 +98,8 @@ impl Client {
     /// Returns [IpcError::Timeout] if the driver does not respond within 5
     /// seconds.
     pub async fn request_state(&self) -> Result<Vec<Monitor>> {
+        use broadcast::error::RecvError;
+
         let mut rx = self.command_rx.resubscribe();
 
         send_command(&self.client, &RequestCommand::State).await?;
@@ -107,7 +109,8 @@ impl Client {
                 match rx.recv().await {
                     Ok(ClientCommand::Reply(ReplyCommand::State(monitors))) => break Ok(monitors),
                     Ok(_) => continue,
-                    Err(_) => break Err(IpcError::Receive),
+                    Err(RecvError::Lagged(_n)) => continue,
+                    Err(RecvError::Closed) => break Err(IpcError::Receive),
                 }
             }
         };
