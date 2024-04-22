@@ -28,7 +28,7 @@ tokio = { version = "1.37.0", features = [
 ] }
 
 [dependencies.windows]
-version = "0.54.0"
+version = "0.56.0"
 features = [
     "Win32_Foundation",
     "Win32_Security",
