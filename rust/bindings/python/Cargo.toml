@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.21.1"
+pyo3 = "0.21.2"
 driver-ipc = { path = "../../driver-ipc" }
 
 [lints]
