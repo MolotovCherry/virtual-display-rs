@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-windows-service = "0.6.0"
+windows-service = "0.7.0"
 driver-ipc = { path = "../driver-ipc" }
 clap = { version = "4.5.4", features = ["derive"] }
 winreg = "0.52.0"
