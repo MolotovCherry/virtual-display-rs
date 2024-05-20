@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 thiserror = "1.0.61"
-anyhow = "1.0.83"
+anyhow = "1.0.86"
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
 wdf-umdf = { path = "../wdf-umdf" }
 log = "0.4.21"
