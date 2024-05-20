@@ -7,7 +7,7 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-paste = "1.0.14"
+paste = "1.0.15"
 bytemuck = "1.15.0"
 thiserror = "1.0.59"
 

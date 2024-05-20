@@ -8,5 +8,5 @@ workspace = true
 
 [dependencies]
 wdf-umdf-sys = { path = "../wdf-umdf-sys" }
-paste = "1.0.14"
+paste = "1.0.15"
 thiserror = "1.0.59"
