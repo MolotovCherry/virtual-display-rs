@@ -1,189 +1,192 @@
-use std::{
-    convert::Infallible,
-    io,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
+use std::{io, sync::Arc, time::Duration};
 
 use log::error;
 use serde::Serialize;
 use tokio::{
-    net::windows::named_pipe::{ClientOptions, NamedPipeClient, PipeMode},
-    sync::{
-        mpsc::{error::TryRecvError, unbounded_channel, UnboundedReceiver, UnboundedSender},
-        Mutex,
-    },
+    net::windows::named_pipe,
+    sync::{broadcast, Notify, RwLock},
     task,
+    time::timeout,
 };
-use winreg::{
-    enums::{HKEY_CURRENT_USER, KEY_WRITE},
-    RegKey,
-};
+use tokio_stream::{Stream, StreamExt};
 
-use crate::{
-    ClientCommand, DriverCommand, EventCommand, Id, IpcError, Monitor, ReplyCommand,
-    RequestCommand, Result,
-};
+use crate::*;
 
 // EOF byte used to separate messages
-const EOF: u8 = 0x4;
+pub(crate) const EOF: u8 = 0x4;
 
-/// A thin api client over the driver api with all the essential api.
-/// Does the bare minimum required. Does not track state
-#[derive(Debug, Clone)]
-pub struct Client(Arc<Inner>);
+/// Client for interacting with the Virtual Display Driver.
+///
+/// Connects via a named pipe to the driver.
+///
+/// You can send changes to the driver and receive continuous events from it.
+///
+/// It is save to clone this client. The connection is shared between all
+/// copies.
+#[derive(Debug)]
+pub struct Client {
+    shared: Arc<_Shared>,
+    command_rx: broadcast::Receiver<Result<ClientCommand, error::ReceiveError>>,
+}
 
 #[derive(Debug)]
-struct Inner {
-    client: NamedPipeClient,
-    user_is_event: AtomicBool,
-    event_recv: Mutex<UnboundedReceiver<EventCommand>>,
-    client_recv: Mutex<UnboundedReceiver<ReplyCommand>>,
+struct _Shared {
+    client: named_pipe::NamedPipeClient,
+    abort_receiver: Notify,
+    receive_error: RwLock<Option<Arc<io::Error>>>,
 }
 
 impl Client {
-    /// connect to pipe virtualdisplaydriver
-    pub async fn connect() -> Result<Self> {
-        Self::connect_to("virtualdisplaydriver").await
+    /// Connect to driver on pipe with default name.
+    ///
+    /// The default name is [DEFAULT_PIPE_NAME].
+    ///
+    /// This method is async because it requires a running tokio reactor.
+    pub async fn connect() -> Result<Self, error::ConnectionError> {
+        Self::connect_to(DEFAULT_PIPE_NAME).await
     }
 
-    // choose which pipe name you connect to
-    // pipe name is ONLY the name, only the {name} portion of \\.\pipe\{name}
-    pub async fn connect_to(name: &str) -> Result<Self> {
-        let client = ClientOptions::new()
+    /// Connect to driver on pipe with specified name.
+    ///
+    /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
+    ///
+    /// This method is async because it requires a running tokio reactor.
+    pub async fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
+        let client = named_pipe::ClientOptions::new()
             .read(true)
             .write(true)
-            .pipe_mode(PipeMode::Byte)
-            .open(format!(r"\\.\pipe\{name}"))
-            .map_err(IpcError::ConnectionFailed)?;
+            .pipe_mode(named_pipe::PipeMode::Byte)
+            .open(format!(r"\\.\pipe\{name}"))?;
 
-        let client = client;
-        let user_is_event = AtomicBool::new(false);
-        let (event_send, event_recv) = unbounded_channel();
-        let (client_send, client_recv) = unbounded_channel();
+        let abort_receiver = Notify::new();
 
-        let inner = Inner {
+        let shared = Arc::new(_Shared {
             client,
-            user_is_event,
-            event_recv: Mutex::new(event_recv),
-            client_recv: Mutex::new(client_recv),
-        };
-
-        let client = Self(Arc::new(inner));
-
-        let (tx, mut rx) = unbounded_channel();
-
-        // receive command thread
-        let client2 = client.clone();
-        task::spawn(async move {
-            _ = receive_command(&client2, tx).await;
+            abort_receiver,
+            receive_error: RwLock::new(None),
         });
 
-        let client2 = client.clone();
-        task::spawn(async move {
-            let user_is_event = &client2.0.user_is_event;
+        let (command_tx, command_rx) =
+            broadcast::channel::<Result<ClientCommand, error::ReceiveError>>(10);
 
-            loop {
-                let Some(data) = rx.recv().await else {
-                    // sender closed
-                    break;
-                };
-
-                let user_is_event = user_is_event.load(Ordering::Acquire);
-                let data_is_event = matches!(data, ClientCommand::Event(_));
-
-                if user_is_event && data_is_event {
-                    let ClientCommand::Event(e) = data else {
-                        unreachable!()
-                    };
-
-                    if user_is_event {
-                        _ = event_send.send(e);
-                    }
-                } else if let ClientCommand::Reply(r) = data {
-                    _ = client_send.send(r);
+        {
+            let shared = shared.clone();
+            task::spawn(async move {
+                let r = receive_command(&shared.client, &command_tx, &shared.abort_receiver).await;
+                if let Err(e) = r {
+                    let error = Arc::new(e);
+                    shared.receive_error.write().await.replace(error.clone());
+                    let _ = command_tx.send(Err(error::ReceiveError(error.clone())));
                 }
-            }
-        });
+            });
+        }
 
-        Ok(client)
+        Ok(Self { shared, command_rx })
     }
 
-    /// Notifies driver of changes (additions/updates/removals)
-    pub async fn notify(&self, monitors: &[Monitor]) -> Result<()> {
+    /// Send new state to the driver.
+    pub async fn notify(&self, monitors: &[Monitor]) -> Result<(), error::SendError> {
         let command = DriverCommand::Notify(monitors.to_owned());
 
-        send_command(&self.0.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
-    /// Remove specific monitors by id
-    pub async fn remove(&self, ids: &[Id]) -> Result<()> {
+    /// Remove all monitors with the specified IDs.
+    pub async fn remove(&self, ids: &[Id]) -> Result<(), error::SendError> {
         let command = DriverCommand::Remove(ids.to_owned());
 
-        send_command(&self.0.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
-    /// Remove all monitors
-    pub async fn remove_all(&self) -> Result<()> {
+    /// Remove all monitors.
+    pub async fn remove_all(&self) -> Result<(), error::SendError> {
         let command = DriverCommand::RemoveAll;
 
-        send_command(&self.0.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
-    /// Receive generic reply
+    /// Request the current state of the driver.
     ///
-    /// If `last` is false, will only receive new messages from the point of calling
-    /// If `last` is true, will receive the the last message received, or if none, blocks until the next one
-    ///
-    /// The reason for the `last` flag is that replies are auto buffered in the background, so if you send a
-    /// request, the reply may be missed
-    pub async fn receive_reply(&self, last: bool) -> Option<ReplyCommand> {
-        let mut recv = self.0.client_recv.lock().await;
+    /// Returns [IpcError::Timeout] if the driver does not respond within 5
+    /// seconds.
+    pub async fn request_state(&self) -> Result<Vec<Monitor>, error::RequestError> {
+        use broadcast::error::RecvError;
 
-        if last {
-            last_recv(&mut recv).await
-        } else {
-            latest_recv(&mut recv).await
+        let mut rx = self.command_rx.resubscribe();
+
+        send_command(&self.shared.client, &RequestCommand::State).await?;
+
+        let fut = async {
+            loop {
+                match rx.recv().await {
+                    Ok(Ok(ClientCommand::Reply(ReplyCommand::State(monitors)))) => {
+                        break Ok(monitors)
+                    }
+                    Ok(Err(e)) => break Err(error::RequestError::Receive(e.0.clone())),
+                    Ok(_) => continue,
+                    Err(RecvError::Lagged(_n)) => continue,
+                    Err(RecvError::Closed) => match self.shared.receive_error.read().await.as_ref()
+                    {
+                        Some(e) => break Err(error::RequestError::Receive(e.clone())),
+                        None => {
+                            break Err(error::RequestError::Receive(Arc::new(io::Error::new(
+                                io::ErrorKind::BrokenPipe,
+                                "Pipe closed",
+                            ))))
+                        }
+                    },
+                }
+            }
+        };
+
+        match timeout(Duration::from_secs(5), fut).await {
+            Ok(result) => result,
+            Err(_) => Err(error::RequestError::Timeout(Duration::from_secs(5))),
         }
     }
 
-    /// Receive an event. Only new events after calling this are received
-    pub async fn receive_event(&self) -> EventCommand {
-        self.0.user_is_event.store(true, Ordering::Release);
+    /// Receive continuous events from the driver.
+    ///
+    /// Only new events after calling this method are received.
+    ///
+    /// May be called multiple times.
+    ///
+    /// Note: If multiple copies of this client exist, the receiver will only be
+    /// closed after all copies are dropped.
+    pub fn receive_events(&self) -> impl Stream<Item = Result<EventCommand, error::ReceiveError>> {
+        use tokio_stream::wrappers::*;
 
-        let mut recv = self.0.event_recv.lock().await;
-        let event = latest_recv(&mut recv).await;
+        let stream = BroadcastStream::new(self.command_rx.resubscribe());
 
-        self.0.user_is_event.store(false, Ordering::Release);
-
-        event.unwrap()
+        stream.filter_map(|cmd| match cmd {
+            Ok(Ok(ClientCommand::Event(event))) => Some(Ok(event)),
+            Ok(Err(e)) => Some(Err(e)),
+            Err(errors::BroadcastStreamRecvError::Lagged(_n)) => None, // TODO: Indicate lagged? (Maybe changing Item to Result<EventCommand, ...> is better?)
+            _ => None,
+        })
     }
 
-    /// Request state update
-    /// use `receive()` to get the reply
-    pub async fn request_state(&self) -> Result<()> {
-        let command = RequestCommand::State;
+    /// Write `monitors` to the registry for current user.
+    ///
+    /// Next time the driver is started, it will load this state from the
+    /// registry. This might be after a reboot or a driver restart.
+    pub fn persist(monitors: &[Monitor]) -> Result<(), error::PersistError> {
+        use winreg::*;
 
-        send_command(&self.0.client, &command).await
-    }
-
-    /// Persist changes to registry for current user
-    pub fn persist(monitors: &[Monitor]) -> Result<()> {
-        let hklm = RegKey::predef(HKEY_CURRENT_USER);
+        let hklm = RegKey::predef(enums::HKEY_CURRENT_USER);
         let key = r"SOFTWARE\VirtualDisplayDriver";
 
-        let mut reg_key = hklm.open_subkey_with_flags(key, KEY_WRITE);
+        let mut reg_key = hklm.open_subkey_with_flags(key, enums::KEY_WRITE);
 
         // if open failed, try to create key and subkey
-        if let Err(e) = reg_key {
-            error!("Failed opening {key}: {e:?}");
+        if reg_key.is_err() {
             reg_key = hklm.create_subkey(key).map(|(key, _)| key);
 
             if let Err(e) = reg_key {
-                error!("Failed creating {key}: {e:?}");
-                return Err(e)?;
+                return Err(error::PersistError::Open(e));
             }
         }
 
@@ -191,13 +194,35 @@ impl Client {
 
         let data = serde_json::to_string(monitors)?;
 
-        reg_key.set_value("data", &data)?;
+        reg_key
+            .set_value("data", &data)
+            .map_err(error::PersistError::Set)?;
 
         Ok(())
     }
 }
 
-async fn send_command(client: &NamedPipeClient, command: &impl Serialize) -> Result<()> {
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Self {
+            shared: self.shared.clone(),
+            command_rx: self.command_rx.resubscribe(),
+        }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.shared) == 2 {
+            self.shared.abort_receiver.notify_waiters();
+        }
+    }
+}
+
+async fn send_command(
+    client: &named_pipe::NamedPipeClient,
+    command: &impl Serialize,
+) -> Result<(), error::SendCommandError> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
     let mut message = serde_json::to_vec(command)?;
@@ -241,30 +266,25 @@ async fn send_command(client: &NamedPipeClient, command: &impl Serialize) -> Res
 
 // receive all commands and send them back to the receiver
 async fn receive_command(
-    client: &Client,
-    tx: UnboundedSender<ClientCommand>,
-) -> Result<Infallible> {
+    client: &named_pipe::NamedPipeClient,
+    tx: &broadcast::Sender<Result<ClientCommand, error::ReceiveError>>,
+    abort: &Notify,
+) -> Result<(), io::Error> {
     let mut buf = vec![0; 4096];
     let mut recv_buf = Vec::with_capacity(4096);
 
-    let client = &client.0.client;
-
     loop {
         // wait for client to be readable
-        client.readable().await?;
+        tokio::select! {
+            r = client.readable() => r?,
+            _ = abort.notified() => return Ok(()),
+        }
 
         match client.try_read(&mut buf) {
-            Ok(0) => return Err(IpcError::Io(io::Error::last_os_error())),
-
+            Ok(0) => return Err(io::Error::last_os_error()),
             Ok(n) => recv_buf.extend(&buf[..n]),
-
-            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                continue;
-            }
-
-            Err(e) => {
-                return Err(e.into());
-            }
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,
+            Err(e) => return Err(e),
         }
 
         let eof_iter =
@@ -278,55 +298,300 @@ async fn receive_command(
                 },
             );
 
-        let mut bidx = 0;
+        let mut offset = 0;
         for pos in eof_iter {
-            let data = &recv_buf[bidx..pos];
-            bidx = pos + 1;
+            let data = &recv_buf[offset..pos];
+            offset = pos + 1;
 
             let Ok(command) = serde_json::from_slice::<ClientCommand>(data) else {
                 continue;
             };
 
-            if tx.send(command).is_err() {
-                return Err(IpcError::SendFailed);
+            if tx.send(Ok(command)).is_err() {
+                // Client closed, abort
+                return Ok(());
             }
         }
 
         // drain all processed messages
-        recv_buf.drain(..bidx);
+        recv_buf.drain(..offset);
     }
 }
 
-/// Drains the channel and returns last message in the queue. If channel was empty, blocks for the next message
-async fn last_recv<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
-    let mut buf = None;
+pub mod error {
+    use super::*;
+    use thiserror::Error;
 
-    loop {
-        match receiver.try_recv() {
-            Ok(t) => buf = Some(t),
+    /// Error returned from [Client::connect] and [Client::connect_to].
+    #[derive(Debug, Error)]
+    pub enum ConnectionError {
+        #[error("Failed to open pipe: {0}")]
+        Failed(#[from] io::Error),
+    }
 
-            Err(TryRecvError::Empty) => {
-                break if buf.is_none() {
-                    receiver.recv().await
-                } else {
-                    buf
-                };
+    /// Error returned from [send_command]
+    #[derive(Debug, Error)]
+    pub(super) enum SendCommandError {
+        #[error("Failed to encode message: {0}")]
+        Encode(#[from] serde_json::Error),
+        #[error("Failed to send message: {0}")]
+        PipeBroken(#[from] io::Error),
+    }
+
+    /// Error returned from [Client::notify], [Client::remove] and
+    /// [Client::remove_all].
+    #[derive(Debug, Error)]
+    pub enum SendError {
+        #[error("Failed to send message: {0}")]
+        PipeBroken(#[from] io::Error),
+    }
+
+    /// Error returned from [Client::request_state].
+    #[derive(Debug, Error)]
+    pub enum RequestError {
+        #[error("Failed to send message (pipe broken): {0}")]
+        Send(io::Error),
+        #[error("Failed to receive message (pipe broken): {0}")]
+        Receive(Arc<io::Error>),
+        #[error("Did not get a response in time ({0:?})")]
+        Timeout(Duration),
+    }
+
+    /// Error returned from [Client::receive_events].
+    #[derive(Debug, Error, Clone)]
+    #[error("Failed to receive event: {0}")]
+    pub struct ReceiveError(#[from] pub Arc<io::Error>);
+
+    /// Error returned from [Client::persist].
+    #[derive(Debug, Error)]
+    pub enum PersistError {
+        #[error("Failed to open registry key: {0}")]
+        Open(io::Error),
+        #[error("Failed to set registry value: {0}")]
+        Set(io::Error),
+        #[error("Failed to serialize monitors: {0}")]
+        Serialize(#[from] serde_json::Error),
+    }
+
+    impl From<SendCommandError> for SendError {
+        fn from(e: SendCommandError) -> Self {
+            match e {
+                SendCommandError::PipeBroken(e) => Self::PipeBroken(e),
+                SendCommandError::Encode(e) => unreachable!("{:?}", e),
             }
+        }
+    }
 
-            Err(TryRecvError::Disconnected) => break None,
+    impl From<SendCommandError> for RequestError {
+        fn from(e: SendCommandError) -> Self {
+            match e {
+                SendCommandError::PipeBroken(e) => Self::Send(e),
+                SendCommandError::Encode(e) => unreachable!("{:?}", e),
+            }
         }
     }
 }
 
-/// Drains the channel and blocks for the next message
-async fn latest_recv<T>(receiver: &mut UnboundedReceiver<T>) -> Option<T> {
-    loop {
-        match receiver.try_recv() {
-            Ok(_) => (),
+#[cfg(test)]
+mod test {
+    use tokio::time::sleep;
 
-            Err(TryRecvError::Empty) => break receiver.recv().await,
+    use super::*;
+    use crate::mock::*;
 
-            Err(TryRecvError::Disconnected) => break None,
-        }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn receiver_stops_when_client_closed() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_client_closed";
+
+        let mut server = MockServer::new(PIPE_NAME);
+
+        let client1 = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
+        let stream1 = client1.receive_events();
+
+        let client2 = client1.clone();
+        let stream2 = client2.receive_events();
+
+        client1.notify(&[]).await.expect("Failed to notify");
+        server.pump().await;
+
+        sleep(Duration::from_millis(50)).await;
+
+        drop(client1);
+
+        client2.notify(&[]).await.expect("Failed to notify");
+        server.pump().await;
+
+        sleep(Duration::from_millis(50)).await;
+
+        drop(client2);
+
+        let events1: Vec<_> = stream1.collect().await;
+        let events2: Vec<_> = stream2.collect().await;
+
+        assert_eq!(events1.len(), 2, "{:?}", events1);
+        assert_eq!(events2.len(), 2, "{:?}", events2);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn receiver_stops_when_server_closed() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_server_closed";
+
+        let server = MockServer::new(PIPE_NAME);
+
+        let client = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
+
+        let stream = client.receive_events();
+
+        sleep(Duration::from_millis(50)).await;
+
+        drop(server);
+
+        let events: Vec<_> = stream.collect().await;
+
+        println!("{:?}", events);
+
+        assert!(
+            matches!(events[..], [Err(error::ReceiveError(ref e))] if e.kind() == io::ErrorKind::BrokenPipe)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn general_test_1() {
+        const PIPE_NAME: &str = "virtualdisplaydriver-test-general_test_1";
+
+        let mut server = MockServer::new(PIPE_NAME);
+
+        let client = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
+
+        // Get receiver stream
+
+        let stream = client.receive_events();
+
+        // Check request_state
+
+        server.check_next(|cmd| {
+            assert!(matches!(cmd, ServerCommand::Request(RequestCommand::State)));
+        });
+
+        let (state, _) = tokio::join!(client.request_state(), server.pump());
+
+        let state = state.expect("Failed to request state");
+        assert!(state.is_empty());
+
+        // Check notify
+
+        let mons1 = [Monitor {
+            id: 0,
+            enabled: true,
+            name: Some("test".to_string()),
+            modes: vec![Mode {
+                width: 1920,
+                height: 1080,
+                refresh_rates: vec![60],
+            }],
+        }];
+
+        let fut = client.notify(&mons1);
+
+        tokio::join!(fut, server.pump())
+            .0
+            .expect("Failed to notify");
+
+        assert_eq!(server.state(), &mons1);
+
+        // Check request_state
+
+        let (state, _) = tokio::join!(client.request_state(), server.pump());
+
+        let state = state.expect("Failed to request state");
+        assert_eq!(&state, &mons1);
+
+        // Check notify multiple
+
+        let mons2 = [
+            Monitor {
+                id: 0,
+                enabled: false,
+                name: Some("test1".to_string()),
+                modes: vec![Mode {
+                    width: 100,
+                    height: 200,
+                    refresh_rates: vec![80, 90],
+                }],
+            },
+            Monitor {
+                id: 1,
+                enabled: true,
+                name: Some("test2".to_string()),
+                modes: vec![Mode {
+                    width: 300,
+                    height: 400,
+                    refresh_rates: vec![50],
+                }],
+            },
+        ];
+
+        tokio::join!(client.notify(&mons2), server.pump())
+            .0
+            .expect("Failed to notify");
+
+        assert_eq!(server.state(), &mons2);
+
+        // Give some time for the server to send the last event
+        sleep(Duration::from_millis(50)).await;
+
+        let stream2 = client.receive_events();
+
+        // Check remove
+
+        tokio::join!(client.remove(&[0]), server.pump())
+            .0
+            .expect("Failed to remove");
+
+        assert_eq!(server.state().len(), 1);
+        assert_eq!(server.state()[0].id, 1);
+
+        // Check remove all
+
+        tokio::join!(client.remove_all(), server.pump())
+            .0
+            .expect("Failed to remove all");
+
+        assert!(server.state().is_empty());
+
+        // Check streams
+
+        // Give some time for the server to send the last event
+        sleep(Duration::from_millis(50)).await;
+
+        drop(client);
+
+        let events: Vec<_> = stream.collect().await;
+
+        assert!(matches!(events[..], [
+                Ok(EventCommand::Changed(ref e1)),
+                Ok(EventCommand::Changed(ref e2)),
+                Ok(EventCommand::Changed(ref e3)),
+                Ok(EventCommand::Changed(ref e4)),
+            ] if *e1 == mons1
+                && *e2 == mons2
+                && *e3 == mons2[1..]
+                && e4.is_empty()
+        ));
+
+        let events: Vec<_> = stream2.collect().await;
+
+        assert!(matches!(events[..], [
+                Ok(EventCommand::Changed(ref e1)),
+                Ok(EventCommand::Changed(ref e2)),
+            ] if  *e1 == mons2[1..]
+                && e2.is_empty()
+        ));
     }
 }
