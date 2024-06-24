@@ -179,7 +179,7 @@ impl Client {
         let mut reg_key = hklm.open_subkey_with_flags(key, enums::KEY_WRITE);
 
         // if open failed, try to create key and subkey
-        if let Err(_) = reg_key {
+        if reg_key.is_err() {
             reg_key = hklm.create_subkey(key).map(|(key, _)| key);
 
             if let Err(e) = reg_key {

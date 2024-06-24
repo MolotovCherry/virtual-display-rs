@@ -350,7 +350,7 @@ impl DriverClient {
     /// manually call [DriverClient::refresh_state].
     pub fn add(&mut self, monitor: Monitor) -> Result<(), error::DuplicateError> {
         if self.state.iter().any(|mon| mon.id == monitor.id) {
-            return Err(error::DuplicateError::DupMonitor(monitor.id));
+            return Err(error::DuplicateError::Monitor(monitor.id));
         }
         mon_has_duplicates(&monitor)?;
 
@@ -423,7 +423,7 @@ impl DriverClient {
 
         match mode_has_duplicates(&mode, id) {
             Ok(_) => Ok(()),
-            Err(error::DuplicateError::DupRefreshRate(rr, w, h, id)) => {
+            Err(error::DuplicateError::RefreshRate(rr, w, h, id)) => {
                 Err(error::AddModeError::DupRefreshRate(rr, w, h, id))
             }
             Err(_) => unreachable!(),
@@ -562,7 +562,7 @@ fn mons_have_duplicates(monitors: &[Monitor]) -> Result<(), error::DuplicateErro
     while let Some(monitor) = monitor_iter.next() {
         let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
         if duplicate_id {
-            return Err(error::DuplicateError::DupMonitor(monitor.id));
+            return Err(error::DuplicateError::Monitor(monitor.id));
         }
 
         mon_has_duplicates(monitor)?;
@@ -578,7 +578,7 @@ fn mon_has_duplicates(monitor: &Monitor) -> Result<(), error::DuplicateError> {
             .clone()
             .any(|m| mode.height == m.height && mode.width == m.width);
         if duplicate_mode {
-            return Err(error::DuplicateError::DupMode(
+            return Err(error::DuplicateError::Mode(
                 mode.width,
                 mode.height,
                 monitor.id,
@@ -596,7 +596,7 @@ fn mode_has_duplicates(mode: &Mode, id: Id) -> Result<(), error::DuplicateError>
     while let Some(rr) = refresh_iter.next() {
         let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
         if duplicate_rr {
-            return Err(error::DuplicateError::DupRefreshRate(
+            return Err(error::DuplicateError::RefreshRate(
                 rr,
                 mode.width,
                 mode.height,
@@ -616,11 +616,11 @@ pub mod error {
     #[derive(Debug, Error)]
     pub enum DuplicateError {
         #[error("Duplicate monitor with ID {0}")]
-        DupMonitor(Id),
+        Monitor(Id),
         #[error("Duplicate mode {1}x{2} on monitor {0}")]
-        DupMode(u32, u32, Id),
+        Mode(u32, u32, Id),
         #[error("Duplicate refresh rate {0} on mode {1}x{2} on monitor {3}")]
-        DupRefreshRate(u32, u32, u32, Id),
+        RefreshRate(u32, u32, u32, Id),
     }
 
     #[derive(Debug, Error)]
@@ -631,6 +631,7 @@ pub mod error {
     #[error("Monitor not found: {0}")]
     pub struct MonNotFound(pub Id);
 
+    /// Error returned from [DriverClient::add_mode].
     #[derive(Debug, Error)]
     pub enum AddModeError {
         #[error("Monitor not found: {0}")]
@@ -641,6 +642,7 @@ pub mod error {
         DupRefreshRate(u32, u32, u32, Id),
     }
 
+    /// Error returned from [DriverClient::add_mode_query].
     #[derive(Debug, Error)]
     pub enum AddModeQueryError {
         #[error("Query not found: {0}")]
@@ -651,6 +653,7 @@ pub mod error {
         DupRefreshRate(u32, u32, u32, Id),
     }
 
+    /// Error returned from [DriverClient::new] and [DriverClient::new_with].
     #[derive(Debug, Error)]
     pub enum InitError {
         #[error("Failed to connect to driver: {0}")]
