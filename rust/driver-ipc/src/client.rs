@@ -11,7 +11,6 @@ use tokio::{
 use tokio_stream::{Stream, StreamExt};
 
 use crate::*;
-use std::result::Result;
 
 // EOF byte used to separate messages
 pub(crate) const EOF: u8 = 0x4;

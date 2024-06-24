@@ -4,7 +4,6 @@ use tokio::{sync::watch, task};
 use tokio_stream::{Stream, StreamExt};
 
 use crate::*;
-use std::result::Result;
 
 /// Abstraction layer over [Client].
 ///
