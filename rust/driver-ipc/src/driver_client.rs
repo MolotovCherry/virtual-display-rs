@@ -32,7 +32,7 @@ impl DriverClient {
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
     pub async fn new_with(name: &str) -> Result<Self, error::InitError> {
-        let client = Client::connect_to(name)?;
+        let client = Client::connect_to(name).await?;
 
         let current_state = client.request_state().await?;
 

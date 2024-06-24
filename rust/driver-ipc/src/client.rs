@@ -40,14 +40,18 @@ impl Client {
     /// Connect to driver on pipe with default name.
     ///
     /// The default name is [DEFAULT_PIPE_NAME].
-    pub fn connect() -> Result<Self, error::ConnectionError> {
-        Self::connect_to(DEFAULT_PIPE_NAME)
+    ///
+    /// This method is async because it requires a running tokio reactor.
+    pub async fn connect() -> Result<Self, error::ConnectionError> {
+        Self::connect_to(DEFAULT_PIPE_NAME).await
     }
 
     /// Connect to driver on pipe with specified name.
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
-    pub fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
+    ///
+    /// This method is async because it requires a running tokio reactor.
+    pub async fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
         let client = named_pipe::ClientOptions::new()
             .read(true)
             .write(true)
@@ -401,7 +405,9 @@ mod test {
 
         let mut server = MockServer::new(PIPE_NAME);
 
-        let client1 = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+        let client1 = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
         let stream1 = client1.receive_events();
 
         let client2 = client1.clone();
@@ -434,7 +440,9 @@ mod test {
 
         let server = MockServer::new(PIPE_NAME);
 
-        let client = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+        let client = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
 
         let stream = client.receive_events();
 
@@ -457,7 +465,9 @@ mod test {
 
         let mut server = MockServer::new(PIPE_NAME);
 
-        let client = Client::connect_to(PIPE_NAME).expect("Failed to connect to pipe");
+        let client = Client::connect_to(PIPE_NAME)
+            .await
+            .expect("Failed to connect to pipe");
 
         // Get receiver stream
 

@@ -25,7 +25,7 @@ impl Client {
     ///
     /// The default name is [crate::DEFAULT_PIPE_NAME].
     pub fn connect() -> Result<Self, error::ConnectionError> {
-        let client = RUNTIME.block_on(async { AsyncClient::connect() })?;
+        let client = RUNTIME.block_on(AsyncClient::connect())?;
         Ok(Self(client))
     }
 
@@ -33,7 +33,7 @@ impl Client {
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
     pub fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
-        let client = RUNTIME.block_on(async { AsyncClient::connect_to(name) })?;
+        let client = RUNTIME.block_on(AsyncClient::connect_to(name))?;
         Ok(Self(client))
     }
 
