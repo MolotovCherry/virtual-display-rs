@@ -4,7 +4,7 @@ use log::error;
 use serde::Serialize;
 use tokio::{
     net::windows::named_pipe,
-    sync::{broadcast, Notify},
+    sync::{broadcast, Notify, RwLock},
     task,
     time::timeout,
 };
@@ -27,13 +27,14 @@ pub(crate) const EOF: u8 = 0x4;
 #[derive(Debug)]
 pub struct Client {
     shared: Arc<_Shared>,
-    command_rx: broadcast::Receiver<ClientCommand>,
+    command_rx: broadcast::Receiver<Result<ClientCommand, error::ReceiveError>>,
 }
 
 #[derive(Debug)]
 struct _Shared {
     client: named_pipe::NamedPipeClient,
     abort_receiver: Notify,
+    receive_error: RwLock<Option<Arc<io::Error>>>,
 }
 
 impl Client {
@@ -59,16 +60,20 @@ impl Client {
         let shared = Arc::new(_Shared {
             client,
             abort_receiver,
+            receive_error: RwLock::new(None),
         });
 
-        let (command_tx, command_rx) = broadcast::channel::<ClientCommand>(10);
+        let (command_tx, command_rx) =
+            broadcast::channel::<Result<ClientCommand, error::ReceiveError>>(10);
 
         {
             let shared = shared.clone();
             task::spawn(async move {
-                let r = receive_command(&shared.client, command_tx, &shared.abort_receiver).await;
+                let r = receive_command(&shared.client, &command_tx, &shared.abort_receiver).await;
                 if let Err(e) = r {
-                    println!("TODO: Handle error: {:?}", e);
+                    let error = Arc::new(e);
+                    shared.receive_error.write().await.replace(error.clone());
+                    let _ = command_tx.send(Err(error::ReceiveError(error.clone())));
                 }
             });
         }
@@ -114,14 +119,22 @@ impl Client {
         let fut = async {
             loop {
                 match rx.recv().await {
-                    Ok(ClientCommand::Reply(ReplyCommand::State(monitors))) => break Ok(monitors),
+                    Ok(Ok(ClientCommand::Reply(ReplyCommand::State(monitors)))) => {
+                        break Ok(monitors)
+                    }
+                    Ok(Err(e)) => break Err(error::RequestError::Receive(e.0.clone())),
                     Ok(_) => continue,
                     Err(RecvError::Lagged(_n)) => continue,
-                    Err(RecvError::Closed) => {
-                        break Err(error::RequestError::Receive(todo!(
-                            "Get error from 'receive_command()'"
-                        )))
-                    }
+                    Err(RecvError::Closed) => match self.shared.receive_error.read().await.as_ref()
+                    {
+                        Some(e) => break Err(error::RequestError::Receive(e.clone())),
+                        None => {
+                            break Err(error::RequestError::Receive(Arc::new(io::Error::new(
+                                io::ErrorKind::BrokenPipe,
+                                "Pipe closed",
+                            ))))
+                        }
+                    },
                 }
             }
         };
@@ -140,13 +153,14 @@ impl Client {
     ///
     /// Note: If multiple copies of this client exist, the receiver will only be
     /// closed after all copies are dropped.
-    pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
+    pub fn receive_events(&self) -> impl Stream<Item = Result<EventCommand, error::ReceiveError>> {
         use tokio_stream::wrappers::*;
 
         let stream = BroadcastStream::new(self.command_rx.resubscribe());
 
         stream.filter_map(|cmd| match cmd {
-            Ok(ClientCommand::Event(event)) => Some(event),
+            Ok(Ok(ClientCommand::Event(event))) => Some(Ok(event)),
+            Ok(Err(e)) => Some(Err(e)),
             Err(errors::BroadcastStreamRecvError::Lagged(_n)) => None, // TODO: Indicate lagged? (Maybe changing Item to Result<EventCommand, ...> is better?)
             _ => None,
         })
@@ -250,7 +264,7 @@ async fn send_command(
 // receive all commands and send them back to the receiver
 async fn receive_command(
     client: &named_pipe::NamedPipeClient,
-    tx: broadcast::Sender<ClientCommand>,
+    tx: &broadcast::Sender<Result<ClientCommand, error::ReceiveError>>,
     abort: &Notify,
 ) -> Result<(), io::Error> {
     let mut buf = vec![0; 4096];
@@ -267,7 +281,7 @@ async fn receive_command(
             Ok(0) => return Err(io::Error::last_os_error()),
             Ok(n) => recv_buf.extend(&buf[..n]),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         }
 
         let eof_iter =
@@ -290,7 +304,7 @@ async fn receive_command(
                 continue;
             };
 
-            if tx.send(command).is_err() {
+            if tx.send(Ok(command)).is_err() {
                 // Client closed, abort
                 return Ok(());
             }
@@ -335,12 +349,15 @@ pub mod error {
         #[error("Failed to send message (pipe broken): {0}")]
         Send(io::Error),
         #[error("Failed to receive message (pipe broken): {0}")]
-        Receive(io::Error),
+        Receive(Arc<io::Error>),
         #[error("Did not get a response in time ({0:?})")]
         Timeout(Duration),
     }
 
-    // TODO: Client::receive_events()
+    /// Error returned from [Client::receive_events].
+    #[derive(Debug, Error, Clone)]
+    #[error("Failed to receive event: {0}")]
+    pub struct ReceiveError(#[from] pub Arc<io::Error>);
 
     /// Error returned from [Client::persist].
     #[derive(Debug, Error)]
@@ -428,7 +445,11 @@ mod test {
 
         let events: Vec<_> = stream.collect().await;
 
-        assert!(events.is_empty());
+        println!("{:?}", events);
+
+        assert!(
+            matches!(events[..], [Err(error::ReceiveError(ref e))] if e.kind() == io::ErrorKind::BrokenPipe)
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -545,10 +566,10 @@ mod test {
         let events: Vec<_> = stream.collect().await;
 
         assert!(matches!(events[..], [
-                EventCommand::Changed(ref e1),
-                EventCommand::Changed(ref e2),
-                EventCommand::Changed(ref e3),
-                EventCommand::Changed(ref e4),
+                Ok(EventCommand::Changed(ref e1)),
+                Ok(EventCommand::Changed(ref e2)),
+                Ok(EventCommand::Changed(ref e3)),
+                Ok(EventCommand::Changed(ref e4)),
             ] if *e1 == mons1
                 && *e2 == mons2
                 && *e3 == mons2[1..]
@@ -558,8 +579,8 @@ mod test {
         let events: Vec<_> = stream2.collect().await;
 
         assert!(matches!(events[..], [
-                EventCommand::Changed(ref e1),
-                EventCommand::Changed(ref e2),
+                Ok(EventCommand::Changed(ref e1)),
+                Ok(EventCommand::Changed(ref e2)),
             ] if  *e1 == mons2[1..]
                 && e2.is_empty()
         ));

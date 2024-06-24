@@ -79,7 +79,10 @@ impl DriverClient {
     /// after all copies are dropped.
     pub fn add_event_receiver(
         &self,
-        cb: impl FnMut(EventCommand) + Send + std::panic::UnwindSafe + 'static,
+        cb: impl FnMut(Result<EventCommand, error::ReceiveError>)
+            + Send
+            + std::panic::UnwindSafe
+            + 'static,
     ) -> EventsSubscription {
         let stream = self.0.receive_events();
         EventsSubscription::start_subscriber(cb, stream)

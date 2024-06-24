@@ -43,12 +43,10 @@ impl DriverClient {
 
         task::spawn(async move {
             while let Some(event) = stream.next().await {
-                match event {
-                    EventCommand::Changed(value) => {
-                        if state_tx.send(value).is_err() {
-                            // Client was dropped, stop listening
-                            break;
-                        }
+                if let Ok(EventCommand::Changed(value)) = event {
+                    if state_tx.send(value).is_err() {
+                        // Client was dropped, stop listening
+                        break;
                     }
                 }
             }
@@ -118,7 +116,7 @@ impl DriverClient {
     /// Note: If multiple copies of this client exist (using
     /// [DriverClient::duplicate]), the returned stream will only be closed
     /// after all copies are dropped.
-    pub fn receive_events(&self) -> impl Stream<Item = EventCommand> {
+    pub fn receive_events(&self) -> impl Stream<Item = Result<EventCommand, error::ReceiveError>> {
         self.client.receive_events()
     }
 

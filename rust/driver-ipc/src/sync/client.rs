@@ -55,7 +55,7 @@ impl Client {
     /// Block and receive the next driver event.
     ///
     /// Only new events after calling this method will be received.
-    pub fn receive_event(&mut self) -> EventCommand {
+    pub fn receive_event(&mut self) -> Result<EventCommand, error::ReceiveError> {
         RUNTIME.block_on(async {
             self.0
                 .receive_events()
@@ -78,7 +78,7 @@ impl Client {
     /// closed after all copies are dropped.
     pub fn add_event_receiver(
         &self,
-        cb: impl FnMut(EventCommand) + Send + panic::UnwindSafe + 'static,
+        cb: impl FnMut(Result<EventCommand, error::ReceiveError>) + Send + panic::UnwindSafe + 'static,
     ) -> EventsSubscription {
         let stream = self.0.receive_events();
         EventsSubscription::start_subscriber(cb, stream)
@@ -108,8 +108,14 @@ pub struct EventsSubscription {
 
 impl EventsSubscription {
     pub(crate) fn start_subscriber(
-        mut cb: impl FnMut(EventCommand) + Send + panic::UnwindSafe + 'static,
-        mut stream: impl tokio_stream::Stream<Item = EventCommand> + Unpin + Send + 'static,
+        mut cb: impl FnMut(Result<EventCommand, error::ReceiveError>)
+            + Send
+            + panic::UnwindSafe
+            + 'static,
+        mut stream: impl tokio_stream::Stream<Item = Result<EventCommand, error::ReceiveError>>
+            + Unpin
+            + Send
+            + 'static,
     ) -> Self {
         let (abort_tx, mut abort_rx) = mpsc::channel(1);
         let (result_tx, result_rx) = oneshot::channel();
@@ -124,8 +130,9 @@ impl EventsSubscription {
                 }
             } {
                 let mut cb = panic::AssertUnwindSafe(&mut cb);
+                let event = panic::AssertUnwindSafe(event);
                 let res = panic::catch_unwind(move || {
-                    cb(event);
+                    cb(event.clone());
                 });
                 if let Err(e) = res {
                     if let Err(e) = result_tx.send(e) {
@@ -326,7 +333,7 @@ mod test {
 
         assert!(matches!(
             events.lock().unwrap().as_slice(),
-            [EventCommand::Changed(mons)] if mons.is_empty()
+            [Ok(EventCommand::Changed(mons))] if mons.is_empty()
         ))
     }
 
@@ -346,7 +353,7 @@ mod test {
             let shared_flag = shared_flag.clone();
             move |event| {
                 assert!(
-                    matches!(event, EventCommand::Changed(mons) if mons.is_empty()),
+                    matches!(event, Ok(EventCommand::Changed(mons)) if mons.is_empty()),
                     "Wrong event received"
                 );
                 assert!(
