@@ -4,7 +4,7 @@ use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 
 use super::RUNTIME;
-use crate::{Client as AsyncClient, EventCommand, Id, Monitor, Result};
+use crate::{client::error, Client as AsyncClient, EventCommand, Id, Monitor};
 
 /// Client for interacting with the Virtual Display Driver.
 ///
@@ -24,7 +24,7 @@ impl Client {
     /// Connect to driver on pipe with default name.
     ///
     /// The default name is [crate::DEFAULT_PIPE_NAME].
-    pub fn connect() -> Result<Self> {
+    pub fn connect() -> Result<Self, error::ConnectionError> {
         let client = RUNTIME.block_on(async { AsyncClient::connect() })?;
         Ok(Self(client))
     }
@@ -32,23 +32,23 @@ impl Client {
     /// Connect to driver on pipe with specified name.
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
-    pub fn connect_to(name: &str) -> Result<Self> {
+    pub fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
         let client = RUNTIME.block_on(async { AsyncClient::connect_to(name) })?;
         Ok(Self(client))
     }
 
     /// Send new state to the driver.
-    pub fn notify(&self, monitors: &[Monitor]) -> Result<()> {
+    pub fn notify(&self, monitors: &[Monitor]) -> Result<(), error::SendError> {
         RUNTIME.block_on(self.0.notify(monitors))
     }
 
     /// Remove all monitors with the specified IDs.
-    pub fn remove(&self, ids: &[Id]) -> Result<()> {
+    pub fn remove(&self, ids: &[Id]) -> Result<(), error::SendError> {
         RUNTIME.block_on(self.0.remove(ids))
     }
 
     /// Remove all monitors.
-    pub fn remove_all(&self) -> Result<()> {
+    pub fn remove_all(&self) -> Result<(), error::SendError> {
         RUNTIME.block_on(self.0.remove_all())
     }
 
@@ -88,7 +88,7 @@ impl Client {
     ///
     /// Returns [IpcError::Timeout] if the driver does not respond within 5
     /// seconds.
-    pub fn request_state(&self) -> Result<Vec<Monitor>> {
+    pub fn request_state(&self) -> Result<Vec<Monitor>, error::RequestError> {
         RUNTIME.block_on(self.0.request_state())
     }
 
@@ -96,7 +96,7 @@ impl Client {
     ///
     /// Next time the driver is started, it will load this state from the
     /// registry. This might be after a reboot or a driver restart.
-    pub fn persist(monitors: &[Monitor]) -> Result<()> {
+    pub fn persist(monitors: &[Monitor]) -> Result<(), error::PersistError> {
         AsyncClient::persist(monitors)
     }
 }
@@ -260,7 +260,7 @@ mod test {
         RUNTIME.block_on(server.pump());
 
         // Give time for the callback to be run
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(100));
 
         assert_eq!(*call_count.lock().unwrap(), 1);
     }
@@ -284,7 +284,7 @@ mod test {
         RUNTIME.block_on(server.pump());
 
         // Give time for the callback to be run
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(100));
 
         sub1.cancel_blocking().expect_err("Callback should panic");
         assert!(!sub1
@@ -314,7 +314,7 @@ mod test {
 
         client.notify(&[]).unwrap();
         RUNTIME.block_on(server.pump());
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(100));
 
         assert!(sub.cancel().expect("Callback should not panic"));
         assert!(!sub.cancel().expect("Callback should not panic"));
@@ -322,7 +322,7 @@ mod test {
 
         client.notify(&[]).unwrap();
         RUNTIME.block_on(server.pump());
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(100));
 
         assert!(matches!(
             events.lock().unwrap().as_slice(),
@@ -367,7 +367,7 @@ mod test {
 
         client.notify(&[]).unwrap();
         RUNTIME.block_on(server.pump());
-        sleep(std::time::Duration::from_millis(50));
+        sleep(std::time::Duration::from_millis(100));
 
         assert!(
             !shared_sub

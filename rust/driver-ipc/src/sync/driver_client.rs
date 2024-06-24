@@ -1,5 +1,7 @@
 use super::{client::EventsSubscription, RUNTIME};
-use crate::{DriverClient as AsyncDriverClient, EventCommand, Id, Mode, Monitor, Result};
+use crate::{
+    driver_client::error, DriverClient as AsyncDriverClient, EventCommand, Id, Mode, Monitor,
+};
 
 /// Abstraction layer over [Client].
 ///
@@ -16,7 +18,7 @@ impl DriverClient {
     /// Connect to driver on pipe with default name.
     ///
     /// The default name is [DEFAULT_PIPE_NAME]
-    pub fn new() -> Result<Self> {
+    pub fn new() -> Result<Self, error::InitError> {
         let client = RUNTIME.block_on(AsyncDriverClient::new());
         client.map(Self)
     }
@@ -24,7 +26,7 @@ impl DriverClient {
     /// Connect to driver on pipe with specified name.
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
-    pub fn new_with(name: &str) -> Result<Self> {
+    pub fn new_with(name: &str) -> Result<Self, error::InitError> {
         let client = RUNTIME.block_on(AsyncDriverClient::new_with(name));
         client.map(Self)
     }
@@ -55,7 +57,7 @@ impl DriverClient {
     }
 
     /// Manually synchronize with the driver.
-    pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
+    pub fn refresh_state(&mut self) -> &[Monitor] {
         self.0.refresh_state()
     }
 
@@ -95,7 +97,7 @@ impl DriverClient {
     ///
     /// Note: This does not affect the driver. Manually call
     /// [DriverClient::notify] to send these changes to the driver.
-    pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<()> {
+    pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<(), error::DuplicateError> {
         self.0.set_monitors(monitors)
     }
 
@@ -108,7 +110,7 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn replace_monitor(&mut self, monitor: Monitor) -> Result<()> {
+    pub fn replace_monitor(&mut self, monitor: Monitor) -> Result<(), error::MonNotFound> {
         self.0.replace_monitor(monitor)
     }
 
@@ -116,7 +118,7 @@ impl DriverClient {
     ///
     /// State changes of the client are not automatically sent to the driver.
     /// You must manually call this method to send changes to the driver.
-    pub fn notify(&mut self) -> Result<()> {
+    pub fn notify(&mut self) -> Result<(), error::SendError> {
         RUNTIME.block_on(self.0.notify())
     }
 
@@ -199,7 +201,7 @@ impl DriverClient {
     ///
     /// Next time the driver is started, it will load this state from the
     /// registry. This might be after a reboot or a driver restart.
-    pub fn persist(&self) -> Result<()> {
+    pub fn persist(&self) -> Result<(), error::PersistError> {
         self.0.persist()
     }
 
@@ -236,7 +238,10 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_query(&mut self, queries: &[impl AsRef<str>]) -> Result<()> {
+    pub fn remove_query(
+        &mut self,
+        queries: &[impl AsRef<str>],
+    ) -> Result<(), error::QueryNotFound> {
         self.0.remove_query(queries)
     }
 
@@ -259,7 +264,7 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add(&mut self, monitor: Monitor) -> Result<()> {
+    pub fn add(&mut self, monitor: Monitor) -> Result<(), error::DuplicateError> {
         self.0.add(monitor)
     }
 
@@ -285,7 +290,11 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn set_enabled_query(&mut self, queries: &[impl AsRef<str>], enabled: bool) -> Result<()> {
+    pub fn set_enabled_query(
+        &mut self,
+        queries: &[impl AsRef<str>],
+        enabled: bool,
+    ) -> Result<(), error::QueryNotFound> {
         self.0.set_enabled_query(queries, enabled)
     }
 
@@ -300,7 +309,7 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add_mode(&mut self, id: Id, mode: Mode) -> Result<()> {
+    pub fn add_mode(&mut self, id: Id, mode: Mode) -> Result<(), error::AddModeError> {
         self.0.add_mode(id, mode)
     }
 
@@ -315,7 +324,11 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add_mode_query(&mut self, query: &str, mode: Mode) -> Result<()> {
+    pub fn add_mode_query(
+        &mut self,
+        query: &str,
+        mode: Mode,
+    ) -> Result<(), error::AddModeQueryError> {
         self.0.add_mode_query(query, mode)
     }
 
@@ -329,7 +342,11 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_mode(&mut self, id: Id, resolution: (u32, u32)) -> Result<()> {
+    pub fn remove_mode(
+        &mut self,
+        id: Id,
+        resolution: (u32, u32),
+    ) -> Result<(), error::MonNotFound> {
         self.0.remove_mode(id, resolution)
     }
 
@@ -343,7 +360,11 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> Result<()> {
+    pub fn remove_mode_query(
+        &mut self,
+        query: &str,
+        resolution: (u32, u32),
+    ) -> Result<(), error::QueryNotFound> {
         self.0.remove_mode_query(query, resolution)
     }
 

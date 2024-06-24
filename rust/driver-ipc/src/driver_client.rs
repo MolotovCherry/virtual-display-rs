@@ -4,6 +4,7 @@ use tokio::{sync::watch, task};
 use tokio_stream::{Stream, StreamExt};
 
 use crate::*;
+use std::result::Result;
 
 /// Abstraction layer over [Client].
 ///
@@ -24,14 +25,14 @@ impl DriverClient {
     /// Connect to driver on pipe with default name.
     ///
     /// The default name is [DEFAULT_PIPE_NAME]
-    pub async fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self, error::InitError> {
         Self::new_with(DEFAULT_PIPE_NAME).await
     }
 
     /// Connect to driver on pipe with specified name.
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
-    pub async fn new_with(name: &str) -> Result<Self> {
+    pub async fn new_with(name: &str) -> Result<Self, error::InitError> {
         let client = Client::connect_to(name)?;
 
         let current_state = client.request_state().await?;
@@ -102,10 +103,10 @@ impl DriverClient {
     }
 
     /// Manually synchronize with the driver.
-    pub fn refresh_state(&mut self) -> Result<&[Monitor]> {
+    pub fn refresh_state(&mut self) -> &[Monitor] {
         self.state = self.state_rx.borrow().clone();
 
-        Ok(&self.state)
+        &self.state
     }
 
     /// Returns a stream of continuous events from the driver.
@@ -133,7 +134,7 @@ impl DriverClient {
     ///
     /// Note: This does not affect the driver. Manually call
     /// [DriverClient::notify] to send these changes to the driver.
-    pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<()> {
+    pub fn set_monitors(&mut self, monitors: &[Monitor]) -> Result<(), error::DuplicateError> {
         mons_have_duplicates(monitors)?;
 
         self.state = monitors.to_owned();
@@ -149,13 +150,13 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn replace_monitor(&mut self, monitor: Monitor) -> Result<()> {
+    pub fn replace_monitor(&mut self, monitor: Monitor) -> Result<(), error::MonNotFound> {
         match self.state.iter_mut().find(|m| m.id == monitor.id) {
             Some(m) => {
                 *m = monitor;
                 Ok(())
             }
-            None => Err(ClientError::MonNotFound(monitor.id).into()),
+            None => Err(error::MonNotFound(monitor.id)),
         }
     }
 
@@ -163,7 +164,7 @@ impl DriverClient {
     ///
     /// State changes of the client are not automatically sent to the driver.
     /// You must manually call this method to send changes to the driver.
-    pub async fn notify(&mut self) -> Result<()> {
+    pub async fn notify(&mut self) -> Result<(), error::SendError> {
         self.client.notify(&self.state).await
     }
 
@@ -257,7 +258,7 @@ impl DriverClient {
     ///
     /// Next time the driver is started, it will load this state from the
     /// registry. This might be after a reboot or a driver restart.
-    pub fn persist(&self) -> Result<()> {
+    pub fn persist(&self) -> Result<(), error::PersistError> {
         Client::persist(&self.state)
     }
 
@@ -312,7 +313,10 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_query(&mut self, queries: &[impl AsRef<str>]) -> Result<()> {
+    pub fn remove_query(
+        &mut self,
+        queries: &[impl AsRef<str>],
+    ) -> Result<(), error::QueryNotFound> {
         let mut ids = Vec::new();
         for id in queries {
             if let Some(id) = self.find_id(id.as_ref()) {
@@ -320,7 +324,7 @@ impl DriverClient {
                 continue;
             }
 
-            return Err(ClientError::QueryNotFound(id.as_ref().to_owned()).into());
+            return Err(error::QueryNotFound(id.as_ref().to_owned()));
         }
 
         self.remove(&ids);
@@ -346,9 +350,9 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add(&mut self, monitor: Monitor) -> Result<()> {
+    pub fn add(&mut self, monitor: Monitor) -> Result<(), error::DuplicateError> {
         if self.state.iter().any(|mon| mon.id == monitor.id) {
-            return Err(ClientError::DupMon(monitor.id).into());
+            return Err(error::DuplicateError::DupMonitor(monitor.id));
         }
         mon_has_duplicates(&monitor)?;
 
@@ -384,7 +388,11 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn set_enabled_query(&mut self, queries: &[impl AsRef<str>], enabled: bool) -> Result<()> {
+    pub fn set_enabled_query(
+        &mut self,
+        queries: &[impl AsRef<str>],
+        enabled: bool,
+    ) -> Result<(), error::QueryNotFound> {
         let mut ids = Vec::new();
         for id in queries {
             if let Some(id) = self.find_id(id.as_ref()) {
@@ -392,7 +400,7 @@ impl DriverClient {
                 continue;
             }
 
-            return Err(ClientError::QueryNotFound(id.as_ref().to_owned()).into());
+            return Err(error::QueryNotFound(id.as_ref().to_owned()));
         }
 
         self.set_enabled(&ids, enabled);
@@ -410,26 +418,37 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add_mode(&mut self, id: Id, mode: Mode) -> Result<()> {
+    pub fn add_mode(&mut self, id: Id, mode: Mode) -> Result<(), error::AddModeError> {
         let Some(mon) = self.state.iter_mut().find(|mon| mon.id == id) else {
-            return Err(ClientError::MonNotFound(id).into());
+            return Err(error::AddModeError::MonNotFound(id));
         };
 
-        mode_has_duplicates(&mode, id)?;
+        match mode_has_duplicates(&mode, id) {
+            Ok(_) => Ok(()),
+            Err(error::DuplicateError::DupRefreshRate(rr, w, h, id)) => {
+                Err(error::AddModeError::DupRefreshRate(rr, w, h, id))
+            }
+            Err(_) => unreachable!(),
+        }?;
 
         if mon
             .modes
             .iter()
             .any(|_mode| _mode.height == mode.height && _mode.width == mode.width)
         {
-            return Err(ClientError::DupMode(mode.width, mode.height, mon.id).into());
+            return Err(error::AddModeError::DupMode(mode.width, mode.height, id));
         }
 
         let iter = mode.refresh_rates.iter().copied();
 
         for (i, &rr) in mode.refresh_rates.iter().enumerate() {
             if iter.clone().skip(i).any(|_rr| _rr == rr) {
-                return Err(ClientError::RefreshRateExists(rr).into());
+                return Err(error::AddModeError::DupRefreshRate(
+                    rr,
+                    mode.width,
+                    mode.height,
+                    id,
+                ));
             }
         }
 
@@ -449,12 +468,29 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn add_mode_query(&mut self, query: &str, mode: Mode) -> Result<()> {
+    pub fn add_mode_query(
+        &mut self,
+        query: &str,
+        mode: Mode,
+    ) -> Result<(), error::AddModeQueryError> {
         let id = self
             .find_id(query)
-            .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
+            .ok_or_else(|| error::AddModeQueryError::QueryNotFound(query.to_owned()))?;
 
-        self.add_mode(id, mode)
+        match self.add_mode(id, mode) {
+            Ok(_) => Ok(()),
+            Err(error::AddModeError::MonNotFound(_)) => {
+                unreachable!("Mon must exist")
+            }
+            Err(error::AddModeError::DupMode(w, h, id)) => {
+                Err(error::AddModeQueryError::DupMode(id, w, h))
+            }
+            Err(error::AddModeError::DupRefreshRate(rr, w, h, id)) => {
+                Err(error::AddModeQueryError::DupRefreshRate(rr, w, h, id))
+            }
+        }?;
+
+        Ok(())
     }
 
     /// Remove a mode from the monitor with the given ID.
@@ -467,9 +503,13 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_mode(&mut self, id: Id, resolution: (u32, u32)) -> Result<()> {
+    pub fn remove_mode(
+        &mut self,
+        id: Id,
+        resolution: (u32, u32),
+    ) -> Result<(), error::MonNotFound> {
         let Some(mon) = self.state.iter_mut().find(|mon| mon.id == id) else {
-            return Err(ClientError::MonNotFound(id).into());
+            return Err(error::MonNotFound(id));
         };
 
         mon.modes
@@ -488,12 +528,19 @@ impl DriverClient {
     ///
     /// Note: Client state might be stale. To synchronize with the driver,
     /// manually call [DriverClient::refresh_state].
-    pub fn remove_mode_query(&mut self, query: &str, resolution: (u32, u32)) -> Result<()> {
+    pub fn remove_mode_query(
+        &mut self,
+        query: &str,
+        resolution: (u32, u32),
+    ) -> Result<(), error::QueryNotFound> {
         let id = self
             .find_id(query)
-            .ok_or_else(|| IpcError::Client(ClientError::QueryNotFound(query.to_owned())))?;
+            .ok_or_else(|| error::QueryNotFound(query.to_owned()))?;
 
         self.remove_mode(id, resolution)
+            .expect("Monitor must exist");
+
+        Ok(())
     }
 
     /// Returns a copy of this client with it's own independent state.
@@ -512,12 +559,12 @@ impl DriverClient {
     }
 }
 
-fn mons_have_duplicates(monitors: &[Monitor]) -> Result<()> {
+fn mons_have_duplicates(monitors: &[Monitor]) -> Result<(), error::DuplicateError> {
     let mut monitor_iter = monitors.iter();
     while let Some(monitor) = monitor_iter.next() {
         let duplicate_id = monitor_iter.clone().any(|b| monitor.id == b.id);
         if duplicate_id {
-            return Err(ClientError::DupMon(monitor.id).into());
+            return Err(error::DuplicateError::DupMonitor(monitor.id));
         }
 
         mon_has_duplicates(monitor)?;
@@ -526,14 +573,18 @@ fn mons_have_duplicates(monitors: &[Monitor]) -> Result<()> {
     Ok(())
 }
 
-fn mon_has_duplicates(monitor: &Monitor) -> Result<()> {
+fn mon_has_duplicates(monitor: &Monitor) -> Result<(), error::DuplicateError> {
     let mut mode_iter = monitor.modes.iter();
     while let Some(mode) = mode_iter.next() {
         let duplicate_mode = mode_iter
             .clone()
             .any(|m| mode.height == m.height && mode.width == m.width);
         if duplicate_mode {
-            return Err(ClientError::DupMode(mode.width, mode.height, monitor.id).into());
+            return Err(error::DuplicateError::DupMode(
+                mode.width,
+                mode.height,
+                monitor.id,
+            ));
         }
 
         mode_has_duplicates(mode, monitor.id)?;
@@ -542,14 +593,71 @@ fn mon_has_duplicates(monitor: &Monitor) -> Result<()> {
     Ok(())
 }
 
-fn mode_has_duplicates(mode: &Mode, id: Id) -> Result<()> {
+fn mode_has_duplicates(mode: &Mode, id: Id) -> Result<(), error::DuplicateError> {
     let mut refresh_iter = mode.refresh_rates.iter().copied();
     while let Some(rr) = refresh_iter.next() {
         let duplicate_rr = refresh_iter.clone().any(|r| rr == r);
         if duplicate_rr {
-            return Err(ClientError::DupRefreshRate(rr, mode.width, mode.height, id).into());
+            return Err(error::DuplicateError::DupRefreshRate(
+                rr,
+                mode.width,
+                mode.height,
+                id,
+            ));
         }
     }
 
     Ok(())
+}
+
+pub mod error {
+    use super::*;
+    pub use crate::client::error::*;
+    use thiserror::Error;
+
+    #[derive(Debug, Error)]
+    pub enum DuplicateError {
+        #[error("Duplicate monitor with ID {0}")]
+        DupMonitor(Id),
+        #[error("Duplicate mode {1}x{2} on monitor {0}")]
+        DupMode(u32, u32, Id),
+        #[error("Duplicate refresh rate {0} on mode {1}x{2} on monitor {3}")]
+        DupRefreshRate(u32, u32, u32, Id),
+    }
+
+    #[derive(Debug, Error)]
+    #[error("Query not found: {0}")]
+    pub struct QueryNotFound(pub String);
+
+    #[derive(Debug, Error)]
+    #[error("Monitor not found: {0}")]
+    pub struct MonNotFound(pub Id);
+
+    #[derive(Debug, Error)]
+    pub enum AddModeError {
+        #[error("Monitor not found: {0}")]
+        MonNotFound(Id),
+        #[error("Duplicate mode {1}x{2} on monitor {0}")]
+        DupMode(Id, u32, u32),
+        #[error("Duplicate refresh rate {0} on mode {1}x{2} on monitor {3}")]
+        DupRefreshRate(u32, u32, u32, Id),
+    }
+
+    #[derive(Debug, Error)]
+    pub enum AddModeQueryError {
+        #[error("Query not found: {0}")]
+        QueryNotFound(String),
+        #[error("Duplicate mode {1}x{2} on monitor {0}")]
+        DupMode(Id, u32, u32),
+        #[error("Duplicate refresh rate {0} on mode {1}x{2} on monitor {3}")]
+        DupRefreshRate(u32, u32, u32, Id),
+    }
+
+    #[derive(Debug, Error)]
+    pub enum InitError {
+        #[error("Failed to connect to driver: {0}")]
+        Connect(#[from] ConnectionError),
+        #[error("Failed to request state: {0}")]
+        RequestState(#[from] RequestError),
+    }
 }

@@ -11,6 +11,7 @@ use tokio::{
 use tokio_stream::{Stream, StreamExt};
 
 use crate::*;
+use std::result::Result;
 
 // EOF byte used to separate messages
 pub(crate) const EOF: u8 = 0x4;
@@ -25,84 +26,90 @@ pub(crate) const EOF: u8 = 0x4;
 /// copies.
 #[derive(Debug)]
 pub struct Client {
-    client: Arc<named_pipe::NamedPipeClient>,
+    shared: Arc<_Shared>,
     command_rx: broadcast::Receiver<ClientCommand>,
-    abort_receiver: Arc<Notify>,
+}
+
+#[derive(Debug)]
+struct _Shared {
+    client: named_pipe::NamedPipeClient,
+    abort_receiver: Notify,
 }
 
 impl Client {
     /// Connect to driver on pipe with default name.
     ///
     /// The default name is [DEFAULT_PIPE_NAME].
-    pub fn connect() -> Result<Self> {
+    pub fn connect() -> Result<Self, error::ConnectionError> {
         Self::connect_to(DEFAULT_PIPE_NAME)
     }
 
     /// Connect to driver on pipe with specified name.
     ///
     /// `name` is ONLY the {name} portion of \\.\pipe\{name}.
-    pub fn connect_to(name: &str) -> Result<Self> {
+    pub fn connect_to(name: &str) -> Result<Self, error::ConnectionError> {
         let client = named_pipe::ClientOptions::new()
             .read(true)
             .write(true)
             .pipe_mode(named_pipe::PipeMode::Byte)
-            .open(format!(r"\\.\pipe\{name}"))
-            .map_err(IpcError::ConnectionFailed)?;
-        let client = Arc::new(client);
+            .open(format!(r"\\.\pipe\{name}"))?;
 
-        let abort_receiver = Arc::new(Notify::new());
+        let abort_receiver = Notify::new();
+
+        let shared = Arc::new(_Shared {
+            client,
+            abort_receiver,
+        });
 
         let (command_tx, command_rx) = broadcast::channel::<ClientCommand>(10);
 
         {
-            let client = client.clone();
-            let abort_receiver = abort_receiver.clone();
+            let shared = shared.clone();
             task::spawn(async move {
-                let r = receive_command(&client, command_tx, &abort_receiver).await;
+                let r = receive_command(&shared.client, command_tx, &shared.abort_receiver).await;
                 if let Err(e) = r {
                     println!("TODO: Handle error: {:?}", e);
                 }
             });
         }
 
-        Ok(Self {
-            client,
-            command_rx,
-            abort_receiver,
-        })
+        Ok(Self { shared, command_rx })
     }
 
     /// Send new state to the driver.
-    pub async fn notify(&self, monitors: &[Monitor]) -> Result<()> {
+    pub async fn notify(&self, monitors: &[Monitor]) -> Result<(), error::SendError> {
         let command = DriverCommand::Notify(monitors.to_owned());
 
-        send_command(&self.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
     /// Remove all monitors with the specified IDs.
-    pub async fn remove(&self, ids: &[Id]) -> Result<()> {
+    pub async fn remove(&self, ids: &[Id]) -> Result<(), error::SendError> {
         let command = DriverCommand::Remove(ids.to_owned());
 
-        send_command(&self.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
     /// Remove all monitors.
-    pub async fn remove_all(&self) -> Result<()> {
+    pub async fn remove_all(&self) -> Result<(), error::SendError> {
         let command = DriverCommand::RemoveAll;
 
-        send_command(&self.client, &command).await
+        send_command(&self.shared.client, &command).await?;
+        Ok(())
     }
 
     /// Request the current state of the driver.
     ///
     /// Returns [IpcError::Timeout] if the driver does not respond within 5
     /// seconds.
-    pub async fn request_state(&self) -> Result<Vec<Monitor>> {
+    pub async fn request_state(&self) -> Result<Vec<Monitor>, error::RequestError> {
         use broadcast::error::RecvError;
 
         let mut rx = self.command_rx.resubscribe();
 
-        send_command(&self.client, &RequestCommand::State).await?;
+        send_command(&self.shared.client, &RequestCommand::State).await?;
 
         let fut = async {
             loop {
@@ -110,14 +117,18 @@ impl Client {
                     Ok(ClientCommand::Reply(ReplyCommand::State(monitors))) => break Ok(monitors),
                     Ok(_) => continue,
                     Err(RecvError::Lagged(_n)) => continue,
-                    Err(RecvError::Closed) => break Err(IpcError::Receive),
+                    Err(RecvError::Closed) => {
+                        break Err(error::RequestError::Receive(todo!(
+                            "Get error from 'receive_command()'"
+                        )))
+                    }
                 }
             }
         };
 
         match timeout(Duration::from_secs(5), fut).await {
             Ok(result) => result,
-            Err(_) => Err(IpcError::Timeout),
+            Err(_) => Err(error::RequestError::Timeout(Duration::from_secs(5))),
         }
     }
 
@@ -145,7 +156,7 @@ impl Client {
     ///
     /// Next time the driver is started, it will load this state from the
     /// registry. This might be after a reboot or a driver restart.
-    pub fn persist(monitors: &[Monitor]) -> Result<()> {
+    pub fn persist(monitors: &[Monitor]) -> Result<(), error::PersistError> {
         use winreg::*;
 
         let hklm = RegKey::predef(enums::HKEY_CURRENT_USER);
@@ -154,13 +165,11 @@ impl Client {
         let mut reg_key = hklm.open_subkey_with_flags(key, enums::KEY_WRITE);
 
         // if open failed, try to create key and subkey
-        if let Err(e) = reg_key {
-            error!("Failed opening {key}: {e:?}");
+        if let Err(_) = reg_key {
             reg_key = hklm.create_subkey(key).map(|(key, _)| key);
 
             if let Err(e) = reg_key {
-                error!("Failed creating {key}: {e:?}");
-                return Err(e)?;
+                return Err(error::PersistError::Open(e));
             }
         }
 
@@ -168,7 +177,9 @@ impl Client {
 
         let data = serde_json::to_string(monitors)?;
 
-        reg_key.set_value("data", &data)?;
+        reg_key
+            .set_value("data", &data)
+            .map_err(error::PersistError::Set)?;
 
         Ok(())
     }
@@ -177,17 +188,16 @@ impl Client {
 impl Clone for Client {
     fn clone(&self) -> Self {
         Self {
-            client: self.client.clone(),
+            shared: self.shared.clone(),
             command_rx: self.command_rx.resubscribe(),
-            abort_receiver: self.abort_receiver.clone(),
         }
     }
 }
 
 impl Drop for Client {
     fn drop(&mut self) {
-        if Arc::strong_count(&self.abort_receiver) == 2 {
-            self.abort_receiver.notify_waiters();
+        if Arc::strong_count(&self.shared) == 2 {
+            self.shared.abort_receiver.notify_waiters();
         }
     }
 }
@@ -195,7 +205,7 @@ impl Drop for Client {
 async fn send_command(
     client: &named_pipe::NamedPipeClient,
     command: &impl Serialize,
-) -> Result<()> {
+) -> Result<(), error::SendCommandError> {
     // Create a vector with the full message, then send it as a single
     // write. This is required because the pipe is in message mode.
     let mut message = serde_json::to_vec(command)?;
@@ -242,7 +252,7 @@ async fn receive_command(
     client: &named_pipe::NamedPipeClient,
     tx: broadcast::Sender<ClientCommand>,
     abort: &Notify,
-) -> Result<()> {
+) -> Result<(), io::Error> {
     let mut buf = vec![0; 4096];
     let mut recv_buf = Vec::with_capacity(4096);
 
@@ -254,17 +264,10 @@ async fn receive_command(
         }
 
         match client.try_read(&mut buf) {
-            Ok(0) => return Err(IpcError::Io(io::Error::last_os_error())),
-
+            Ok(0) => return Err(io::Error::last_os_error()),
             Ok(n) => recv_buf.extend(&buf[..n]),
-
-            Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                continue;
-            }
-
-            Err(e) => {
-                return Err(e.into());
-            }
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => continue,
+            Err(e) => return Err(e.into()),
         }
 
         let eof_iter =
@@ -278,22 +281,94 @@ async fn receive_command(
                 },
             );
 
-        let mut bidx = 0;
+        let mut offset = 0;
         for pos in eof_iter {
-            let data = &recv_buf[bidx..pos];
-            bidx = pos + 1;
+            let data = &recv_buf[offset..pos];
+            offset = pos + 1;
 
             let Ok(command) = serde_json::from_slice::<ClientCommand>(data) else {
                 continue;
             };
 
             if tx.send(command).is_err() {
-                return Err(IpcError::SendFailed);
+                // Client closed, abort
+                return Ok(());
             }
         }
 
         // drain all processed messages
-        recv_buf.drain(..bidx);
+        recv_buf.drain(..offset);
+    }
+}
+
+pub mod error {
+    use super::*;
+    use thiserror::Error;
+
+    /// Error returned from [Client::connect] and [Client::connect_to].
+    #[derive(Debug, Error)]
+    pub enum ConnectionError {
+        #[error("Failed to open pipe: {0}")]
+        Failed(#[from] io::Error),
+    }
+
+    /// Error returned from [send_command]
+    #[derive(Debug, Error)]
+    pub(super) enum SendCommandError {
+        #[error("Failed to encode message: {0}")]
+        Encode(#[from] serde_json::Error),
+        #[error("Failed to send message: {0}")]
+        PipeBroken(#[from] io::Error),
+    }
+
+    /// Error returned from [Client::notify], [Client::remove] and
+    /// [Client::remove_all].
+    #[derive(Debug, Error)]
+    pub enum SendError {
+        #[error("Failed to send message: {0}")]
+        PipeBroken(#[from] io::Error),
+    }
+
+    /// Error returned from [Client::request_state].
+    #[derive(Debug, Error)]
+    pub enum RequestError {
+        #[error("Failed to send message (pipe broken): {0}")]
+        Send(io::Error),
+        #[error("Failed to receive message (pipe broken): {0}")]
+        Receive(io::Error),
+        #[error("Did not get a response in time ({0:?})")]
+        Timeout(Duration),
+    }
+
+    // TODO: Client::receive_events()
+
+    /// Error returned from [Client::persist].
+    #[derive(Debug, Error)]
+    pub enum PersistError {
+        #[error("Failed to open registry key: {0}")]
+        Open(io::Error),
+        #[error("Failed to set registry value: {0}")]
+        Set(io::Error),
+        #[error("Failed to serialize monitors: {0}")]
+        Serialize(#[from] serde_json::Error),
+    }
+
+    impl From<SendCommandError> for SendError {
+        fn from(e: SendCommandError) -> Self {
+            match e {
+                SendCommandError::PipeBroken(e) => Self::PipeBroken(e),
+                SendCommandError::Encode(e) => unreachable!("{:?}", e),
+            }
+        }
+    }
+
+    impl From<SendCommandError> for RequestError {
+        fn from(e: SendCommandError) -> Self {
+            match e {
+                SendCommandError::PipeBroken(e) => Self::Send(e),
+                SendCommandError::Encode(e) => unreachable!("{:?}", e),
+            }
+        }
     }
 }
 
