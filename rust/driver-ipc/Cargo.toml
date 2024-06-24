@@ -5,15 +5,15 @@ edition = "2021"
 
 [dependencies]
 log = "0.4.21"
-serde = { version = "1.0.197", features = ["derive"] }
-thiserror = "1.0.58"
+serde = { version = "1.0.203", features = ["derive"] }
+thiserror = "1.0.61"
 owo-colors = "4.0.0"
-serde_json = "1.0.114"
-windows = { version = "0.54.0", features = ["Win32_Foundation"] }
+serde_json = "1.0.117"
+windows = { version = "0.57.0", features = ["Win32_Foundation"] }
 lazy_format = "2.0.3"
 joinery = "3.1.0"
 winreg = "0.52.0"
-tokio = { version = "1.37.0", features = [
+tokio = { version = "1.38.0", features = [
     "rt-multi-thread",
     "sync",
     "time",
@@ -23,7 +23,7 @@ tokio = { version = "1.37.0", features = [
 tokio-stream = { version = "0.1.15", features = ["sync"] }
 
 [dev-dependencies]
-tokio = { version = "1.37.0", features = [
+tokio = { version = "1.38.0", features = [
     "rt-multi-thread",
     "sync",
     "time",

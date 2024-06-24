@@ -195,17 +195,13 @@ pub fn startup() {
                     loop {
                         tokio::select! {
                             val = server.read(&mut buf) =>  {
-                                let Ok(size) = val else {
-                                    // break on err
-                                    break;
-                                };
+                                match val {
+                                    // 0 = no more data to read
+                                    // or break on err
+                                    Ok(0) | Err(_) => break,
 
-                                if size == 0 {
-                                    // no more data to read
-                                    break;
+                                    Ok(size) => msg_buf.extend(&buf[..size]),
                                 }
-
-                                msg_buf.extend(&buf[..size]);
 
                                 // get all eof boundary positions
                                 let eof_iter = msg_buf.iter().enumerate().filter_map(|(i, &byte)| {
@@ -230,24 +226,17 @@ pub fn startup() {
                             },
 
                             val = rx.recv() => {
-                                let (client_id, data) = match val {
-                                    Ok(data) => data,
-                                    Err(e) => {
-                                        if let RecvError::Lagged(_) = e {
-                                            continue;
-                                        }
+                                let command = match val {
+                                    // ignore if this value was sent for the current client (current client doesn't need notification)
+                                    Ok((client_id, _)) if client_id == id => continue,
 
-                                        // closed
-                                        break;
-                                    }
+                                    Ok((_, data)) => EventCommand::Changed(data),
+
+                                    Err(RecvError::Lagged(_)) => continue,
+
+                                    // closed
+                                    Err(_) => break
                                 };
-
-                                // ignore if this value was sent for the current client (current client doesn't need notification)
-                                if id == client_id {
-                                    continue;
-                                }
-
-                                let command = EventCommand::Changed(data);
 
                                 let Ok(mut serialized) = serde_json::to_string(&command) else {
                                     error!("Command::Request - failed to serialize reply");

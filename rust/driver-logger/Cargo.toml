@@ -8,10 +8,10 @@ log = { version = "0.4.21", features = ["std"] }
 env_filter = { version = "0.1.0", default-features = false, optional = true }
 widestring = "1.1.0"
 winreg = "0.52.0"
-thiserror = "1.0.58"
+thiserror = "1.0.61"
 
 [dependencies.windows]
-version = "0.54.0"
+version = "0.57.0"
 features = ["Win32_System_Diagnostics_Debug"]
 
 [dependencies.windows-sys]
