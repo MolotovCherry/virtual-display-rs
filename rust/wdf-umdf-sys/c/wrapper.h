@@ -18,4 +18,5 @@
 
 #define IDD_STUB
 
-#include <iddcx\1.4\IddCx.h>
+// handled in build.rs
+// #include <iddcx\1.4\IddCx.h>

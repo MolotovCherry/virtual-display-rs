@@ -214,6 +214,13 @@ fn generate() {
         })
         .merge_extern_blocks(true)
         .header("c/wrapper.h")
+        .header(
+            get_sdk_path(DirectoryType::Include, &["um", "iddcx", IDDCX_V])
+                .unwrap()
+                .join("IddCx.h")
+                .to_string_lossy()
+                .to_string(),
+        )
         // general um includes
         .clang_arg(format!("-I{}", include_um_dir.display()))
         // umdf includes
