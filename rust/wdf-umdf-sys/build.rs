@@ -6,6 +6,9 @@ use bindgen::Abi;
 use winreg::enums::HKEY_LOCAL_MACHINE;
 use winreg::RegKey;
 
+const UMDF_V: &str = "2.31";
+const IDDCX_V: &str = "1.4";
+
 #[derive(Debug, thiserror::Error)]
 enum Error {
     #[error(transparent)]
@@ -133,10 +136,10 @@ fn get_um_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
 /// Returns IO error if failed
 fn get_umdf_dir(dir_type: DirectoryType) -> Result<PathBuf, Error> {
     match dir_type {
-        DirectoryType::Include => get_base_path(dir_type, &["wdf", "umdf", "2.31"]),
+        DirectoryType::Include => get_base_path(dir_type, &["wdf", "umdf", UMDF_V]),
         DirectoryType::Library => get_base_path(
             dir_type,
-            &["wdf", "umdf", &Target::default().to_string(), "2.31"],
+            &["wdf", "umdf", &Target::default().to_string(), UMDF_V],
         ),
     }
 }
@@ -187,7 +190,7 @@ fn generate() {
 
     let mut iddcx_lib_dir = lib_um_dir.clone();
     iddcx_lib_dir.push("iddcx");
-    iddcx_lib_dir.push("1.4");
+    iddcx_lib_dir.push(IDDCX_V);
 
     println!("cargo:rustc-link-search={}", iddcx_lib_dir.display());
 
