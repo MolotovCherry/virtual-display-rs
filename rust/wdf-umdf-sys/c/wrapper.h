@@ -1,6 +1,3 @@
-#define AMD64
-#define _AMD64_
-
 #include <Windows.h>
 
 /**
