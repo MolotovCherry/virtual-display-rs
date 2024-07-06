@@ -1,7 +1,7 @@
 mod client;
 mod driver_client;
 
-pub use client::Client;
+pub use client::{Client, EventsSubscription};
 pub use driver_client::DriverClient;
 
 use tokio::runtime::{Builder, Runtime};

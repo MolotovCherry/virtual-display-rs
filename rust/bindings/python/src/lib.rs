@@ -7,13 +7,16 @@ mod utils;
 
 use std::fmt::Debug;
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Borrow,
     collections::HashSet,
     fmt::Display,
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use driver_ipc::{sync::DriverClient, Dimen, EventCommand, Id, Mode, Monitor, RefreshRate};
+use driver_ipc::{
+    sync::{DriverClient, EventsSubscription},
+    Dimen, EventCommand, Id, Mode, Monitor, RefreshRate,
+};
 use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyIndexError, PyRuntimeError, PyTypeError},
@@ -53,13 +56,22 @@ impl Display for ListType {
     }
 }
 
-#[derive(Clone)]
 #[pyclass(sequence)]
 #[pyo3(name = "TypedList")]
 struct PyTypedList {
     list: Py<PyList>,
     ty: ListType,
     iadd_flag: bool,
+}
+
+impl Clone for PyTypedList {
+    fn clone(&self) -> Self {
+        Python::with_gil(|py| Self {
+            list: self.list.clone_ref(py),
+            ty: self.ty,
+            iadd_flag: self.iadd_flag,
+        })
+    }
 }
 
 impl PyTypedList {
@@ -380,7 +392,7 @@ impl PyDriverClient {
     /// Request a list of latest driver changes
     /// Sig: get_state() -> list[Monitor]
     fn get_state(&mut self, py: Python) -> PyResult<Py<PyList>> {
-        self.client.refresh_state().into_py_err()?;
+        self.client.refresh_state();
 
         let monitors = state_to_pylist(py, self.client.monitors())?;
 
@@ -399,10 +411,10 @@ impl PyDriverClient {
     }
 
     /// Get notified of other clients changing driver configuration
-    /// Sig: receive(Optional[Callable[list[Monitor], None]] = None)
-    fn receive(&mut self, callback: Option<PyObject>) {
-        if let Some(callback) = callback {
-            self.client.set_event_receiver(move |cmd| {
+    /// Sig: receive(Callable[list[Monitor], None]])
+    fn receive(&mut self, callback: PyObject) -> PyEventsSubscription {
+        let event_subscription = self.client.add_event_receiver(move |data| match data {
+            Ok(cmd) => {
                 let EventCommand::Changed(data) = cmd else {
                     unreachable!()
                 };
@@ -417,10 +429,12 @@ impl PyDriverClient {
                         e.print(py);
                     }
                 });
-            });
-        } else {
-            self.client.terminate_event_receiver();
-        }
+            }
+
+            Err(e) => eprintln!("{e}"),
+        });
+
+        PyEventsSubscription(event_subscription)
     }
 
     /// Find a monitor by Id
@@ -464,6 +478,7 @@ impl PyDriverClient {
     /// Get the closest available free ID. Note that if internal state is stale, this may result in a duplicate ID
     /// which the driver will ignore when you notify it of changes
     /// Sig: new_id(preferred_id: Optional[int] = None) -> Optional[int]
+    #[pyo3(signature = (preferred_id=None))]
     fn new_id(&mut self, py: Python, preferred_id: Option<Id>) -> PyResult<Option<Id>> {
         let state = pytypedlist_to_state(py, &self.monitors)?;
         // by setting this, we can ensure it's up to date before trying to get the new id
@@ -511,7 +526,7 @@ impl PyDriverClient {
                 (
                     query.extract::<Id>(),
                     query.extract::<String>(),
-                    query.get_type().name().map(Cow::into_owned),
+                    query.get_type().name().map(|a| a.to_string()),
                 )
             })
             .collect::<Vec<_>>();
@@ -568,8 +583,13 @@ impl Drop for PyDriverClient {
     }
 }
 
+/// An event subscription. Deleting/freeing it cancels the subscription.
+#[allow(dead_code)]
+#[pyclass]
+#[pyo3(name = "EventsSubscription")]
+struct PyEventsSubscription(EventsSubscription);
+
 /// A Monitor. Each monitor's id must be unique from the others.
-#[derive(Clone)]
 #[pyclass]
 #[pyo3(name = "Monitor")]
 struct PyMonitor {
@@ -589,6 +609,17 @@ struct PyMonitor {
     /// Sig: modes: list[Mode]
     #[pyo3(get)]
     modes: Py<PyTypedList>,
+}
+
+impl Clone for PyMonitor {
+    fn clone(&self) -> Self {
+        Python::with_gil(|py| Self {
+            id: self.id,
+            name: self.name.clone(),
+            enabled: self.enabled,
+            modes: self.modes.clone_ref(py),
+        })
+    }
 }
 
 #[pymethods]
@@ -662,7 +693,6 @@ impl Debug for PyMonitor {
 /// A monitor mode which represents a resolution and associated refresh rates.
 /// Each mode must be unique from other modes (a unique width x height),
 /// and the refresh rates must also be unique per mode
-#[derive(Clone)]
 #[pyclass]
 #[pyo3(name = "Mode")]
 struct PyMode {
@@ -678,6 +708,16 @@ struct PyMode {
     /// Sig: refresh_rates: list[int]
     #[pyo3(get)]
     refresh_rates: Py<PyTypedList>,
+}
+
+impl Clone for PyMode {
+    fn clone(&self) -> Self {
+        Python::with_gil(|py| Self {
+            width: self.width,
+            height: self.height,
+            refresh_rates: self.refresh_rates.clone_ref(py),
+        })
+    }
 }
 
 impl TryFrom<PyMode> for Py<PyMode> {
