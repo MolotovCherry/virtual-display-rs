@@ -131,8 +131,10 @@ client.persist()
 # you can ask to be notified.
 # this represents the complete current state of the driver
 #
-# DriverClient.receive(Optional[Callable[list[Monitor], None]] = None)
-client.receive(lambda d: print(d))
+# once the subscriber is dropped, the function will no longer receive updates
+#
+# DriverClient.receive(Callable[list[Monitor], None])
+subscriber = client.receive(lambda d: print(d))
 # one way to use this might be to auto update your driver instance
 def set_monitors(data):
     client.monitors = data
