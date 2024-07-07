@@ -2,6 +2,8 @@ name: Clippy
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
 
@@ -26,10 +28,5 @@ jobs:
         run: rustup component add clippy
 
       - name: Clippy
-        uses: giraffate/clippy-action@v1
-        with:
-          reporter: 'github-pr-review'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          clippy_flags: --locked -- -Dwarnings
-          filter_mode: nofilter
-          fail_on_error: true
+        working-directory: rust
+        run: cargo clippy --all-features --verbose -- --deny warnings
