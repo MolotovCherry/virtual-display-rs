@@ -83,7 +83,7 @@ macro_rules! IddCxIsStructureAvailable {
 
 macro_rules! WDF_STRUCTURE_SIZE {
     ($name:ty) => {
-        ::core::mem::size_of::<$name>() as u32
+        u32::try_from(::core::mem::size_of::<$name>()).expect("size is correct")
     };
 }
 
@@ -187,13 +187,13 @@ macro_rules! IDD_STRUCTURE_SIZE {
                 // SAFETY: we validated struct index is able to be accessed
                 let ptr = unsafe { ptr.add(STRUCT_INDEX as usize) };
                 // SAFETY: So it's ok to read
-                Some(unsafe { ptr.read() } as u32)
+                u32::try_from(unsafe { ptr.read() }).ok()
             } else {
                 // struct CANNOT be used
                 None
             }
         } else {
-            Some(::std::mem::size_of::<$name>() as u32)
+            u32::try_from(::std::mem::size_of::<$name>()).ok()
         }
     }};
 }

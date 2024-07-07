@@ -113,7 +113,7 @@ impl SwapChainProcessor {
             const E_PENDING: u32 = 0x8000_000A;
             if u32::from(hr) == E_PENDING {
                 let wait_result =
-                    unsafe { WaitForSingleObject(WHANDLE(available_buffer_event as _), 16).0 };
+                    unsafe { WaitForSingleObject(WHANDLE(available_buffer_event.cast()), 16).0 };
 
                 // thread requested an end
                 let should_terminate = terminate.load(Ordering::Relaxed);

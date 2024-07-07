@@ -20,7 +20,7 @@ lto = true
 unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
-pedantic = "warn"
+pedantic = { level = "warn", priority = -1 }
 multiple_unsafe_ops_per_block = "deny"
 ignored_unit_patterns = "allow"
 missing_errors_doc = "allow"

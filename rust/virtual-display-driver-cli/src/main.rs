@@ -254,7 +254,7 @@ fn add_mode(
         let new_modes: Vec<driver_ipc::Mode> =
             new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
-        monitor.modes = new_modes.clone();
+        monitor.modes.clone_from(&new_modes);
         (id, new_modes)
     }) else {
         bail!("Monitor `{}` not found", command.id);
@@ -288,7 +288,7 @@ fn remove_mode(
                 let new_modes: Vec<driver_ipc::Mode> =
                     new_modes.into_iter().map(driver_ipc::Mode::from).collect();
 
-                monitor.modes = new_modes.clone();
+                monitor.modes.clone_from(&new_modes);
                 eyre::Result::Ok((id, new_modes))
             },
         )

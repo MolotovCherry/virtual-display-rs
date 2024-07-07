@@ -10,7 +10,7 @@ use windows::{
                 D3D11_CREATE_DEVICE_PREVENT_ALTERING_LAYER_SETTINGS_FROM_REGISTRY,
                 D3D11_CREATE_DEVICE_SINGLETHREADED, D3D11_SDK_VERSION,
             },
-            Dxgi::{CreateDXGIFactory2, IDXGIAdapter1, IDXGIFactory5},
+            Dxgi::{CreateDXGIFactory2, IDXGIAdapter1, IDXGIFactory5, DXGI_CREATE_FACTORY_FLAGS},
         },
     },
 };
@@ -40,7 +40,8 @@ pub struct Direct3DDevice {
 
 impl Direct3DDevice {
     pub fn init(adapter_luid: LUID) -> Result<Self, Direct3DError> {
-        let dxgi_factory = unsafe { CreateDXGIFactory2::<IDXGIFactory5>(0)? };
+        let dxgi_factory =
+            unsafe { CreateDXGIFactory2::<IDXGIFactory5>(DXGI_CREATE_FACTORY_FLAGS(0))? };
 
         let adapter = unsafe { dxgi_factory.EnumAdapterByLuid::<IDXGIAdapter1>(adapter_luid)? };
 

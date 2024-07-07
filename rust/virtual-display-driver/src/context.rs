@@ -1,5 +1,4 @@
 use std::{
-    ffi::c_void,
     mem::{self, size_of},
     num::{ParseIntError, TryFromIntError},
     ptr::{addr_of_mut, NonNull},
@@ -157,7 +156,9 @@ impl DeviceContext {
             // SAFETY: windows-rs + generated _GUID types are same size, with same fields, and repr C
             // see: https://microsoft.github.io/windows-docs-rs/doc/windows/core/struct.GUID.html
             // and: wmdf_umdf_sys::_GUID
-            MonitorContainerId: unsafe { mem::transmute(GUID::new()?) },
+            MonitorContainerId: unsafe {
+                mem::transmute::<GUID, wdf_umdf_sys::_GUID>(GUID::new()?)
+            },
             MonitorType:
                 DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY::DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI,
 
@@ -288,7 +289,7 @@ impl MonitorContext {
 
         let hw_cursor = IDARG_IN_SETUP_HWCURSOR {
             CursorInfo: cursor_info,
-            hNewCursorDataAvailable: mouse_event.0 as *mut c_void,
+            hNewCursorDataAvailable: mouse_event.0,
         };
 
         let res = unsafe { IddCxMonitorSetupHardwareCursor(self.device, &hw_cursor) };
