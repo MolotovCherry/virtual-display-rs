@@ -29,4 +29,4 @@ jobs:
 
       - name: Clippy
         working-directory: rust
-        run: cargo clippy --all-features --verbose -- --deny warnings
+        run: cargo clippy --all-features -- --deny warnings
