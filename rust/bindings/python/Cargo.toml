@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.22.0", features = ["abi3", "abi3-py37"] }
+pyo3 = { version = "0.22.1", features = ["abi3", "abi3-py37"] }
 driver-ipc = { path = "../../driver-ipc" }
 
 [lints]
