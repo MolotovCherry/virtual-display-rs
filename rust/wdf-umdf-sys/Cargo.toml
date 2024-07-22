@@ -9,9 +9,9 @@ workspace = true
 [dependencies]
 paste = "1.0.15"
 bytemuck = "1.16.1"
-thiserror = "1.0.62"
+thiserror = "1.0.63"
 
 [build-dependencies]
 bindgen = "0.69.4"
-thiserror = "1.0.62"
+thiserror = "1.0.63"
 winreg = "0.52.0"
