@@ -19,7 +19,7 @@ bytemuck = { version = "1.16.1", features = ["derive"] }
 serde_json = "1.0.120"
 driver-ipc = { path = "../driver-ipc" }
 driver-logger = { path = "../driver-logger" }
-tokio = { version = "1.38.1", features = [
+tokio = { version = "1.39.1", features = [
     "macros",
     "net",
     "rt-multi-thread",
@@ -41,7 +41,7 @@ features = [
 
 [build-dependencies]
 winres = "0.1.12"
-vergen = { version = "8.3.2", features = ["git", "gitcl"] }
+vergen-gix = { version = "1.0.0", features = ["build"] }
 
 [package.metadata.winres]
 OriginalFilename = "VirtualDisplayDriver.dll"

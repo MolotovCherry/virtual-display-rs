@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use vergen::EmitBuilder;
+use vergen_gix::{Emitter, GixBuilder};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut winres = winres::WindowsResource::new();
@@ -28,11 +28,15 @@ LANGUAGE 0x9, 0x1
         .unwrap();
 
     // need linked c runtime for umdf includes
-    println!("cargo:rustc-link-lib=static=ucrt");
+    println!("cargo::rustc-link-lib=static=ucrt");
     //println!("cargo:rustc-link-lib=static=vcruntime");
 
+    println!("cargo::rerun-if-changed=build.rs");
+
     // emit vergen build instructions
-    EmitBuilder::builder().all_git().git_sha(true).emit()?;
+    Emitter::default()
+        .add_instructions(&GixBuilder::all_git()?)?
+        .emit()?;
 
     Ok(())
 }
