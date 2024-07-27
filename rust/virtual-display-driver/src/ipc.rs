@@ -1,7 +1,7 @@
 use std::{
     mem::size_of,
     ptr::{addr_of_mut, NonNull},
-    sync::{Mutex, OnceLock},
+    sync::{LazyLock, Mutex, OnceLock},
     thread,
 };
 
@@ -26,7 +26,7 @@ use windows::Win32::{
     System::SystemServices::SECURITY_DESCRIPTOR_REVISION1,
 };
 
-use crate::{context::DeviceContext, helpers::LazyLock};
+use crate::context::DeviceContext;
 
 pub static ADAPTER: OnceLock<AdapterObject> = OnceLock::new();
 pub static MONITOR_MODES: LazyLock<Mutex<Vec<MonitorObject>>> =

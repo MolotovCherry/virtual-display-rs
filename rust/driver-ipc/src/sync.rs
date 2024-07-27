@@ -1,12 +1,12 @@
 mod client;
 mod driver_client;
 
+use std::sync::LazyLock;
+
 pub use client::{Client, EventsSubscription};
 pub use driver_client::DriverClient;
 
 use tokio::runtime::{Builder, Runtime};
-
-use crate::utils::LazyLock;
 
 static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     Builder::new_multi_thread()
