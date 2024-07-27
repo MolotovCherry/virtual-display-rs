@@ -58,10 +58,10 @@ macro_rules! IddCxCall {
             >
         > = OnceLock::new();
 
-        let fn_handle: &Result<
+        let fn_handle: Result<
             ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
             IddCxError
-        > = CACHED_FN.get_or_init(|| {
+        > = *CACHED_FN.get_or_init(|| {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::IDDFUNCENUM::[<$name TableIndex>].0 as usize;
 
@@ -89,16 +89,16 @@ macro_rules! IddCxCall {
             }
         });
 
-        // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
-        let fn_handle = fn_handle.map(|f| unsafe { f.unwrap_unchecked() });
-
         match fn_handle {
-            Ok(fn_handle) => {
+            Ok(f) => {
+                // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
+                let f = unsafe { f.unwrap_unchecked() };
+
                 // SAFETY: Pointer to globals is always immutable
                 let globals = unsafe { ::wdf_umdf_sys::IddDriverGlobals };
 
                 // SAFETY: None. User is responsible for safety and must use their own unsafe block
-                let result = unsafe { fn_handle(globals, $($args),*) };
+                let result = unsafe { f(globals, $($args),*) };
 
                 if $crate::is_nt_error(&result, $other_is_error) {
                     Err(result.into())
