@@ -74,10 +74,7 @@ macro_rules! WdfCall {
             >
         > = OnceLock::new();
 
-        let fn_handle: Result<
-            ::paste::paste!(::wdf_umdf_sys::[<PFN_ $name:upper>]),
-            WdfError
-        > = *CACHED_FN.get_or_init(|| {
+        let f = CACHED_FN.get_or_init(|| {
             ::paste::paste! {
                 const FN_INDEX: usize = ::wdf_umdf_sys::WDFFUNCENUM::[<$name TableIndex>].0 as usize;
 
@@ -89,42 +86,37 @@ macro_rules! WdfCall {
                     let fn_table = unsafe { ::wdf_umdf_sys::WdfFunctions_02031 };
 
                     // SAFETY: Read-only, initialized by the time we use it, and checked to be in bounds
-                    let fn_handle = unsafe {
+                    let f = unsafe {
                         fn_table
                         .add(FN_INDEX)
                         .cast::<::wdf_umdf_sys::[<PFN_ $name:upper>]>()
                     };
 
                     // SAFETY: Ensured that this is present by if condition from `WdfIsFunctionAvailable!`
-                    let fn_handle = unsafe { fn_handle.read() };
+                    let f = unsafe { f.read() };
 
-                    Ok(fn_handle)
+                    Ok(f)
                 } else {
                     Err($crate::WdfError::WdfFunctionNotAvailable(concat!(stringify!($name), " is not available")))
                 }
             }
-        });
+        }).clone()?;
 
-        match fn_handle {
-            Ok(f) => {
-                // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
-                let f = unsafe { f.unwrap_unchecked() };
+        // SAFETY: Above: If it's Ok, then it's guaranteed to be Some(fn)
+        let f = unsafe { f.unwrap_unchecked() };
 
-                // SAFETY: Pointer to globals is always immutable
-                let globals = unsafe { ::wdf_umdf_sys::WdfDriverGlobals };
+        // SAFETY: Pointer to globals is always immutable
+        let globals = unsafe { ::wdf_umdf_sys::WdfDriverGlobals };
 
-                // SAFETY: None. User is responsible for safety and must use their own unsafe block
-                let result = unsafe { f(globals, $($args),*) };
+        // SAFETY: None. User is responsible for safety and must use their own unsafe block
+        let result = unsafe { f(globals, $($args),*) };
 
-                if $crate::is_nt_error(&result, $other_is_error) {
-                    Err(result.into())
-                } else {
-                    Ok(result.into())
-                }
-            }
-
-            Err(e) => Err(e)
+        if $crate::is_nt_error(&result, $other_is_error) {
+            Err(result.into())
+        } else {
+            Ok(result.into())
         }
+
     }};
 }
 
