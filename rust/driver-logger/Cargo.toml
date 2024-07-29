@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 log = { version = "0.4.22", features = ["std"] }
-env_filter = { version = "0.1.0", default-features = false, optional = true }
+env_filter = { version = "0.1.2", default-features = false, optional = true }
 widestring = "1.1.0"
 winreg = "0.52.0"
 thiserror = "1.0.63"
