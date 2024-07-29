@@ -35,7 +35,7 @@ pub struct Direct3DDevice {
     _dxgi_factory: IDXGIFactory5,
     _adapter: IDXGIAdapter1,
     pub device: ID3D11Device,
-    _device_context: ID3D11DeviceContext,
+    pub ctx: ID3D11DeviceContext,
 }
 
 impl Direct3DDevice {
@@ -67,11 +67,13 @@ impl Direct3DDevice {
         let device = device.ok_or("ID3D11Device not found")?;
         let device_context = device_context.ok_or("ID3D11DeviceContext not found")?;
 
-        Ok(Self {
+        let slf = Self {
             _dxgi_factory: dxgi_factory,
             _adapter: adapter,
             device,
-            _device_context: device_context,
-        })
+            ctx: device_context,
+        };
+
+        Ok(slf)
     }
 }

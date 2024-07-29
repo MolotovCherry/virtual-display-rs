@@ -1,4 +1,6 @@
+use core::slice;
 use std::{
+    ptr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -19,7 +21,13 @@ use windows::{
     core::{w, Interface},
     Win32::{
         Foundation::HANDLE as WHANDLE,
-        Graphics::Dxgi::IDXGIDevice,
+        Graphics::{
+            Direct3D11::{
+                ID3D11Resource, ID3D11Texture2D, D3D11_CPU_ACCESS_READ, D3D11_MAPPED_SUBRESOURCE,
+                D3D11_MAP_READ,  D3D11_TEXTURE2D_DESC,
+            },
+            Dxgi::{IDXGIDevice, IDXGIResource},
+        },
         System::Threading::{
             AvRevertMmThreadCharacteristics, AvSetMmThreadCharacteristicsW, WaitForSingleObject,
         },
@@ -104,6 +112,8 @@ impl SwapChainProcessor {
             return;
         }
 
+        let mut image_buffer: Vec<u8> = Vec::new();
+
         loop {
             let mut buffer = IDARG_OUT_RELEASEANDACQUIREBUFFER::default();
             let hr: NTSTATUS =
@@ -130,6 +140,71 @@ impl SwapChainProcessor {
                 // The wait was cancelled or something unexpected happened
                 break;
             } else if hr.is_success() {
+                let resource = unsafe { IDXGIResource::from_raw(buffer.MetaData.pSurface.cast()) };
+                let tex = unsafe { resource.cast::<ID3D11Texture2D>().unwrap_unchecked() };
+
+                let mut tex_desc = D3D11_TEXTURE2D_DESC::default();
+                unsafe {
+                    tex.GetDesc(&mut tex_desc);
+                }
+
+                tex_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as _;
+
+                let target_tex = ptr::null_mut();
+                let res = unsafe {
+                    device
+                        .device
+                        .CreateTexture2D(&tex_desc, None, Some(target_tex))
+                };
+
+                if let Err(e) = res {
+                    error!("Failed to CreateTexture2D: {e:?}");
+                    return;
+                }
+
+                let Some(target_tex) = (unsafe { &mut *target_tex }) else {
+                    error!("Created CreateTexture2D unexpectedly None");
+                    return;
+                };
+
+                let target_res = unsafe { target_tex.cast::<ID3D11Resource>().unwrap_unchecked() };
+                let tex_res = unsafe { tex.cast::<ID3D11Resource>().unwrap_unchecked() };
+                unsafe {
+                    device.ctx.CopyResource(&target_res, &tex_res);
+                }
+
+                let target_tex = unsafe { target_tex.cast::<ID3D11Texture2D>().unwrap_unchecked() };
+
+                // copy resource to cpu
+                let mut tex_desc = D3D11_TEXTURE2D_DESC::default();
+                unsafe {
+                    target_tex.GetDesc(&mut tex_desc);
+                }
+
+                let mut resource = D3D11_MAPPED_SUBRESOURCE::default();
+                let result = unsafe {
+                    device
+                        .ctx
+                        .Map(&target_res, 0, D3D11_MAP_READ, 0, Some(&mut resource))
+                };
+                if let Err(e) = result {
+                    error!("Map failed: {e}");
+                    return;
+                }
+
+                let row_pitch = resource.RowPitch;
+                let height = tex_desc.Height;
+                let data = unsafe {
+                    slice::from_raw_parts(
+                        resource.pData.cast::<u8>(),
+                        (row_pitch * height) as usize,
+                    )
+                };
+
+                unsafe {
+                    device.ctx.Unmap(&target_res, 0);
+                }
+
                 // This is the most performance-critical section of code in an IddCx driver. It's important that whatever
                 // is done with the acquired surface be finished as quickly as possible.
                 let hr = unsafe { IddCxSwapChainFinishedProcessingFrame(swap_chain) };
