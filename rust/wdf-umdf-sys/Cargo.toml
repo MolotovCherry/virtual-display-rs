@@ -8,7 +8,7 @@ workspace = true
 
 [dependencies]
 paste = "1.0.15"
-bytemuck = "1.16.1"
+bytemuck = "1.16.3"
 thiserror = "1.0.63"
 
 [build-dependencies]
