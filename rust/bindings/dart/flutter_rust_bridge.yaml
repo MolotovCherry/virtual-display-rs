@@ -1,0 +1,3 @@
+rust_input: crate::api # Space-separated list of rust modules
+dart_output: lib/src/generated # Directory
+web: false

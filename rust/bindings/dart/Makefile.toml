@@ -1,0 +1,10 @@
+[tasks.generate]
+install_crate = "flutter_rust_bridge_codegen@^2.2.0"
+script = '''
+    flutter_rust_bridge_codegen generate
+    '''
+[tasks.test]
+clear = true
+script = '''
+    dart --enable-experiment=native-assets test
+    '''

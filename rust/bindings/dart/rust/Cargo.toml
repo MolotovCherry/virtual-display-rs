@@ -1,0 +1,16 @@
+[package]
+name = "dart_vdd"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+flutter_rust_bridge = "=2.2.0"
+
+[build-dependencies]
+flutter_rust_bridge_codegen = "2.2.0"
