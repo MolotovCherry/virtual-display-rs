@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 windows-service = "0.7.0"
 driver-ipc = { path = "../driver-ipc" }
-clap = { version = "4.5.13", features = ["derive"] }
+clap = { version = "4.5.15", features = ["derive"] }
 winreg = "0.52.0"
 serde_json = "1.0.122"
 
