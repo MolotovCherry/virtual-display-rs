@@ -47,6 +47,7 @@ dependencies = [
  "anyhow",
  "atomic",
  "backtrace",
+ "chrono",
 ]
 
 [[package]]
@@ -610,8 +611,11 @@ dependencies = [
 name = "dart_vdd"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "driver-ipc",
  "flutter_rust_bridge",
  "flutter_rust_bridge_codegen",
+ "tokio-stream",
 ]
 
 [[package]]
@@ -892,6 +896,7 @@ dependencies = [
  "build-target",
  "bytemuck",
  "byteorder",
+ "chrono",
  "console_error_panic_hook",
  "dart-sys-fork",
  "delegate-attr",

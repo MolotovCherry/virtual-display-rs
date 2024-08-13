@@ -1,17 +1,23 @@
-pub mod sub_module;
+pub mod client;
+
+pub use client::*;
+
+pub use driver_ipc::Mode;
+pub use driver_ipc::Monitor;
 
 use flutter_rust_bridge::frb;
-pub use sub_module::*;
 
-pub struct TestRustApi {}
+#[frb(mirror(Monitor), dart_metadata=("freezed"))]
+struct _Monitor {
+    pub id: u32,
+    pub name: Option<String>,
+    pub enabled: bool,
+    pub modes: Vec<driver_ipc::Mode>,
+}
 
-impl TestRustApi {
-    #[frb(sync)]
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn test(&self) {
-        println!("TestRustApi.test");
-    }
+#[frb(mirror(Mode), dart_metadata=("freezed"))]
+struct _Mode {
+    pub width: u32,
+    pub height: u32,
+    pub refresh_rates: Vec<u32>,
 }

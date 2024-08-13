@@ -10,7 +10,10 @@ crate-type = ["cdylib"]
 workspace = true
 
 [dependencies]
-flutter_rust_bridge = "=2.2.0"
+flutter_rust_bridge = { version = "=2.2.0", features = ["chrono"] }
+driver-ipc = { path = "../../../driver-ipc" }
+tokio-stream = "0.1.15"
+chrono = "0.4.38"
 
 [build-dependencies]
 flutter_rust_bridge_codegen = "2.2.0"

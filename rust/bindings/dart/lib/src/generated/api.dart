@@ -5,21 +5,24 @@
 
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'api.freezed.dart';
 
-class TestRustApi {
-  const TestRustApi.raw();
+@freezed
+class Mode with _$Mode {
+  const factory Mode({
+    required int width,
+    required int height,
+    required Uint32List refreshRates,
+  }) = _Mode;
+}
 
-  factory TestRustApi() => RustLib.instance.api.crateApiTestRustApiNew();
-
-  Future<void> test() => RustLib.instance.api.crateApiTestRustApiTest(
-        that: this,
-      );
-
-  @override
-  int get hashCode => 0;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TestRustApi && runtimeType == other.runtimeType;
+@freezed
+class Monitor with _$Monitor {
+  const factory Monitor({
+    required int id,
+    String? name,
+    required bool enabled,
+    required List<Mode> modes,
+  }) = _Monitor;
 }
