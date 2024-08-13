@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::{io, mem, sync::Arc};
 
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -87,6 +87,13 @@ impl MockServer {
         &self.state
     }
 
+    pub async fn set_state(&mut self, state: Vec<Monitor>) {
+        let state = mem::replace(&mut self.state, state);
+        if state != self.state {
+            self.send_changed_event().await;
+        }
+    }
+
     pub fn check_next(&mut self, cb: impl FnOnce(ServerCommand) + Send + 'static) {
         let mut rx = self.command_tx.subscribe();
 
@@ -139,15 +146,25 @@ impl MockServer {
         };
 
         if changed {
-            let event = EventCommand::Changed(self.state.clone());
-            let mut event = serde_json::to_vec(&event).unwrap();
-            event.push(EOF);
-
-            server
-                .write_all(&event)
-                .await
-                .expect("Failed to write event");
+            self.send_changed_event().await;
         }
+    }
+
+    async fn send_changed_event(&self) {
+        let server = unsafe {
+            (self.server.as_ref() as *const _ as *mut named_pipe::NamedPipeServer)
+                .as_mut()
+                .unwrap()
+        };
+
+        let event = EventCommand::Changed(self.state.clone());
+        let mut event = serde_json::to_vec(&event).unwrap();
+        event.push(EOF);
+
+        server
+            .write_all(&event)
+            .await
+            .expect("Failed to write event");
     }
 }
 

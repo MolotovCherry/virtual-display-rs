@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'api/client.dart';
+import 'api/driver_client.dart';
 import 'api/mock.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -58,7 +59,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.2.0';
 
   @override
-  int get rustContentHash => -392242162;
+  int get rustContentHash => -527967754;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -74,6 +75,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiClientClientNotify(
       {required Client that, required List<Monitor> monitors});
 
+  Future<void> crateApiClientClientPersist({required List<Monitor> monitors});
+
   Stream<List<Monitor>> crateApiClientClientReceiveEvents(
       {required Client that});
 
@@ -85,11 +88,65 @@ abstract class RustLibApi extends BaseApi {
   Future<List<Monitor>> crateApiClientClientRequestState(
       {required Client that});
 
+  void crateApiDriverClientDriverClientAdd(
+      {required DriverClient that, required Monitor monitor});
+
+  void crateApiDriverClientDriverClientAddMode(
+      {required DriverClient that, required int id, required Mode mode});
+
+  Future<DriverClient> crateApiDriverClientDriverClientConnect(
+      {String? pipeName});
+
+  Monitor? crateApiDriverClientDriverClientFindMonitor(
+      {required DriverClient that, required int id});
+
+  int? crateApiDriverClientDriverClientNewId(
+      {required DriverClient that, int? preferredId});
+
+  Future<void> crateApiDriverClientDriverClientNotify(
+      {required DriverClient that});
+
+  Future<void> crateApiDriverClientDriverClientPersist(
+      {required DriverClient that});
+
+  Stream<List<Monitor>> crateApiDriverClientDriverClientReceiveEvents(
+      {required DriverClient that});
+
+  Future<List<Monitor>> crateApiDriverClientDriverClientRefreshState(
+      {required DriverClient that});
+
+  void crateApiDriverClientDriverClientRemove(
+      {required DriverClient that, required List<int> ids});
+
+  void crateApiDriverClientDriverClientRemoveAll({required DriverClient that});
+
+  void crateApiDriverClientDriverClientRemoveMode(
+      {required DriverClient that,
+      required int id,
+      required (int, int) resolution});
+
+  void crateApiDriverClientDriverClientReplaceMonitor(
+      {required DriverClient that, required Monitor monitor});
+
+  void crateApiDriverClientDriverClientSetEnabled(
+      {required DriverClient that,
+      required List<int> ids,
+      required bool enabled});
+
+  void crateApiDriverClientDriverClientSetMonitors(
+      {required DriverClient that, required List<Monitor> monitors});
+
+  List<Monitor> crateApiDriverClientDriverClientState(
+      {required DriverClient that});
+
   Future<MockServer> crateApiMockMockServerCreate({required String pipeName});
 
   String crateApiMockMockServerPipeName({required MockServer that});
 
   Future<void> crateApiMockMockServerPump({required MockServer that});
+
+  Future<void> crateApiMockMockServerSetState(
+      {required MockServer that, required List<Monitor> state});
 
   List<Monitor> crateApiMockMockServerState({required MockServer that});
 
@@ -98,6 +155,14 @@ abstract class RustLibApi extends BaseApi {
   RustArcDecrementStrongCountFnType get rust_arc_decrement_strong_count_Client;
 
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ClientPtr;
+
+  RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DriverClient;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DriverClient;
+
+  CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_DriverClientPtr;
 
   RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_MockServer;
@@ -170,6 +235,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiClientClientPersist({required List<Monitor> monitors}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_list_monitor(monitors, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 3, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_persist_error,
+      ),
+      constMeta: kCrateApiClientClientPersistConstMeta,
+      argValues: [monitors],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiClientClientPersistConstMeta =>
+      const TaskConstMeta(
+        debugName: "Client_persist",
+        argNames: ["monitors"],
+      );
+
+  @override
   Stream<List<Monitor>> crateApiClientClientReceiveEvents(
       {required Client that}) {
     final sink = RustStreamSink<List<Monitor>>();
@@ -180,7 +270,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that, serializer);
         sse_encode_StreamSink_list_monitor_Sse(sink, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 3, port: port_);
+            funcId: 4, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -209,7 +299,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that, serializer);
         sse_encode_list_prim_u_32_loose(ids, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 4, port: port_);
+            funcId: 5, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -234,7 +324,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 5, port: port_);
+            funcId: 6, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -261,7 +351,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 6, port: port_);
+            funcId: 7, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_monitor,
@@ -280,13 +370,452 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiDriverClientDriverClientAdd(
+      {required DriverClient that, required Monitor monitor}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_box_autoadd_monitor(monitor, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_duplicate_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientAddConstMeta,
+      argValues: [that, monitor],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientAddConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_add",
+        argNames: ["that", "monitor"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientAddMode(
+      {required DriverClient that, required int id, required Mode mode}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_u_32(id, serializer);
+        sse_encode_box_autoadd_mode(mode, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_add_mode_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientAddModeConstMeta,
+      argValues: [that, id, mode],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientAddModeConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_add_mode",
+        argNames: ["that", "id", "mode"],
+      );
+
+  @override
+  Future<DriverClient> crateApiDriverClientDriverClientConnect(
+      {String? pipeName}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_opt_String(pipeName, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 10, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData:
+            sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient,
+        decodeErrorData: sse_decode_init_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientConnectConstMeta,
+      argValues: [pipeName],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientConnectConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_connect",
+        argNames: ["pipeName"],
+      );
+
+  @override
+  Monitor? crateApiDriverClientDriverClientFindMonitor(
+      {required DriverClient that, required int id}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_u_32(id, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_box_autoadd_monitor,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientFindMonitorConstMeta,
+      argValues: [that, id],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientFindMonitorConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_find_monitor",
+        argNames: ["that", "id"],
+      );
+
+  @override
+  int? crateApiDriverClientDriverClientNewId(
+      {required DriverClient that, int? preferredId}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_opt_box_autoadd_u_32(preferredId, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_opt_box_autoadd_u_32,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientNewIdConstMeta,
+      argValues: [that, preferredId],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientNewIdConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_new_id",
+        argNames: ["that", "preferredId"],
+      );
+
+  @override
+  Future<void> crateApiDriverClientDriverClientNotify(
+      {required DriverClient that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 13, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_send_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientNotifyConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientNotifyConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_notify",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiDriverClientDriverClientPersist(
+      {required DriverClient that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 14, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_persist_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientPersistConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientPersistConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_persist",
+        argNames: ["that"],
+      );
+
+  @override
+  Stream<List<Monitor>> crateApiDriverClientDriverClientReceiveEvents(
+      {required DriverClient that}) {
+    final sink = RustStreamSink<List<Monitor>>();
+    unawaited(handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_StreamSink_list_monitor_Sse(sink, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 15, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_receive_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientReceiveEventsConstMeta,
+      argValues: [that, sink],
+      apiImpl: this,
+    )));
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientReceiveEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_receive_events",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Future<List<Monitor>> crateApiDriverClientDriverClientRefreshState(
+      {required DriverClient that}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 16, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_monitor,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientRefreshStateConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientRefreshStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_refresh_state",
+        argNames: ["that"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientRemove(
+      {required DriverClient that, required List<int> ids}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_list_prim_u_32_loose(ids, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientRemoveConstMeta,
+      argValues: [that, ids],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientRemoveConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_remove",
+        argNames: ["that", "ids"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientRemoveAll({required DriverClient that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientRemoveAllConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientRemoveAllConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_remove_all",
+        argNames: ["that"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientRemoveMode(
+      {required DriverClient that,
+      required int id,
+      required (int, int) resolution}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_u_32(id, serializer);
+        sse_encode_box_autoadd_record_u_32_u_32(resolution, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_monitor_not_found_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientRemoveModeConstMeta,
+      argValues: [that, id, resolution],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientRemoveModeConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_remove_mode",
+        argNames: ["that", "id", "resolution"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientReplaceMonitor(
+      {required DriverClient that, required Monitor monitor}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_box_autoadd_monitor(monitor, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_monitor_not_found_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientReplaceMonitorConstMeta,
+      argValues: [that, monitor],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientReplaceMonitorConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_replace_monitor",
+        argNames: ["that", "monitor"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientSetEnabled(
+      {required DriverClient that,
+      required List<int> ids,
+      required bool enabled}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_list_prim_u_32_loose(ids, serializer);
+        sse_encode_bool(enabled, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientSetEnabledConstMeta,
+      argValues: [that, ids, enabled],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientSetEnabledConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_set_enabled",
+        argNames: ["that", "ids", "enabled"],
+      );
+
+  @override
+  void crateApiDriverClientDriverClientSetMonitors(
+      {required DriverClient that, required List<Monitor> monitors}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        sse_encode_list_monitor(monitors, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 22)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: sse_decode_duplicate_error,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientSetMonitorsConstMeta,
+      argValues: [that, monitors],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientSetMonitorsConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_set_monitors",
+        argNames: ["that", "monitors"],
+      );
+
+  @override
+  List<Monitor> crateApiDriverClientDriverClientState(
+      {required DriverClient that}) {
+    return handler.executeSync(SyncTask(
+      callFfi: () {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+            that, serializer);
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 23)!;
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_list_monitor,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiDriverClientDriverClientStateConstMeta,
+      argValues: [that],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiDriverClientDriverClientStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "DriverClient_state",
+        argNames: ["that"],
+      );
+
+  @override
   Future<MockServer> crateApiMockMockServerCreate({required String pipeName}) {
     return handler.executeNormal(NormalTask(
       callFfi: (port_) {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_String(pipeName, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 7, port: port_);
+            funcId: 24, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData:
@@ -312,7 +841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 25)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_String,
@@ -338,7 +867,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
             that, serializer);
         pdeCallFfi(generalizedFrbRustBinding, serializer,
-            funcId: 9, port: port_);
+            funcId: 26, port: port_);
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_unit,
@@ -356,13 +885,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiMockMockServerSetState(
+      {required MockServer that, required List<Monitor> state}) {
+    return handler.executeNormal(NormalTask(
+      callFfi: (port_) {
+        final serializer = SseSerializer(generalizedFrbRustBinding);
+        sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
+            that, serializer);
+        sse_encode_list_monitor(state, serializer);
+        pdeCallFfi(generalizedFrbRustBinding, serializer,
+            funcId: 27, port: port_);
+      },
+      codec: SseCodec(
+        decodeSuccessData: sse_decode_unit,
+        decodeErrorData: null,
+      ),
+      constMeta: kCrateApiMockMockServerSetStateConstMeta,
+      argValues: [that, state],
+      apiImpl: this,
+    ));
+  }
+
+  TaskConstMeta get kCrateApiMockMockServerSetStateConstMeta =>
+      const TaskConstMeta(
+        debugName: "MockServer_set_state",
+        argNames: ["that", "state"],
+      );
+
+  @override
   List<Monitor> crateApiMockMockServerState({required MockServer that}) {
     return handler.executeSync(SyncTask(
       callFfi: () {
         final serializer = SseSerializer(generalizedFrbRustBinding);
         sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
             that, serializer);
-        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 28)!;
       },
       codec: SseCodec(
         decodeSuccessData: sse_decode_list_monitor,
@@ -389,6 +946,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient;
 
   RustArcIncrementStrongCountFnType
+      get rust_arc_increment_strong_count_DriverClient => wire
+          .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient;
+
+  RustArcDecrementStrongCountFnType
+      get rust_arc_decrement_strong_count_DriverClient => wire
+          .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient;
+
+  RustArcIncrementStrongCountFnType
       get rust_arc_increment_strong_count_MockServer => wire
           .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer;
 
@@ -411,11 +976,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DriverClient
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DriverClientImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   MockServer
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return MockServerImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DriverClient
+      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DriverClientImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -432,6 +1013,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ClientImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  DriverClient
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DriverClientImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -457,6 +1046,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DriverClient
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return DriverClientImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   MockServer
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           dynamic raw) {
@@ -478,9 +1075,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AddModeError dco_decode_add_mode_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return AddModeError_MonitorNotFound(
+          id: dco_decode_u_32(raw[1]),
+        );
+      case 1:
+        return AddModeError_ModeExists(
+          monitorId: dco_decode_u_32(raw[1]),
+          width: dco_decode_u_32(raw[2]),
+          height: dco_decode_u_32(raw[3]),
+        );
+      case 2:
+        return AddModeError_RefreshRateExists(
+          monitorId: dco_decode_u_32(raw[1]),
+          width: dco_decode_u_32(raw[2]),
+          height: dco_decode_u_32(raw[3]),
+          refreshRate: dco_decode_u_32(raw[4]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  ConnectionError dco_decode_box_autoadd_connection_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_connection_error(raw);
+  }
+
+  @protected
+  Mode dco_decode_box_autoadd_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_mode(raw);
+  }
+
+  @protected
+  Monitor dco_decode_box_autoadd_monitor(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_monitor(raw);
+  }
+
+  @protected
+  (int, int) dco_decode_box_autoadd_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as (int, int);
+  }
+
+  @protected
+  RequestError dco_decode_box_autoadd_request_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_request_error(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -497,9 +1156,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DuplicateError dco_decode_duplicate_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return DuplicateError_Monitor(
+          id: dco_decode_u_32(raw[1]),
+        );
+      case 1:
+        return DuplicateError_Mode(
+          monitorId: dco_decode_u_32(raw[1]),
+          width: dco_decode_u_32(raw[2]),
+          height: dco_decode_u_32(raw[3]),
+        );
+      case 2:
+        return DuplicateError_RefreshRate(
+          monitorId: dco_decode_u_32(raw[1]),
+          width: dco_decode_u_32(raw[2]),
+          height: dco_decode_u_32(raw[3]),
+          refreshRate: dco_decode_u_32(raw[4]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeI64(raw);
+  }
+
+  @protected
+  InitError dco_decode_init_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return InitError_Connect(
+          inner: dco_decode_box_autoadd_connection_error(raw[1]),
+        );
+      case 1:
+        return InitError_RequestState(
+          inner: dco_decode_box_autoadd_request_error(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -560,9 +1262,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MonitorNotFoundError dco_decode_monitor_not_found_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return MonitorNotFoundError(
+      id: dco_decode_u_32(arr[0]),
+    );
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  Monitor? dco_decode_opt_box_autoadd_monitor(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_monitor(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  PersistError dco_decode_persist_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return PersistError_Open(
+          message: dco_decode_String(raw[1]),
+        );
+      case 1:
+        return PersistError_Set(
+          message: dco_decode_String(raw[1]),
+        );
+      case 2:
+        return PersistError_Serialize(
+          message: dco_decode_String(raw[1]),
+        );
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   @protected
@@ -573,6 +1319,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return ReceiveError(
       message: dco_decode_String(arr[0]),
+    );
+  }
+
+  @protected
+  (int, int) dco_decode_record_u_32_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      dco_decode_u_32(arr[0]),
+      dco_decode_u_32(arr[1]),
     );
   }
 
@@ -651,11 +1410,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DriverClient
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DriverClientImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   MockServer
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return MockServerImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DriverClient
+      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DriverClientImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -674,6 +1451,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return ClientImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  DriverClient
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DriverClientImpl.frbInternalSseDecode(
         sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
   }
 
@@ -703,6 +1489,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DriverClient
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return DriverClientImpl.frbInternalSseDecode(
+        sse_decode_usize(deserializer), sse_decode_i_32(deserializer));
+  }
+
+  @protected
   MockServer
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           SseDeserializer deserializer) {
@@ -726,9 +1521,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AddModeError sse_decode_add_mode_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_id = sse_decode_u_32(deserializer);
+        return AddModeError_MonitorNotFound(id: var_id);
+      case 1:
+        var var_monitorId = sse_decode_u_32(deserializer);
+        var var_width = sse_decode_u_32(deserializer);
+        var var_height = sse_decode_u_32(deserializer);
+        return AddModeError_ModeExists(
+            monitorId: var_monitorId, width: var_width, height: var_height);
+      case 2:
+        var var_monitorId = sse_decode_u_32(deserializer);
+        var var_width = sse_decode_u_32(deserializer);
+        var var_height = sse_decode_u_32(deserializer);
+        var var_refreshRate = sse_decode_u_32(deserializer);
+        return AddModeError_RefreshRateExists(
+            monitorId: var_monitorId,
+            width: var_width,
+            height: var_height,
+            refreshRate: var_refreshRate);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  ConnectionError sse_decode_box_autoadd_connection_error(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_connection_error(deserializer));
+  }
+
+  @protected
+  Mode sse_decode_box_autoadd_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_mode(deserializer));
+  }
+
+  @protected
+  Monitor sse_decode_box_autoadd_monitor(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_monitor(deserializer));
+  }
+
+  @protected
+  (int, int) sse_decode_box_autoadd_record_u_32_u_32(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_record_u_32_u_32(deserializer));
+  }
+
+  @protected
+  RequestError sse_decode_box_autoadd_request_error(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_request_error(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
   }
 
   @protected
@@ -746,9 +1610,56 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DuplicateError sse_decode_duplicate_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_id = sse_decode_u_32(deserializer);
+        return DuplicateError_Monitor(id: var_id);
+      case 1:
+        var var_monitorId = sse_decode_u_32(deserializer);
+        var var_width = sse_decode_u_32(deserializer);
+        var var_height = sse_decode_u_32(deserializer);
+        return DuplicateError_Mode(
+            monitorId: var_monitorId, width: var_width, height: var_height);
+      case 2:
+        var var_monitorId = sse_decode_u_32(deserializer);
+        var var_width = sse_decode_u_32(deserializer);
+        var var_height = sse_decode_u_32(deserializer);
+        var var_refreshRate = sse_decode_u_32(deserializer);
+        return DuplicateError_RefreshRate(
+            monitorId: var_monitorId,
+            width: var_width,
+            height: var_height,
+            refreshRate: var_refreshRate);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  InitError sse_decode_init_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_inner = sse_decode_box_autoadd_connection_error(deserializer);
+        return InitError_Connect(inner: var_inner);
+      case 1:
+        var var_inner = sse_decode_box_autoadd_request_error(deserializer);
+        return InitError_RequestState(inner: var_inner);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -818,6 +1729,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  MonitorNotFoundError sse_decode_monitor_not_found_error(
+      SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_u_32(deserializer);
+    return MonitorNotFoundError(id: var_id);
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -829,10 +1748,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Monitor? sse_decode_opt_box_autoadd_monitor(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_monitor(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PersistError sse_decode_persist_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_message = sse_decode_String(deserializer);
+        return PersistError_Open(message: var_message);
+      case 1:
+        var var_message = sse_decode_String(deserializer);
+        return PersistError_Set(message: var_message);
+      case 2:
+        var var_message = sse_decode_String(deserializer);
+        return PersistError_Serialize(message: var_message);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   ReceiveError sse_decode_receive_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_message = sse_decode_String(deserializer);
     return ReceiveError(message: var_message);
+  }
+
+  @protected
+  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_field0 = sse_decode_u_32(deserializer);
+    var var_field1 = sse_decode_u_32(deserializer);
+    return (var_field0, var_field1);
   }
 
   @protected
@@ -916,11 +1885,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DriverClientImpl).frbInternalSseEncode(move: true),
+        serializer);
+  }
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           MockServer self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as MockServerImpl).frbInternalSseEncode(move: true), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DriverClientImpl).frbInternalSseEncode(move: false),
+        serializer);
   }
 
   @protected
@@ -939,6 +1928,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ClientImpl).frbInternalSseEncode(move: false), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DriverClientImpl).frbInternalSseEncode(move: false),
+        serializer);
   }
 
   @protected
@@ -963,6 +1962,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
         (self as ClientImpl).frbInternalSseEncode(move: null), serializer);
+  }
+
+  @protected
+  void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+        (self as DriverClientImpl).frbInternalSseEncode(move: null),
+        serializer);
   }
 
   @protected
@@ -994,9 +2003,80 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_add_mode_error(AddModeError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case AddModeError_MonitorNotFound(id: final id):
+        sse_encode_i_32(0, serializer);
+        sse_encode_u_32(id, serializer);
+      case AddModeError_ModeExists(
+          monitorId: final monitorId,
+          width: final width,
+          height: final height
+        ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(monitorId, serializer);
+        sse_encode_u_32(width, serializer);
+        sse_encode_u_32(height, serializer);
+      case AddModeError_RefreshRateExists(
+          monitorId: final monitorId,
+          width: final width,
+          height: final height,
+          refreshRate: final refreshRate
+        ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_u_32(monitorId, serializer);
+        sse_encode_u_32(width, serializer);
+        sse_encode_u_32(height, serializer);
+        sse_encode_u_32(refreshRate, serializer);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_connection_error(
+      ConnectionError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_connection_error(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_mode(Mode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_mode(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_monitor(Monitor self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_monitor(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_record_u_32_u_32(
+      (int, int) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_record_u_32_u_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_request_error(
+      RequestError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_request_error(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
   }
 
   @protected
@@ -1013,9 +2093,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_duplicate_error(
+      DuplicateError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case DuplicateError_Monitor(id: final id):
+        sse_encode_i_32(0, serializer);
+        sse_encode_u_32(id, serializer);
+      case DuplicateError_Mode(
+          monitorId: final monitorId,
+          width: final width,
+          height: final height
+        ):
+        sse_encode_i_32(1, serializer);
+        sse_encode_u_32(monitorId, serializer);
+        sse_encode_u_32(width, serializer);
+        sse_encode_u_32(height, serializer);
+      case DuplicateError_RefreshRate(
+          monitorId: final monitorId,
+          width: final width,
+          height: final height,
+          refreshRate: final refreshRate
+        ):
+        sse_encode_i_32(2, serializer);
+        sse_encode_u_32(monitorId, serializer);
+        sse_encode_u_32(width, serializer);
+        sse_encode_u_32(height, serializer);
+        sse_encode_u_32(refreshRate, serializer);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_init_error(InitError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case InitError_Connect(inner: final inner):
+        sse_encode_i_32(0, serializer);
+        sse_encode_box_autoadd_connection_error(inner, serializer);
+      case InitError_RequestState(inner: final inner):
+        sse_encode_i_32(1, serializer);
+        sse_encode_box_autoadd_request_error(inner, serializer);
+      default:
+        throw UnimplementedError('');
+    }
   }
 
   @protected
@@ -1079,6 +2207,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_monitor_not_found_error(
+      MonitorNotFoundError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.id, serializer);
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1089,9 +2224,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_monitor(
+      Monitor? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_monitor(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_persist_error(PersistError self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case PersistError_Open(message: final message):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(message, serializer);
+      case PersistError_Set(message: final message):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(message, serializer);
+      case PersistError_Serialize(message: final message):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(message, serializer);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   void sse_encode_receive_error(ReceiveError self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.$1, serializer);
+    sse_encode_u_32(self.$2, serializer);
   }
 
   @protected
@@ -1208,6 +2389,184 @@ class ClientImpl extends RustOpaque implements Client {
 }
 
 @sealed
+class DriverClientImpl extends RustOpaque implements DriverClient {
+  // Not to be used by end users
+  DriverClientImpl.frbInternalDcoDecode(List<dynamic> wire)
+      : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  DriverClientImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+      : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_DriverClient,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_DriverClient,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_DriverClientPtr,
+  );
+
+  /// Add a new monitor.
+  ///
+  /// Returns an error if a monitor with this ID already exists, or if the
+  /// monitor is invalid. A monitor is invalid if it has duplicate modes, or
+  /// if any of its modes has duplicate refresh rates.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void add({required Monitor monitor}) => RustLib.instance.api
+      .crateApiDriverClientDriverClientAdd(that: this, monitor: monitor);
+
+  /// Add a mode to the monitor with the given ID.
+  ///
+  /// Returns an error if the monitor does not exist, or if the mode already
+  /// exists on that monitor, or if the mode is invalid. A mode is invalid if
+  /// it has duplicate refresh rates.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void addMode({required int id, required Mode mode}) => RustLib.instance.api
+      .crateApiDriverClientDriverClientAddMode(that: this, id: id, mode: mode);
+
+  /// Find the monitor with the given ID.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  Monitor? findMonitor({required int id}) => RustLib.instance.api
+      .crateApiDriverClientDriverClientFindMonitor(that: this, id: id);
+
+  /// Get the closest available free ID.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  ///
+  /// Note: Duplicate monitors are ignored when send to the Driver using
+  /// [DriverClient.notify].
+  int? newId({int? preferredId}) =>
+      RustLib.instance.api.crateApiDriverClientDriverClientNewId(
+          that: this, preferredId: preferredId);
+
+  /// Send the current client state to the driver.
+  ///
+  /// State changes of the client are not automatically sent to the driver.
+  /// You must manually call this method to send changes to the driver.
+  Future<void> notify() =>
+      RustLib.instance.api.crateApiDriverClientDriverClientNotify(
+        that: this,
+      );
+
+  /// Write client state to the registry for current user.
+  ///
+  /// Next time the driver is started, it will load this state from the
+  /// registry. This might be after a reboot or a driver restart.
+  Future<void> persist() =>
+      RustLib.instance.api.crateApiDriverClientDriverClientPersist(
+        that: this,
+      );
+
+  /// Returns a stream of continuous events from the driver.
+  ///
+  /// This stream will always reflect the real state of the driver, regardless
+  /// of who changed its state. This means, if it is changed by another
+  /// process, this stream will still be updated.
+  Stream<List<Monitor>> receiveEvents() =>
+      RustLib.instance.api.crateApiDriverClientDriverClientReceiveEvents(
+        that: this,
+      );
+
+  /// Manually synchronize with the driver.
+  Future<List<Monitor>> refreshState() =>
+      RustLib.instance.api.crateApiDriverClientDriverClientRefreshState(
+        that: this,
+      );
+
+  /// Remove monitors by id.
+  ///
+  /// Silently skips IDs that do not exist.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void remove({required List<int> ids}) => RustLib.instance.api
+      .crateApiDriverClientDriverClientRemove(that: this, ids: ids);
+
+  /// Remove all monitors.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  void removeAll() =>
+      RustLib.instance.api.crateApiDriverClientDriverClientRemoveAll(
+        that: this,
+      );
+
+  /// Remove a mode from the monitor with the given ID.
+  ///
+  /// Returns an error if the monitor does not exist. If the mode does not
+  /// exist, it is silently skipped.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void removeMode({required int id, required (int, int) resolution}) =>
+      RustLib.instance.api.crateApiDriverClientDriverClientRemoveMode(
+          that: this, id: id, resolution: resolution);
+
+  /// Replace an existing monitor. The monitor is identified by its ID.
+  ///
+  /// Throws [MonitorNotFoundError] if the monitor does not exist.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void replaceMonitor({required Monitor monitor}) =>
+      RustLib.instance.api.crateApiDriverClientDriverClientReplaceMonitor(
+          that: this, monitor: monitor);
+
+  /// Set enabled state of all monitors with the given IDs.
+  ///
+  /// Silently skips incorrect IDs.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  void setEnabled({required List<int> ids, required bool enabled}) =>
+      RustLib.instance.api.crateApiDriverClientDriverClientSetEnabled(
+          that: this, ids: ids, enabled: enabled);
+
+  /// Replace all monitors.
+  ///
+  /// Note: This does not affect the driver. Manually call
+  /// [DriverClient.notify] to send these changes to the driver.
+  void setMonitors({required List<Monitor> monitors}) =>
+      RustLib.instance.api.crateApiDriverClientDriverClientSetMonitors(
+          that: this, monitors: monitors);
+
+  /// Get the current monitor state stored inside this client.
+  ///
+  /// Note: Client state might be stale. To synchronize with the driver,
+  /// manually call [DriverClient.refreshState].
+  List<Monitor> get state =>
+      RustLib.instance.api.crateApiDriverClientDriverClientState(
+        that: this,
+      );
+}
+
+@sealed
 class MockServerImpl extends RustOpaque implements MockServer {
   // Not to be used by end users
   MockServerImpl.frbInternalDcoDecode(List<dynamic> wire)
@@ -1233,6 +2592,9 @@ class MockServerImpl extends RustOpaque implements MockServer {
   Future<void> pump() => RustLib.instance.api.crateApiMockMockServerPump(
         that: this,
       );
+
+  Future<void> setState({required List<Monitor> state}) => RustLib.instance.api
+      .crateApiMockMockServerSetState(that: this, state: state);
 
   List<Monitor> get state => RustLib.instance.api.crateApiMockMockServerState(
         that: this,

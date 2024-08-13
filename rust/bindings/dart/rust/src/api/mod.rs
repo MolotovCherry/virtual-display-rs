@@ -1,7 +1,9 @@
 pub mod client;
+pub mod driver_client;
 pub mod mock;
 
 pub use client::*;
+pub use driver_client::*;
 pub use mock::*;
 
 pub use driver_ipc::Mode;

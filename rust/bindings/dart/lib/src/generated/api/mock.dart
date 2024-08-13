@@ -16,5 +16,7 @@ abstract class MockServer implements RustOpaqueInterface {
 
   Future<void> pump();
 
+  Future<void> setState({required List<Monitor> state});
+
   List<Monitor> get state;
 }

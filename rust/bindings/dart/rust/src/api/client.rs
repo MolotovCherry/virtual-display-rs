@@ -77,6 +77,15 @@ impl Client {
         }
         Ok(())
     }
+
+    /// Write `monitors` to the registry for current user.
+    ///
+    /// Next time the driver is started, it will load this state from the
+    /// registry. This might be after a reboot or a driver restart.
+    pub fn persist(monitors: &[ipc::Monitor]) -> Result<(), PersistError> {
+        ipc::Client::persist(monitors)?;
+        Ok(())
+    }
 }
 
 #[frb(dart_code = "
@@ -163,6 +172,36 @@ impl From<ipc::error::ReceiveError> for ReceiveError {
     fn from(err: ipc::error::ReceiveError) -> Self {
         ReceiveError {
             message: err.to_string(),
+        }
+    }
+}
+
+#[frb(dart_code = "
+    @override
+    String toString() => switch (this) {
+        PersistError_Open(:final message) => 'Failed to open registry key: $message',
+        PersistError_Set(:final message) => 'Failed to set registry key: $message',
+        PersistError_Serialize(:final message) => 'Failed to serialize data: $message',
+    };
+")]
+pub enum PersistError {
+    Open { message: String },
+    Set { message: String },
+    Serialize { message: String },
+}
+
+impl From<ipc::error::PersistError> for PersistError {
+    fn from(err: ipc::error::PersistError) -> Self {
+        match err {
+            ipc::error::PersistError::Open(err) => PersistError::Open {
+                message: err.to_string(),
+            },
+            ipc::error::PersistError::Set(err) => PersistError::Set {
+                message: err.to_string(),
+            },
+            ipc::error::PersistError::Serialize(err) => PersistError::Serialize {
+                message: err.to_string(),
+            },
         }
     }
 }

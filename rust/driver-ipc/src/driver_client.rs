@@ -274,7 +274,7 @@ impl DriverClient {
             .collect::<HashSet<_>>();
 
         if let Some(id) = preferred_id {
-            if !existing_ids.contains(&id) {
+            if existing_ids.contains(&id) {
                 return None;
             }
 
@@ -433,20 +433,7 @@ impl DriverClient {
             .iter()
             .any(|_mode| _mode.height == mode.height && _mode.width == mode.width)
         {
-            return Err(error::AddModeError::DupMode(mode.width, mode.height, id));
-        }
-
-        let iter = mode.refresh_rates.iter().copied();
-
-        for (i, &rr) in mode.refresh_rates.iter().enumerate() {
-            if iter.clone().skip(i).any(|_rr| _rr == rr) {
-                return Err(error::AddModeError::DupRefreshRate(
-                    rr,
-                    mode.width,
-                    mode.height,
-                    id,
-                ));
-            }
+            return Err(error::AddModeError::DupMode(id, mode.width, mode.height));
         }
 
         mon.modes.push(mode);
@@ -616,7 +603,7 @@ pub mod error {
     pub enum DuplicateError {
         #[error("Duplicate monitor with ID {0}")]
         Monitor(Id),
-        #[error("Duplicate mode {1}x{2} on monitor {0}")]
+        #[error("Duplicate mode {0}x{1} on monitor {2}")]
         Mode(u32, u32, Id),
         #[error("Duplicate refresh rate {0} on mode {1}x{2} on monitor {3}")]
         RefreshRate(u32, u32, u32, Id),

@@ -29,6 +29,10 @@ impl MockServer {
         self.server.state().to_owned()
     }
 
+    pub async fn set_state(&mut self, state: Vec<ipc::Monitor>) {
+        self.server.set_state(state).await;
+    }
+
     pub async fn pump(&mut self) {
         self.server.pump().await;
     }

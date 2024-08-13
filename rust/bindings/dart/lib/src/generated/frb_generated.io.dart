@@ -5,6 +5,7 @@
 
 import 'api.dart';
 import 'api/client.dart';
+import 'api/driver_client.dart';
 import 'api/mock.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -23,6 +24,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_ClientPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientPtr;
 
+  CrossPlatformFinalizerArg
+      get rust_arc_decrement_strong_count_DriverClientPtr => wire
+          ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClientPtr;
+
   CrossPlatformFinalizerArg get rust_arc_decrement_strong_count_MockServerPtr =>
       wire._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServerPtr;
 
@@ -35,8 +40,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           dynamic raw);
 
   @protected
+  DriverClient
+      dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw);
+
+  @protected
   MockServer
       dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
+          dynamic raw);
+
+  @protected
+  DriverClient
+      dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
           dynamic raw);
 
   @protected
@@ -47,6 +62,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Client
       dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient(
+          dynamic raw);
+
+  @protected
+  DriverClient
+      dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
           dynamic raw);
 
   @protected
@@ -63,6 +83,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           dynamic raw);
 
   @protected
+  DriverClient
+      dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          dynamic raw);
+
+  @protected
   MockServer
       dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           dynamic raw);
@@ -75,13 +100,40 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AddModeError dco_decode_add_mode_error(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  ConnectionError dco_decode_box_autoadd_connection_error(dynamic raw);
+
+  @protected
+  Mode dco_decode_box_autoadd_mode(dynamic raw);
+
+  @protected
+  Monitor dco_decode_box_autoadd_monitor(dynamic raw);
+
+  @protected
+  (int, int) dco_decode_box_autoadd_record_u_32_u_32(dynamic raw);
+
+  @protected
+  RequestError dco_decode_box_autoadd_request_error(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   ConnectionError dco_decode_connection_error(dynamic raw);
 
   @protected
+  DuplicateError dco_decode_duplicate_error(dynamic raw);
+
+  @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  InitError dco_decode_init_error(dynamic raw);
 
   @protected
   List<Mode> dco_decode_list_mode(dynamic raw);
@@ -105,10 +157,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Monitor dco_decode_monitor(dynamic raw);
 
   @protected
+  MonitorNotFoundError dco_decode_monitor_not_found_error(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  Monitor? dco_decode_opt_box_autoadd_monitor(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  PersistError dco_decode_persist_error(dynamic raw);
+
+  @protected
   ReceiveError dco_decode_receive_error(dynamic raw);
+
+  @protected
+  (int, int) dco_decode_record_u_32_u_32(dynamic raw);
 
   @protected
   RequestError dco_decode_request_error(dynamic raw);
@@ -137,8 +204,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           SseDeserializer deserializer);
 
   @protected
+  DriverClient
+      sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer);
+
+  @protected
   MockServer
       sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
+          SseDeserializer deserializer);
+
+  @protected
+  DriverClient
+      sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
           SseDeserializer deserializer);
 
   @protected
@@ -149,6 +226,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Client
       sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient(
+          SseDeserializer deserializer);
+
+  @protected
+  DriverClient
+      sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
           SseDeserializer deserializer);
 
   @protected
@@ -165,6 +247,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
           SseDeserializer deserializer);
 
   @protected
+  DriverClient
+      sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          SseDeserializer deserializer);
+
+  @protected
   MockServer
       sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           SseDeserializer deserializer);
@@ -177,13 +264,43 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  AddModeError sse_decode_add_mode_error(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  ConnectionError sse_decode_box_autoadd_connection_error(
+      SseDeserializer deserializer);
+
+  @protected
+  Mode sse_decode_box_autoadd_mode(SseDeserializer deserializer);
+
+  @protected
+  Monitor sse_decode_box_autoadd_monitor(SseDeserializer deserializer);
+
+  @protected
+  (int, int) sse_decode_box_autoadd_record_u_32_u_32(
+      SseDeserializer deserializer);
+
+  @protected
+  RequestError sse_decode_box_autoadd_request_error(
+      SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   ConnectionError sse_decode_connection_error(SseDeserializer deserializer);
 
   @protected
+  DuplicateError sse_decode_duplicate_error(SseDeserializer deserializer);
+
+  @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  InitError sse_decode_init_error(SseDeserializer deserializer);
 
   @protected
   List<Mode> sse_decode_list_mode(SseDeserializer deserializer);
@@ -207,10 +324,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Monitor sse_decode_monitor(SseDeserializer deserializer);
 
   @protected
+  MonitorNotFoundError sse_decode_monitor_not_found_error(
+      SseDeserializer deserializer);
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  Monitor? sse_decode_opt_box_autoadd_monitor(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  PersistError sse_decode_persist_error(SseDeserializer deserializer);
+
+  @protected
   ReceiveError sse_decode_receive_error(SseDeserializer deserializer);
+
+  @protected
+  (int, int) sse_decode_record_u_32_u_32(SseDeserializer deserializer);
 
   @protected
   RequestError sse_decode_request_error(SseDeserializer deserializer);
@@ -244,8 +377,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+      sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer);
+
+  @protected
+  void
       sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           MockServer self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer);
 
   @protected
   void
@@ -256,6 +399,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
       sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient(
           Client self, SseSerializer serializer);
+
+  @protected
+  void
+      sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer);
 
   @protected
   void
@@ -272,6 +420,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+      sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+          DriverClient self, SseSerializer serializer);
+
+  @protected
+  void
       sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerMockServer(
           MockServer self, SseSerializer serializer);
 
@@ -283,14 +436,45 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_add_mode_error(AddModeError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_connection_error(
+      ConnectionError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_mode(Mode self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_monitor(Monitor self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_record_u_32_u_32(
+      (int, int) self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_request_error(
+      RequestError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_connection_error(
       ConnectionError self, SseSerializer serializer);
 
   @protected
+  void sse_encode_duplicate_error(
+      DuplicateError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_init_error(InitError self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_mode(List<Mode> self, SseSerializer serializer);
@@ -317,10 +501,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_monitor(Monitor self, SseSerializer serializer);
 
   @protected
+  void sse_encode_monitor_not_found_error(
+      MonitorNotFoundError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_monitor(
+      Monitor? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_persist_error(PersistError self, SseSerializer serializer);
+
+  @protected
   void sse_encode_receive_error(ReceiveError self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_record_u_32_u_32((int, int) self, SseSerializer serializer);
 
   @protected
   void sse_encode_request_error(RequestError self, SseSerializer serializer);
@@ -388,6 +589,38 @@ class RustLibWire implements BaseWire {
           'frbgen_vdd_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient');
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClient =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerClientPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClientPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_vdd_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient');
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClientPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+      rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClientPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'frbgen_vdd_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient');
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClient =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDriverClientPtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

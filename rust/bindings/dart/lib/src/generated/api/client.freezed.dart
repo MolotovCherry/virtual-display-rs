@@ -231,6 +231,542 @@ abstract class ConnectionError_Failed extends ConnectionError {
 }
 
 /// @nodoc
+mixin _$PersistError {
+  String get message => throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message) open,
+    required TResult Function(String message) set_,
+    required TResult Function(String message) serialize,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message)? open,
+    TResult? Function(String message)? set_,
+    TResult? Function(String message)? serialize,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message)? open,
+    TResult Function(String message)? set_,
+    TResult Function(String message)? serialize,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PersistError_Open value) open,
+    required TResult Function(PersistError_Set value) set_,
+    required TResult Function(PersistError_Serialize value) serialize,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PersistError_Open value)? open,
+    TResult? Function(PersistError_Set value)? set_,
+    TResult? Function(PersistError_Serialize value)? serialize,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PersistError_Open value)? open,
+    TResult Function(PersistError_Set value)? set_,
+    TResult Function(PersistError_Serialize value)? serialize,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  $PersistErrorCopyWith<PersistError> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class $PersistErrorCopyWith<$Res> {
+  factory $PersistErrorCopyWith(
+          PersistError value, $Res Function(PersistError) then) =
+      _$PersistErrorCopyWithImpl<$Res, PersistError>;
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class _$PersistErrorCopyWithImpl<$Res, $Val extends PersistError>
+    implements $PersistErrorCopyWith<$Res> {
+  _$PersistErrorCopyWithImpl(this._value, this._then);
+
+  // ignore: unused_field
+  final $Val _value;
+  // ignore: unused_field
+  final $Res Function($Val) _then;
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+  }) {
+    return _then(_value.copyWith(
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ) as $Val);
+  }
+}
+
+/// @nodoc
+abstract class _$$PersistError_OpenImplCopyWith<$Res>
+    implements $PersistErrorCopyWith<$Res> {
+  factory _$$PersistError_OpenImplCopyWith(_$PersistError_OpenImpl value,
+          $Res Function(_$PersistError_OpenImpl) then) =
+      __$$PersistError_OpenImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$PersistError_OpenImplCopyWithImpl<$Res>
+    extends _$PersistErrorCopyWithImpl<$Res, _$PersistError_OpenImpl>
+    implements _$$PersistError_OpenImplCopyWith<$Res> {
+  __$$PersistError_OpenImplCopyWithImpl(_$PersistError_OpenImpl _value,
+      $Res Function(_$PersistError_OpenImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+  }) {
+    return _then(_$PersistError_OpenImpl(
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PersistError_OpenImpl extends PersistError_Open {
+  const _$PersistError_OpenImpl({required this.message}) : super._();
+
+  @override
+  final String message;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PersistError_OpenImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PersistError_OpenImplCopyWith<_$PersistError_OpenImpl> get copyWith =>
+      __$$PersistError_OpenImplCopyWithImpl<_$PersistError_OpenImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message) open,
+    required TResult Function(String message) set_,
+    required TResult Function(String message) serialize,
+  }) {
+    return open(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message)? open,
+    TResult? Function(String message)? set_,
+    TResult? Function(String message)? serialize,
+  }) {
+    return open?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message)? open,
+    TResult Function(String message)? set_,
+    TResult Function(String message)? serialize,
+    required TResult orElse(),
+  }) {
+    if (open != null) {
+      return open(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PersistError_Open value) open,
+    required TResult Function(PersistError_Set value) set_,
+    required TResult Function(PersistError_Serialize value) serialize,
+  }) {
+    return open(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PersistError_Open value)? open,
+    TResult? Function(PersistError_Set value)? set_,
+    TResult? Function(PersistError_Serialize value)? serialize,
+  }) {
+    return open?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PersistError_Open value)? open,
+    TResult Function(PersistError_Set value)? set_,
+    TResult Function(PersistError_Serialize value)? serialize,
+    required TResult orElse(),
+  }) {
+    if (open != null) {
+      return open(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PersistError_Open extends PersistError {
+  const factory PersistError_Open({required final String message}) =
+      _$PersistError_OpenImpl;
+  const PersistError_Open._() : super._();
+
+  @override
+  String get message;
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PersistError_OpenImplCopyWith<_$PersistError_OpenImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$PersistError_SetImplCopyWith<$Res>
+    implements $PersistErrorCopyWith<$Res> {
+  factory _$$PersistError_SetImplCopyWith(_$PersistError_SetImpl value,
+          $Res Function(_$PersistError_SetImpl) then) =
+      __$$PersistError_SetImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$PersistError_SetImplCopyWithImpl<$Res>
+    extends _$PersistErrorCopyWithImpl<$Res, _$PersistError_SetImpl>
+    implements _$$PersistError_SetImplCopyWith<$Res> {
+  __$$PersistError_SetImplCopyWithImpl(_$PersistError_SetImpl _value,
+      $Res Function(_$PersistError_SetImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+  }) {
+    return _then(_$PersistError_SetImpl(
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PersistError_SetImpl extends PersistError_Set {
+  const _$PersistError_SetImpl({required this.message}) : super._();
+
+  @override
+  final String message;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PersistError_SetImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PersistError_SetImplCopyWith<_$PersistError_SetImpl> get copyWith =>
+      __$$PersistError_SetImplCopyWithImpl<_$PersistError_SetImpl>(
+          this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message) open,
+    required TResult Function(String message) set_,
+    required TResult Function(String message) serialize,
+  }) {
+    return set_(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message)? open,
+    TResult? Function(String message)? set_,
+    TResult? Function(String message)? serialize,
+  }) {
+    return set_?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message)? open,
+    TResult Function(String message)? set_,
+    TResult Function(String message)? serialize,
+    required TResult orElse(),
+  }) {
+    if (set_ != null) {
+      return set_(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PersistError_Open value) open,
+    required TResult Function(PersistError_Set value) set_,
+    required TResult Function(PersistError_Serialize value) serialize,
+  }) {
+    return set_(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PersistError_Open value)? open,
+    TResult? Function(PersistError_Set value)? set_,
+    TResult? Function(PersistError_Serialize value)? serialize,
+  }) {
+    return set_?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PersistError_Open value)? open,
+    TResult Function(PersistError_Set value)? set_,
+    TResult Function(PersistError_Serialize value)? serialize,
+    required TResult orElse(),
+  }) {
+    if (set_ != null) {
+      return set_(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PersistError_Set extends PersistError {
+  const factory PersistError_Set({required final String message}) =
+      _$PersistError_SetImpl;
+  const PersistError_Set._() : super._();
+
+  @override
+  String get message;
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PersistError_SetImplCopyWith<_$PersistError_SetImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$PersistError_SerializeImplCopyWith<$Res>
+    implements $PersistErrorCopyWith<$Res> {
+  factory _$$PersistError_SerializeImplCopyWith(
+          _$PersistError_SerializeImpl value,
+          $Res Function(_$PersistError_SerializeImpl) then) =
+      __$$PersistError_SerializeImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$PersistError_SerializeImplCopyWithImpl<$Res>
+    extends _$PersistErrorCopyWithImpl<$Res, _$PersistError_SerializeImpl>
+    implements _$$PersistError_SerializeImplCopyWith<$Res> {
+  __$$PersistError_SerializeImplCopyWithImpl(
+      _$PersistError_SerializeImpl _value,
+      $Res Function(_$PersistError_SerializeImpl) _then)
+      : super(_value, _then);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({
+    Object? message = null,
+  }) {
+    return _then(_$PersistError_SerializeImpl(
+      message: null == message
+          ? _value.message
+          : message // ignore: cast_nullable_to_non_nullable
+              as String,
+    ));
+  }
+}
+
+/// @nodoc
+
+class _$PersistError_SerializeImpl extends PersistError_Serialize {
+  const _$PersistError_SerializeImpl({required this.message}) : super._();
+
+  @override
+  final String message;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PersistError_SerializeImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$PersistError_SerializeImplCopyWith<_$PersistError_SerializeImpl>
+      get copyWith => __$$PersistError_SerializeImplCopyWithImpl<
+          _$PersistError_SerializeImpl>(this, _$identity);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message) open,
+    required TResult Function(String message) set_,
+    required TResult Function(String message) serialize,
+  }) {
+    return serialize(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message)? open,
+    TResult? Function(String message)? set_,
+    TResult? Function(String message)? serialize,
+  }) {
+    return serialize?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message)? open,
+    TResult Function(String message)? set_,
+    TResult Function(String message)? serialize,
+    required TResult orElse(),
+  }) {
+    if (serialize != null) {
+      return serialize(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PersistError_Open value) open,
+    required TResult Function(PersistError_Set value) set_,
+    required TResult Function(PersistError_Serialize value) serialize,
+  }) {
+    return serialize(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PersistError_Open value)? open,
+    TResult? Function(PersistError_Set value)? set_,
+    TResult? Function(PersistError_Serialize value)? serialize,
+  }) {
+    return serialize?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PersistError_Open value)? open,
+    TResult Function(PersistError_Set value)? set_,
+    TResult Function(PersistError_Serialize value)? serialize,
+    required TResult orElse(),
+  }) {
+    if (serialize != null) {
+      return serialize(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PersistError_Serialize extends PersistError {
+  const factory PersistError_Serialize({required final String message}) =
+      _$PersistError_SerializeImpl;
+  const PersistError_Serialize._() : super._();
+
+  @override
+  String get message;
+
+  /// Create a copy of PersistError
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$PersistError_SerializeImplCopyWith<_$PersistError_SerializeImpl>
+      get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
 mixin _$RequestError {
   @optionalTypeArgs
   TResult when<TResult extends Object?>({

@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'client.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `from`, `from`, `from`, `from`, `from`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Client>>
 abstract class Client implements RustOpaqueInterface {
@@ -22,6 +22,13 @@ abstract class Client implements RustOpaqueInterface {
 
   /// Send new state to the driver.
   Future<void> notify({required List<Monitor> monitors});
+
+  /// Write `monitors` to the registry for current user.
+  ///
+  /// Next time the driver is started, it will load this state from the
+  /// registry. This might be after a reboot or a driver restart.
+  static Future<void> persist({required List<Monitor> monitors}) =>
+      RustLib.instance.api.crateApiClientClientPersist(monitors: monitors);
 
   /// Receive continuous events from the driver.
   ///
@@ -55,6 +62,31 @@ sealed class ConnectionError with _$ConnectionError implements FrbException {
   String toString() => switch (this) {
         ConnectionError_Failed(:final message) =>
           'Failed to open pipe: $message',
+      };
+}
+
+@freezed
+sealed class PersistError with _$PersistError implements FrbException {
+  const PersistError._();
+
+  const factory PersistError.open({
+    required String message,
+  }) = PersistError_Open;
+  const factory PersistError.set_({
+    required String message,
+  }) = PersistError_Set;
+  const factory PersistError.serialize({
+    required String message,
+  }) = PersistError_Serialize;
+
+  @override
+  String toString() => switch (this) {
+        PersistError_Open(:final message) =>
+          'Failed to open registry key: $message',
+        PersistError_Set(:final message) =>
+          'Failed to set registry key: $message',
+        PersistError_Serialize(:final message) =>
+          'Failed to serialize data: $message',
       };
 }
 
