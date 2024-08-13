@@ -1,6 +1,6 @@
-mod client;
+pub mod client;
 mod core;
-mod driver_client;
+pub mod driver_client;
 pub mod sync;
 
 pub use client::Client;
