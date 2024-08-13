@@ -20,7 +20,8 @@ pub struct MockServer {
 }
 
 impl MockServer {
-    pub fn new(name: &str) -> Self {
+    /// async because needs a tokio reactor to run. Will return immediately.
+    pub async fn new(name: &str) -> Self {
         let server = named_pipe::ServerOptions::new()
             .access_inbound(true)
             .access_outbound(true)

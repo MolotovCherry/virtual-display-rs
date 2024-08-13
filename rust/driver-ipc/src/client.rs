@@ -403,7 +403,7 @@ mod test {
     async fn receiver_stops_when_client_closed() {
         const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_client_closed";
 
-        let mut server = MockServer::new(PIPE_NAME);
+        let mut server = MockServer::new(PIPE_NAME).await;
 
         let client1 = Client::connect_to(PIPE_NAME)
             .await
@@ -438,7 +438,7 @@ mod test {
     async fn receiver_stops_when_server_closed() {
         const PIPE_NAME: &str = "virtualdisplaydriver-test-receiver_stops_when_server_closed";
 
-        let server = MockServer::new(PIPE_NAME);
+        let server = MockServer::new(PIPE_NAME).await;
 
         let client = Client::connect_to(PIPE_NAME)
             .await
@@ -463,7 +463,7 @@ mod test {
     async fn general_test_1() {
         const PIPE_NAME: &str = "virtualdisplaydriver-test-general_test_1";
 
-        let mut server = MockServer::new(PIPE_NAME);
+        let mut server = MockServer::new(PIPE_NAME).await;
 
         let client = Client::connect_to(PIPE_NAME)
             .await
