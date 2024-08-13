@@ -3,4 +3,10 @@
     "dart.vmAdditionalArgs": [
         "--enable-experiment=native-assets"
     ],
+    // Seperate target directory for cargo check from build directory to avoid
+    // bloking each other and cache invalidation
+    "rust-analyzer.checkOnSave.extraArgs": [
+        "--target-dir",
+        "${workspaceFolder}/target/check"
+    ],
 }
