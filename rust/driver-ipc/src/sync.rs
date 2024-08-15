@@ -1,5 +1,5 @@
-mod client;
-mod driver_client;
+pub mod client;
+pub mod driver_client;
 
 use std::sync::LazyLock;
 

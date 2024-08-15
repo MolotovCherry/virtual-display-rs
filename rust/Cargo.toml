@@ -8,6 +8,7 @@ members = [
     "driver-logger",
     "virtual-display-driver-cli",
     "bindings/python",
+    "bindings/dart/rust",
     "vdd-user-session-service",
 ]
 

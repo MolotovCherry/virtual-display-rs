@@ -248,7 +248,7 @@ mod test {
     fn event_receiver_not_canceled_after_drop() {
         const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver_not_canceled_after_drop";
 
-        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+        let mut server = RUNTIME.block_on(MockServer::new(PIPE_NAME));
 
         let client = Client::connect_to(PIPE_NAME).unwrap();
 
@@ -276,7 +276,7 @@ mod test {
     fn catch_unwind_when_receiver_panics() {
         const PIPE_NAME: &str = "virtualdisplaydriver-sync-catch_unwind_when_receiver_panics";
 
-        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+        let mut server = RUNTIME.block_on(MockServer::new(PIPE_NAME));
 
         let client = Client::connect_to(PIPE_NAME).unwrap();
 
@@ -306,7 +306,7 @@ mod test {
     fn event_receiver() {
         const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver";
 
-        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+        let mut server = RUNTIME.block_on(MockServer::new(PIPE_NAME));
 
         let client = Client::connect_to(PIPE_NAME).unwrap();
 
@@ -341,7 +341,7 @@ mod test {
     fn event_receiver_cancel_from_cb() {
         const PIPE_NAME: &str = "virtualdisplaydriver-sync-event_receiver_cancel_from_cb";
 
-        let mut server = RUNTIME.block_on(async { MockServer::new(PIPE_NAME) });
+        let mut server = RUNTIME.block_on(MockServer::new(PIPE_NAME));
 
         let client = Client::connect_to(PIPE_NAME).unwrap();
 
