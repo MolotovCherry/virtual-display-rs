@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:vdd/errors.dart' as vdd;
@@ -64,4 +65,6 @@ void main(List<String> args) async {
   } on vdd.InitError catch (e) {
     print("Did you forget to install the driver?\n$e");
   }
+
+  exit(0);
 }

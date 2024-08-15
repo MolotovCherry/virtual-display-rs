@@ -615,6 +615,7 @@ dependencies = [
  "driver-ipc",
  "flutter_rust_bridge",
  "flutter_rust_bridge_codegen",
+ "tokio",
  "tokio-stream",
 ]
 

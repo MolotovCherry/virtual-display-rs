@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:vdd/errors.dart' as vdd;
@@ -47,4 +48,6 @@ void main(List<String> args) async {
   await client.removeAll();
 
   await vdd.Client.persist(monitors: []);
+
+  exit(0);
 }

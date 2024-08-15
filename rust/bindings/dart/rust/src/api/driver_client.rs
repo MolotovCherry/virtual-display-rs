@@ -46,22 +46,25 @@ impl DriverClient {
     /// This stream will always reflect the real state of the driver, regardless
     /// of who changed its state. This means, if it is changed by another
     /// process, this stream will still be updated.
+    #[allow(clippy::unused_async)] // Must be async, because we need a tokio reactor.
     pub async fn receive_events(
         &self,
         sink: StreamSink<Vec<ipc::Monitor>>,
     ) -> Result<(), client::ReceiveError> {
         let mut stream = self.0.receive_events();
-        while let Some(v) = stream.next().await {
-            let result = match v {
-                Ok(ipc::EventCommand::Changed(monitors)) => sink.add(monitors),
-                Err(err) => sink.add_error(client::ReceiveError::from(err)),
-                Ok(_) => continue,
-            };
+        tokio::task::spawn(async move {
+            while let Some(v) = stream.next().await {
+                let result = match v {
+                    Ok(ipc::EventCommand::Changed(monitors)) => sink.add(monitors),
+                    Err(err) => sink.add_error(client::ReceiveError::from(err)),
+                    Ok(_) => continue,
+                };
 
-            if result.is_err() {
-                return Ok(());
+                if result.is_err() {
+                    break;
+                }
             }
-        }
+        });
         Ok(())
     }
 

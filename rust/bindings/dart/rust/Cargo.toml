@@ -14,6 +14,7 @@ flutter_rust_bridge = { version = "=2.2.0", features = ["chrono"] }
 driver-ipc = { path = "../../../driver-ipc" }
 tokio-stream = "0.1.15"
 chrono = "0.4.38"
+tokio = "1.39.2"
 
 [build-dependencies]
 flutter_rust_bridge_codegen = "2.2.0"

@@ -6,7 +6,7 @@ using Dart, to create and manage virtual monitors on Windows.
 
 > Note: This package uses [native
 > assets](https://github.com/dart-lang/sdk/issues/50565), which are not yet
-> stable. To use this package, you must enable it using the
+> stable. To use this package, you must enable it using
 > `--enable-experiment=native-assets` as the first flag on every dart command,
 > or, when using flutter, enable it in the flutter config using `flutter config
 > --enable-native-assets`.
@@ -153,7 +153,7 @@ setUpAll(() async {
 test('test', () async {
   // Pass in a unique pipe name
   final server = await vdd.MockServer.create(pipeName: "my_pipe_name");
-  final client = await vdd.Client.connect(server.pipeName);
+  final client = await vdd.Client.connect(pipeName: server.pipeName);
 
   // Use the client
   await client.notify(...);
