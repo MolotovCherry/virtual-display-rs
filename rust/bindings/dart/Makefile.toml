@@ -3,6 +3,13 @@ install_crate = "flutter_rust_bridge_codegen@^2.2.0"
 script = '''
     flutter_rust_bridge_codegen generate
     '''
+
+[tasks.generate-watch]
+install_crate = "flutter_rust_bridge_codegen@^2.2.0"
+script = '''
+    flutter_rust_bridge_codegen generate --watch
+    '''
+
 [tasks.test]
 clear = true
 script = '''
