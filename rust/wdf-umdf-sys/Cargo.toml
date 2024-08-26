@@ -12,6 +12,6 @@ bytemuck = "1.17.0"
 thiserror = "1.0.63"
 
 [build-dependencies]
-bindgen = "0.70.0"
+bindgen = "0.70.1"
 thiserror = "1.0.63"
 winreg = "0.52.0"
