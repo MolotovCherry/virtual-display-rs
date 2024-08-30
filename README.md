@@ -48,12 +48,12 @@ _Note: For users having trouble installing/running the app, please see [#49](htt
 
 ### Optional: Installing the driver with `nefcon` CLI
 
-0. You might need to install the driver certificate
+0. You might need to install the driver certificate and/or `install.reg`
 1. Get `nefconc` CLI
   - Download the [official latest release](https://github.com/nefarius/nefcon/releases/latest)
   - Or from our repo: [installer/nefconc.exe](./installer/files/nefconc.exe)
-3. Put `nefconc.exe` in the extracted portable folder
-4. Open console on this folder and run:
+2. Put `nefconc.exe` in the extracted portable folder
+3. Open console on this folder and run:
 
 ```
 .\nefconc.exe --remove-device-node --hardware-id Root\VirtualDisplayDriver --class-guid "4D36E968-E325-11CE-BFC1-08002BE10318"
