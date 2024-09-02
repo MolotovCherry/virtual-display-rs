@@ -2030,9 +2030,9 @@ dependencies = [
 
 [[package]]
 name = "vergen-gix"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbf11588e10333838eeb5b0d341e3364dfc1bfaf7c1b3beccf8f8706c49d5d34"
+checksum = "e353ce10596ac5821aaf76e4952360f6d08d3ece9498564d066167bb0f437c94"
 dependencies = [
  "anyhow",
  "derive_builder",

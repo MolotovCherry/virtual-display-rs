@@ -41,7 +41,7 @@ features = [
 
 [build-dependencies]
 winres = "0.1.12"
-vergen-gix = { version = "1.0.0", features = ["build"] }
+vergen-gix = { version = "1.0.1", features = ["build"] }
 
 [package.metadata.winres]
 OriginalFilename = "VirtualDisplayDriver.dll"
