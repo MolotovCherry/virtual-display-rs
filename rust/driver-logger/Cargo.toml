@@ -19,7 +19,7 @@ version = "0.52.0"
 features = ["Win32_Foundation", "Win32_System_EventLog"]
 
 [build-dependencies]
-winresource = "0.1.17"
+winresource = "0.1.19"
 
 [lints]
 workspace = true
