@@ -19,7 +19,7 @@ use windows::{
     core::{w, Interface},
     Win32::{
         Foundation::HANDLE as WHANDLE,
-        Graphics::Dxgi::IDXGIDevice,
+        Graphics::Dxgi::{IDXGIDevice, IDXGIResource},
         System::Threading::{
             AvRevertMmThreadCharacteristics, AvSetMmThreadCharacteristicsW, WaitForSingleObject,
         },
@@ -95,7 +95,7 @@ impl SwapChainProcessor {
         };
 
         let set_device = IDARG_IN_SWAPCHAINSETDEVICE {
-            pDevice: dxgi_device.into_raw().cast(),
+            pDevice: dxgi_device.as_raw().cast(),
         };
 
         let res = unsafe { IddCxSwapChainSetDevice(swap_chain, &set_device) };
@@ -130,8 +130,10 @@ impl SwapChainProcessor {
                 // The wait was cancelled or something unexpected happened
                 break;
             } else if hr.is_success() {
-                // This is the most performance-critical section of code in an IddCx driver. It's important that whatever
-                // is done with the acquired surface be finished as quickly as possible.
+                // Finishing the frame does not release the surface reference transferred by IddCx.
+                if !buffer.MetaData.pSurface.is_null() {
+                    drop(unsafe { IDXGIResource::from_raw(buffer.MetaData.pSurface.cast()) });
+                }
                 let hr = unsafe { IddCxSwapChainFinishedProcessingFrame(swap_chain) };
 
                 if hr.is_err() {
